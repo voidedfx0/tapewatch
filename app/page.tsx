@@ -86,6 +86,16 @@ export default function Home() {
           <div className="welcome-row">
             <div><div className="eyebrow">MONITORING WORKSPACE</div><h1>Website integrity, <span>in focus.</span></h1><p className="intro">A clear view of what changes across your DeWEB sites and circuits.</p></div>
             <button className="primary-button" onClick={() => { setShowAdd(true); setNotice(""); }}><Icon name="plus" size={17}/> Add a website</button>
+            <div className="motion-visual" aria-hidden="true">
+              <div className="motion-grid" />
+              <div className="motion-ring ring-outer" />
+              <div className="motion-ring ring-middle" />
+              <div className="motion-ring ring-inner" />
+              <div className="motion-core"><span className="core-mark" /></div>
+              <span className="motion-node node-a" /><span className="motion-node node-b" /><span className="motion-node node-c" />
+              <div className="motion-scan" />
+              <div className="motion-caption"><span className="motion-live-dot" /> INTEGRITY SIGNAL <b>READY TO CONNECT</b></div>
+            </div>
           </div>
 
           <div className="notice-bar"><span className="notice-icon"><Icon name="shield" size={17}/></span><div><strong>You're viewing the TapeWatch preview</strong><p>No live blockchain data or website monitoring is connected yet. Nothing here is presented as a verified result.</p></div><span className="preview-tag">PREVIEW</span></div>
