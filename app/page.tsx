@@ -31,6 +31,8 @@ export default function Home() {
   const [url, setUrl] = useState("");
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState("");
+  const [selectedSite, setSelectedSite] = useState<Site | null>(null);
+  const [detailTab, setDetailTab] = useState<"overview" | "changes" | "checks" | "settings">("overview");
 
   const filteredSites = useMemo(() => sites.filter((site) => site.url.toLowerCase().includes(query.toLowerCase())), [sites, query]);
 
@@ -57,7 +59,7 @@ export default function Home() {
         <div className="workspace-label">WORKSPACE</div>
         <nav className="nav-list" aria-label="Main navigation">
           <a className="nav-item active" href="#overview"><Icon name="grid"/> Overview</a>
-          <a className="nav-item" href="#websites"><Icon name="globe"/> Websites <span className="nav-count">{sites.length}</span></a>
+          <a className={`nav-item ${selectedSite ? "" : ""}`} href="#websites" onClick={() => setSelectedSite(null)}><Icon name="globe"/> Websites <span className="nav-count">{sites.length}</span></a>
           <a className="nav-item" href="#circuits"><Icon name="layers"/> Circuits</a>
           <a className="nav-item" href="#activity"><Icon name="activity"/> Activity</a>
         </nav>
@@ -78,11 +80,33 @@ export default function Home() {
 
       <section className="main-panel" id="overview">
         <header className="topbar">
-          <div className="breadcrumbs">Workspace <span>/</span> <strong>Overview</strong></div>
+          <div className="breadcrumbs">Workspace <span>/</span> <strong>{selectedSite ? "Website details" : "Overview"}</strong></div>
           <div className="topbar-right"><span className="preview-pill"><span/> Preview environment</span><button className="icon-button" aria-label="Search websites" onClick={() => document.getElementById("site-search")?.focus()}><Icon name="search"/></button></div>
         </header>
 
-        <div className="content">
+        {selectedSite ? (
+          <div className="content detail-content">
+            <button className="back-link" onClick={() => { setSelectedSite(null); setDetailTab("overview"); }}>← Back to websites</button>
+            <div className="detail-hero">
+              <div className="detail-site-icon"><Icon name="globe" size={24}/></div>
+              <div className="detail-site-copy"><div className="eyebrow">WEBSITE WORKSPACE · SETUP DRAFT</div><h1>{selectedSite.url}</h1><p className="intro">A dedicated view for this website's integrity and monitoring setup.</p></div>
+              <span className="draft-status detail-status"><span/> Setup draft</span>
+            </div>
+            <div className="detail-notice"><Icon name="shield" size={18}/><div><strong>Monitoring has not started</strong><p>This entry is saved only in the current browser preview. No website checks, file hashes, or blockchain events have been collected.</p></div></div>
+            <div className="detail-tabs" role="tablist" aria-label="Website details sections">
+              {(["overview", "changes", "checks", "settings"] as const).map((tab) => <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? "detail-tab active" : "detail-tab"} onClick={() => setDetailTab(tab)}>{tab === "overview" ? "Overview" : tab === "changes" ? "Change history" : tab === "checks" ? "Checks" : "Settings"}</button>)}
+            </div>
+            {detailTab === "overview" && <div className="detail-grid">
+              <section className="detail-card detail-wide"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="shield" size={17}/></span><h2>Integrity status</h2></div><span className="coming-soon">AWAITING SETUP</span></div><div className="integrity-placeholder"><div className="integrity-ring"><Icon name="shield" size={27}/></div><div><strong>Not yet verified</strong><p>An integrity result will appear after a verification source is configured and the first check completes.</p></div></div></section>
+              <section className="detail-card"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="clock" size={17}/></span><h2>Monitoring schedule</h2></div></div><div className="detail-metric">—</div><p className="detail-muted">No checks scheduled</p></section>
+              <section className="detail-card"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Detected changes</h2></div></div><div className="detail-metric">—</div><p className="detail-muted">No change history available</p></section>
+              <section className="detail-card detail-wide"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="globe" size={17}/></span><h2>Website information</h2></div></div><div className="info-rows"><div><span>Website address</span><strong>{selectedSite.url}</strong></div><div><span>Entry status</span><strong>Setup draft</strong></div><div><span>Monitoring source</span><strong>Not configured</strong></div><div><span>Last checked</span><strong>Never</strong></div></div></section>
+            </div>}
+            {detailTab === "changes" && <section className="detail-card tab-empty"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="activity" size={27}/></div></div><h3>No changes to show</h3><p>When monitoring is connected, detected website changes and their timestamps will appear in this timeline. No events have been recorded yet.</p></section>}
+            {detailTab === "checks" && <section className="detail-card tab-empty"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="shield" size={27}/></div></div><h3>No integrity checks yet</h3><p>Checks will be listed here after a verification method is configured. TapeWatch is not currently checking this website.</p></section>}
+            {detailTab === "settings" && <section className="detail-card settings-preview"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="settings" size={17}/></span><h2>Monitoring preferences</h2></div><span className="coming-soon">NOT ACTIVE</span></div><div className="info-rows"><div><span>Check frequency</span><strong>Not configured</strong></div><div><span>Change notifications</span><strong>Not configured</strong></div><div><span>Verification method</span><strong>Awaiting source review</strong></div></div><p className="detail-muted settings-footnote">These controls will become available when the monitoring service is implemented. No settings are being applied yet.</p></section>}
+          </div>
+        ) : <div className="content">
           <div className="welcome-row">
             <div><div className="eyebrow">MONITORING WORKSPACE</div><h1>Website integrity, <span>in focus.</span></h1><p className="intro">A clear view of what changes across your DeWEB sites and circuits.</p></div>
             <button className="primary-button" onClick={() => { setShowAdd(true); setNotice(""); }}><Icon name="plus" size={17}/> Add a website</button>
@@ -110,7 +134,7 @@ export default function Home() {
           <section className="section-card" id="websites">
             <div className="section-heading"><div><h2>Your websites</h2><p>Manage the sites you want to keep an eye on.</p></div><button className="text-button" onClick={() => setShowAdd(true)}>Add website <Icon name="arrow" size={15}/></button></div>
             <div className="table-toolbar"><div className="table-title">ALL SITES <span>{sites.length}</span></div><label className="search-box"><Icon name="search" size={16}/><input id="site-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search websites..." /></label></div>
-            {filteredSites.length ? <div className="site-list">{filteredSites.map((site) => <div className="site-row" key={site.id}><div className="site-favicon"><Icon name="globe" size={17}/></div><div className="site-details"><strong>{site.url}</strong><span>Added in this browser preview</span></div><span className="draft-status"><span/> Setup draft</span></div>)}</div> : <div className="empty-state"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="globe" size={29}/></div><span className="spark spark-one"/> <span className="spark spark-two"/></div><h3>{query ? "No matching websites" : "Nothing on your watchlist yet"}</h3><p>{query ? "Try a different search term." : "Add a website to start setting up your monitoring workspace. You can review the setup before anything is connected."}</p>{!query && <button className="secondary-button" onClick={() => setShowAdd(true)}><Icon name="plus" size={16}/> Add your first website</button>}</div>}
+            {filteredSites.length ? <div className="site-list">{filteredSites.map((site) => <button className="site-row site-row-button" key={site.id} onClick={() => { setSelectedSite(site); setDetailTab("overview"); }}><div className="site-favicon"><Icon name="globe" size={17}/></div><div className="site-details"><strong>{site.url}</strong><span>Added in this browser preview</span></div><span className="draft-status"><span/> Setup draft</span><span className="site-open"><Icon name="arrow" size={15}/></span></button>)}</div> : <div className="empty-state"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="globe" size={29}/></div><span className="spark spark-one"/> <span className="spark spark-two"/></div><h3>{query ? "No matching websites" : "Nothing on your watchlist yet"}</h3><p>{query ? "Try a different search term." : "Add a website to start setting up your monitoring workspace. You can review the setup before anything is connected."}</p>{!query && <button className="secondary-button" onClick={() => setShowAdd(true)}><Icon name="plus" size={16}/> Add your first website</button>}</div>}
           </section>
 
           <div className="lower-grid">
@@ -118,7 +142,7 @@ export default function Home() {
             <section className="mini-card" id="activity"><div className="mini-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Recent activity</h2></div><span className="coming-soon">LIVE FEED PENDING</span></div><div className="activity-empty"><span className="activity-line"/><p>Activity will appear here when monitoring is connected.</p></div></section>
           </div>
           <footer className="footer"><span>© 2026 TapeWatch</span><span>Built for transparency <i>·</i> Read-only by design</span></footer>
-        </div>
+        </div>}
       </section>
 
       {showAdd && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowAdd(false); }}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="modal-head"><div><div className="eyebrow">NEW WATCHLIST ENTRY</div><h2 id="modal-title">Add a website</h2></div><button className="icon-button" onClick={() => setShowAdd(false)} aria-label="Close"><Icon name="close"/></button></div><p className="modal-copy">Enter the public website address you'd like to monitor. For now, this creates a local preview draft only.</p><form onSubmit={addSite}><label className="field-label" htmlFor="website-url">Website URL</label><input id="website-url" className="url-input" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com" autoFocus/><div className="modal-note"><Icon name="shield" size={15}/> No wallet connection or transaction required.</div>{notice && <p className="form-notice">{notice}</p>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setShowAdd(false)}>Cancel</button><button type="submit" className="primary-button">Add preview draft <Icon name="arrow" size={15}/></button></div></form></section></div>}
