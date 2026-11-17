@@ -488,3 +488,42 @@ h1 span { color: #777c84; }
   .module-page-card-top { margin-bottom:17px; }
   .module-notice { padding:13px; }
 }
+
+
+/* TapeWatch motion language: a calm, watchful eye and gentle card movement */
+.motion-core.eye-core {
+  width:94px;height:68px;border:0;border-radius:0;background:transparent;
+  box-shadow:none;animation:eye-hover 5.5s ease-in-out infinite;
+}
+.watch-eye { width:78px;height:50px;overflow:visible;filter:drop-shadow(0 5px 9px #5b63d91c); }
+.eye-outline { fill:#fff;stroke:#5b63d9;stroke-width:2.2;stroke-linejoin:round; }
+.eye-iris { fill:#dfe1ff;stroke:#5b63d9;stroke-width:1.8;transform-origin:44px 28px;animation:eye-look 8s ease-in-out infinite; }
+.eye-pupil { fill:#252a3a; }
+.eye-glint { fill:#fff; }
+.motion-core.eye-core::after { content:"";position:absolute;inset:0;border:1px solid #5b63d928;border-radius:50%;transform:scale(1.2);animation:eye-ripple 4.5s ease-out infinite; }
+@keyframes eye-hover { 0%,100% { transform:translate(-50%,-50%) translateY(0); } 50% { transform:translate(-50%,-50%) translateY(-5px); } }
+@keyframes eye-look { 0%,35%,100% { transform:translateX(0); } 42%,52% { transform:translateX(5px); } 60%,70% { transform:translateX(-4px); } 78% { transform:translateX(0); } }
+@keyframes eye-ripple { 0% { opacity:.55;transform:scale(.9); } 75%,100% { opacity:0;transform:scale(1.8); } }
+@keyframes eye-blink { 0%,45%,48%,100% { transform:scaleY(1); } 46.5% { transform:scaleY(.08); } }
+.watch-eye { animation:eye-blink 6.8s ease-in-out infinite; }
+.stat-card,.intelligence-card,.mini-card,.section-card,.getting-started {
+  animation:card-arrive .65s cubic-bezier(.2,.75,.25,1) both;
+  transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease;
+}
+.stat-card:nth-child(2),.intelligence-card:nth-child(2) { animation-delay:.08s; }
+.stat-card:nth-child(3),.intelligence-card:nth-child(3) { animation-delay:.16s; }
+.stat-card:nth-child(4) { animation-delay:.24s; }
+@keyframes card-arrive { from { opacity:0;transform:translateY(13px); } to { opacity:1;transform:translateY(0); } }
+@media (hover:hover) and (pointer:fine) {
+  .stat-card:hover,.mini-card:hover,.section-card:hover,.getting-started:hover {
+    transform:translateY(-3px);border-color:#cfd2f1;box-shadow:0 13px 30px #252b4a0d;
+  }
+  .intelligence-card:hover { transform:translateY(-5px); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .motion-core.eye-core,.watch-eye,.eye-iris,.motion-core.eye-core::after,
+  .stat-card,.intelligence-card,.mini-card,.section-card,.getting-started {
+    animation:none!important;transition:none!important;
+  }
+  .stat-card:hover,.mini-card:hover,.section-card:hover,.getting-started:hover,.intelligence-card:hover { transform:none; }
+}
