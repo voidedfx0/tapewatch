@@ -672,18 +672,21 @@ h1 span { color: #777c84; }
 }
 
 
-/* Keep the original ring appearance; animate only the existing rings. */
+/* Preserve the original ring styling, but make each orbit visibly move. */
 .motion-visual .ring-outer {
   border-width:1px!important;
-  animation:globe-outer 12s linear infinite!important;
+  animation:globe-outer 5.5s linear infinite!important;
+  animation-delay:-1.4s!important;
 }
 .motion-visual .ring-middle {
   border-width:1px!important;
-  animation:globe-middle 8s linear infinite!important;
+  animation:globe-middle 4s linear infinite!important;
+  animation-delay:-2.1s!important;
 }
 .motion-visual .ring-inner {
   border-width:1px!important;
-  animation:globe-inner 6s linear infinite!important;
+  animation:globe-inner 3.2s linear infinite!important;
+  animation-delay:-.8s!important;
 }
 .motion-visual .motion-ring::before {
   content:none!important;
