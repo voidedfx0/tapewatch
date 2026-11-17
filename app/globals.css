@@ -1067,3 +1067,46 @@ h1 span { color: #777c84; }
   .detail-site-copy h1.detail-url-capsule::after { animation:none!important; }
 }
 
+/* Slow, readable marquee for long website names in the front watchlist. */
+.site-details strong.watchlist-name-window {
+  display:block;
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  container-type:inline-size;
+  overflow:hidden;
+}
+.watchlist-name-track {
+  display:flex!important;
+  width:max-content;
+  max-width:none!important;
+  gap:34px;
+  margin:0!important;
+  color:inherit!important;
+  font-size:inherit!important;
+  line-height:inherit;
+  animation:watchlist-name-marquee 13s linear infinite;
+  will-change:transform;
+}
+.watchlist-name-track > span {
+  display:block;
+  flex:0 0 auto;
+  margin:0!important;
+  overflow:visible!important;
+  white-space:nowrap;
+  color:inherit!important;
+  font-size:inherit!important;
+}
+@keyframes watchlist-name-marquee {
+  from { transform:translateX(0); }
+  to { transform:translateX(-50%); }
+}
+.site-row-button:hover .watchlist-name-track,
+.site-row-button:focus-visible .watchlist-name-track {
+  animation-play-state:paused;
+}
+@media (prefers-reduced-motion:reduce) {
+  .watchlist-name-track { animation:none!important; }
+  .watchlist-name-track > span[aria-hidden="true"] { display:none!important; }
+}
+
