@@ -23,27 +23,14 @@ type PageProfile = {
 };
 
 const SOCIAL_HOSTS: Record<string, string> = {
-  "instagram.com": "Instagram",
-  "www.instagram.com": "Instagram",
-  "x.com": "X",
-  "www.x.com": "X",
-  "twitter.com": "X",
-  "www.twitter.com": "X",
-  "facebook.com": "Facebook",
-  "www.facebook.com": "Facebook",
-  "linkedin.com": "LinkedIn",
-  "www.linkedin.com": "LinkedIn",
-  "youtube.com": "YouTube",
-  "www.youtube.com": "YouTube",
-  "youtu.be": "YouTube",
-  "www.tiktok.com": "TikTok",
-  "tiktok.com": "TikTok",
-  "t.me": "Telegram",
-  "telegram.me": "Telegram",
-  "discord.gg": "Discord",
-  "discord.com": "Discord",
-  "github.com": "GitHub",
-  "www.github.com": "GitHub",
+  "instagram.com": "Instagram", "x.com": "X", "twitter.com": "X",
+  "facebook.com": "Facebook", "fb.com": "Facebook", "linkedin.com": "LinkedIn",
+  "youtube.com": "YouTube", "youtu.be": "YouTube", "tiktok.com": "TikTok",
+  "t.me": "Telegram", "telegram.me": "Telegram", "discord.gg": "Discord",
+  "discord.com": "Discord", "discordapp.com": "Discord", "github.com": "GitHub",
+  "threads.net": "Threads", "pinterest.com": "Pinterest", "reddit.com": "Reddit",
+  "medium.com": "Medium", "twitch.tv": "Twitch", "bsky.app": "Bluesky",
+  "snapchat.com": "Snapchat", "wa.me": "WhatsApp", "whatsapp.com": "WhatsApp",
 };
 
 function isBlockedAddress(address: string) {
@@ -407,12 +394,13 @@ function socialProfiles(links: Link[]) {
   for (const link of links) {
     try {
       const url = new URL(link.url);
-      const hostname = url.hostname.toLowerCase().replace(/^(www|m|mobile)\./, "");
-      const platform = SOCIAL_HOSTS[hostname] || SOCIAL_HOSTS["www." + hostname];
+      const hostname = url.hostname.toLowerCase().replace(/^(www|m|mobile)\\./, "");
+      const platform = SOCIAL_HOSTS[hostname];
       if (!platform) continue;
+      if (/^\\/(?:share|sharer|intent|login|logout|policies|privacy)(?:\\/|$)/i.test(url.pathname)) continue;
       url.search = "";
       url.hash = "";
-      const normalized = url.toString().replace(/\/$/, "");
+      const normalized = url.toString().replace(/\\/$/, "");
       const evidence = evidenceLabel(link.label);
       const existing = found.get(platform);
       if (!existing || (existing.evidence === "Linked directly from the website" && evidence !== existing.evidence)) {
