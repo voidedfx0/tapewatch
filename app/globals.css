@@ -582,3 +582,13 @@ h1 span { color: #777c84; }
     animation:none!important;
   }
 }
+
+/* Keep the signature eye/globe animated even when the device requests reduced motion.
+   Other interface animations continue to respect the accessibility preference. */
+.motion-visual .ring-outer { animation:globe-outer 12s linear infinite!important; }
+.motion-visual .ring-middle { animation:globe-middle 8s linear infinite!important; }
+.motion-visual .ring-inner { animation:globe-inner 6s linear infinite!important; }
+.motion-visual .motion-core.eye-core { animation:eye-hover 3.8s ease-in-out infinite!important; }
+.motion-visual .watch-eye { animation:eye-blink 3.8s ease-in-out infinite!important; }
+.motion-visual .eye-iris { animation:eye-look 5.2s ease-in-out infinite!important; }
+.motion-visual .motion-core.eye-core::after { animation:eye-ripple 4.5s ease-out infinite!important; }
