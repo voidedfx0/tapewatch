@@ -46,6 +46,8 @@ export default function Home() {
   const [changesLoading, setChangesLoading] = useState(false);
   const [checksLoading, setChecksLoading] = useState(false);
   const [checkingWebsite, setCheckingWebsite] = useState(false);
+  const [compareOlderId, setCompareOlderId] = useState("");
+  const [compareNewerId, setCompareNewerId] = useState("");
 
 
   useEffect(() => {
@@ -144,6 +146,23 @@ export default function Home() {
     void loadChanges();
     return () => { active = false; };
   }, [selectedSite?.id]);
+
+  useEffect(() => {
+    if (checks.length >= 2) {
+      setCompareNewerId((current) => current || checks[0].id);
+      setCompareOlderId((current) => current || checks[1].id);
+    } else {
+      setCompareNewerId("");
+      setCompareOlderId("");
+    }
+  }, [checks, selectedSite?.id]);
+
+  const compareOlder = checks.find((check) => check.id === compareOlderId) ?? null;
+  const compareNewer = checks.find((check) => check.id === compareNewerId) ?? null;
+  const comparisonReady = Boolean(compareOlder && compareNewer && compareOlder.id !== compareNewer.id);
+  const fingerprintsMatch = comparisonReady && compareOlder?.content_hash && compareNewer?.content_hash
+    ? compareOlder.content_hash === compareNewer.content_hash
+    : null;
 
   const filteredSites = useMemo(() => sites.filter((site) => site.url.toLowerCase().includes(query.toLowerCase())), [sites, query]);
   const sectionContent: Record<string, { title: string; eyebrow: string; description: string; items: { title: string; description: string; state: string }[] }> = {
@@ -328,6 +347,31 @@ export default function Home() {
                 {change.current_hash && <div className="check-hash"><span>Current SHA-256</span><code>{change.current_hash}</code></div>}
                 <p className="detail-muted">A different page-content fingerprint was observed. This records a difference; it does not by itself mean the change is harmful.</p>
               </article>)}</div> : <div className="checks-empty"><h3>No content changes recorded</h3><p>The first complete check establishes a baseline. If a later Check now produces a different fingerprint, the evidence will appear here.</p></div>}
+            </section>}
+            {detailTab === "checks" && <section className="detail-card version-compare-card">
+              <div className="detail-card-heading"><div><span className="mini-icon"><Icon name="layers" size={17}/></span><h2>Compare website versions</h2></div><span className="coming-soon">FINGERPRINT COMPARISON</span></div>
+              <p className="detail-muted version-compare-intro">Choose two saved checks to compare their recorded evidence. The newest checks are selected automatically when available.</p>
+              {checks.length < 2 ? <div className="version-compare-empty">Run at least two website checks to compare versions.</div> : <>
+                <div className="version-compare-selectors">
+                  <label>Earlier check<select value={compareOlderId} onChange={(event) => setCompareOlderId(event.target.value)}><option value="">Select a check</option>{checks.map((check) => <option key={check.id} value={check.id}>{new Date(check.checked_at).toLocaleString()}</option>)}</select></label>
+                  <label>Later check<select value={compareNewerId} onChange={(event) => setCompareNewerId(event.target.value)}><option value="">Select a check</option>{checks.map((check) => <option key={check.id} value={check.id}>{new Date(check.checked_at).toLocaleString()}</option>)}</select></label>
+                </div>
+                {!comparisonReady ? <p className="version-compare-warning">Choose two different checks to compare.</p> : <>
+                  <div className={`version-compare-result ${fingerprintsMatch === true ? "same" : fingerprintsMatch === false ? "different" : "unknown"}`}>
+                    <strong>{fingerprintsMatch === true ? "Fingerprints match" : fingerprintsMatch === false ? "Content fingerprints differ" : "Comparison unavailable"}</strong>
+                    <span>{fingerprintsMatch === true ? "Both complete captures produced the same SHA-256 fingerprint." : fingerprintsMatch === false ? "The captured response content differs between these checks." : "One or both checks do not have a complete content fingerprint."}</span>
+                  </div>
+                  <div className="version-compare-grid">
+                    {[{ label: "Earlier check", check: compareOlder! }, { label: "Later check", check: compareNewer! }].map(({ label, check }) => <article className="version-compare-side" key={check.id}>
+                      <span>{label}</span><strong>{check.page_title || "Title not captured"}</strong>
+                      <p>{new Date(check.checked_at).toLocaleString()}</p>
+                      <p>{check.http_status ? `HTTP ${check.http_status}` : check.status.replaceAll("_", " ")}</p>
+                      <div className="check-hash"><span>SHA-256</span><code>{check.content_hash || "No complete fingerprint available"}</code></div>
+                    </article>)}
+                  </div>
+                </>}
+                <p className="version-compare-disclaimer">A matching fingerprint means the captured response bodies match. A different fingerprint is an observed difference, not proof of a security issue. This comparison does not display changed lines.</p>
+              </>}
             </section>}
             {detailTab === "checks" && <section className="detail-card checks-history-card">
               <div className="detail-card-heading check-history-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Website check history</h2></div><div className="check-history-actions"><span className="coming-soon">{checks.length} RECORDS</span><button className="primary-button check-now-button" onClick={runWebsiteCheck} disabled={checkingWebsite}>{checkingWebsite ? "Checking…" : checks.length ? "Check again" : "Check now"} <Icon name="activity" size={14}/></button></div></div>
