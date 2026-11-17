@@ -108,7 +108,7 @@ export default function Home() {
           </div>
         ) : <div className="content">
           <div className="welcome-row">
-            <div><div className="eyebrow">MONITORING WORKSPACE</div><h1>Website integrity, <span>in focus.</span></h1><p className="intro">A clear view of what changes across your DeWEB sites and circuits.</p></div>
+            <div><div className="eyebrow">WEBSITE INTELLIGENCE PLATFORM</div><h1>See the signal <span>behind every change.</span></h1><p className="intro">Monitor websites, investigate changes, and connect integrity evidence with on-chain activity.</p></div>
             <button className="primary-button" onClick={() => { setShowAdd(true); setNotice(""); }}><Icon name="plus" size={17}/> Add a website</button>
             <div className="motion-visual" aria-hidden="true">
               <div className="motion-grid" />
@@ -122,24 +122,44 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="notice-bar"><span className="notice-icon"><Icon name="shield" size={17}/></span><div><strong>You're viewing the TapeWatch preview</strong><p>No live blockchain data or website monitoring is connected yet. Nothing here is presented as a verified result.</p></div><span className="preview-tag">PREVIEW</span></div>
+          <div className="notice-bar"><span className="notice-icon"><Icon name="shield" size={17}/></span><div><strong>Preview workspace · data connections pending</strong><p>Your workspace is ready to configure. Live website observations, integrity results, and blockchain events will appear after their data sources are connected.</p></div><span className="preview-tag">PREVIEW</span></div>
 
           <section className="stats-grid" aria-label="Monitoring summary">
-            <article className="stat-card"><div className="stat-head">Websites monitored <span className="stat-icon"><Icon name="globe"/></span></div><div className="stat-number">{sites.length}<small> / —</small></div><div className="stat-foot">Sites added to this preview</div></article>
-            <article className="stat-card"><div className="stat-head">Integrity checks <span className="stat-icon"><Icon name="shield"/></span></div><div className="stat-number">—</div><div className="stat-foot">Awaiting verification setup</div></article>
-            <article className="stat-card"><div className="stat-head">Changes detected <span className="stat-icon"><Icon name="activity"/></span></div><div className="stat-number">—</div><div className="stat-foot">No live event feed connected</div></article>
-            <article className="stat-card"><div className="stat-head">Circuits tracked <span className="stat-icon"><Icon name="layers"/></span></div><div className="stat-number">—</div><div className="stat-foot">Contract integration pending</div></article>
+            <article className="stat-card"><div className="stat-head">Websites on watchlist <span className="stat-icon"><Icon name="globe"/></span></div><div className="stat-number">{sites.length}<small> / —</small></div><div className="stat-foot">Local preview entries only</div></article>
+            <article className="stat-card"><div className="stat-head">Verified observations <span className="stat-icon"><Icon name="shield"/></span></div><div className="stat-number">—</div><div className="stat-foot">Verification source not connected</div></article>
+            <article className="stat-card"><div className="stat-head">Changes recorded <span className="stat-icon"><Icon name="activity"/></span></div><div className="stat-number">—</div><div className="stat-foot">Change history not connected</div></article>
+            <article className="stat-card"><div className="stat-head">Linked circuits <span className="stat-icon"><Icon name="layers"/></span></div><div className="stat-number">—</div><div className="stat-foot">Contract sources not configured</div></article>
           </section>
 
           <section className="section-card" id="websites">
-            <div className="section-heading"><div><h2>Your websites</h2><p>Manage the sites you want to keep an eye on.</p></div><button className="text-button" onClick={() => setShowAdd(true)}>Add website <Icon name="arrow" size={15}/></button></div>
+            <div className="section-heading"><div><h2>Website watchlist</h2><p>Your registered websites and their current setup state.</p></div><button className="text-button" onClick={() => setShowAdd(true)}>Add website <Icon name="arrow" size={15}/></button></div>
             <div className="table-toolbar"><div className="table-title">ALL SITES <span>{sites.length}</span></div><label className="search-box"><Icon name="search" size={16}/><input id="site-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search websites..." /></label></div>
             {filteredSites.length ? <div className="site-list">{filteredSites.map((site) => <button className="site-row site-row-button" key={site.id} onClick={() => { setSelectedSite(site); setDetailTab("overview"); }}><div className="site-favicon"><Icon name="globe" size={17}/></div><div className="site-details"><strong>{site.url}</strong><span>Added in this browser preview</span></div><span className="draft-status"><span/> Setup draft</span><span className="site-open"><Icon name="arrow" size={15}/></span></button>)}</div> : <div className="empty-state"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="globe" size={29}/></div><span className="spark spark-one"/> <span className="spark spark-two"/></div><h3>{query ? "No matching websites" : "Nothing on your watchlist yet"}</h3><p>{query ? "Try a different search term." : "Add a website to start setting up your monitoring workspace. You can review the setup before anything is connected."}</p>{!query && <button className="secondary-button" onClick={() => setShowAdd(true)}><Icon name="plus" size={16}/> Add your first website</button>}</div>}
           </section>
 
+          <section className="intelligence-section" aria-label="TapeWatch intelligence modules">
+            <div className="intelligence-heading"><div><div className="eyebrow">THE TAPEWATCH LAYERS</div><h2>From observation to evidence.</h2><p>One workspace for website changes, integrity signals, and relevant blockchain activity.</p></div><span className="module-count">03 MODULES</span></div>
+            <div className="intelligence-grid">
+              <article className="intelligence-card">
+                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="activity" size={19}/></span><span className="module-state">ENGINE IN DEVELOPMENT</span></div>
+                <div className="intelligence-card-body"><h3>Change intelligence</h3><p>Compare website versions, inspect detected differences, and follow the history of each observation.</p></div>
+                <div className="intelligence-card-foot"><span>Version history · File changes</span><span className="module-arrow"><Icon name="arrow" size={15}/></span></div>
+              </article>
+              <article className="intelligence-card">
+                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="layers" size={19}/></span><span className="module-state">SOURCE REVIEW PENDING</span></div>
+                <div className="intelligence-card-body"><h3>Blockchain transparency</h3><p>Connect supported DeWEB records, circuit references, ownership events, and on-chain integrity evidence.</p></div>
+                <div className="intelligence-card-foot"><span>X Layer · Circuit records</span><span className="module-arrow"><Icon name="arrow" size={15}/></span></div>
+              </article>
+              <article className="intelligence-card">
+                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="clock" size={19}/></span><span className="module-state">AWAITING EVENTS</span></div>
+                <div className="intelligence-card-body"><h3>Trust timeline</h3><p>Bring observations, verification checks, and relevant chain events into one chronological record.</p></div>
+                <div className="intelligence-card-foot"><span>Evidence trail · Event history</span><span className="module-arrow"><Icon name="arrow" size={15}/></span></div>
+              </article>
+            </div>
+          </section>
           <div className="lower-grid">
-            <section className="mini-card" id="circuits"><div className="mini-heading"><div><span className="mini-icon"><Icon name="layers" size={17}/></span><h2>Circuit activity</h2></div><span className="coming-soon">IN DEVELOPMENT</span></div><p>Track circuit NFT ownership and related events once the relevant contracts and event sources are verified.</p><div className="mini-foot"><span><Icon name="clock" size={14}/> Not connected</span><span>Learn about circuits <Icon name="arrow" size={13}/></span></div></section>
-            <section className="mini-card" id="activity"><div className="mini-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Recent activity</h2></div><span className="coming-soon">LIVE FEED PENDING</span></div><div className="activity-empty"><span className="activity-line"/><p>Activity will appear here when monitoring is connected.</p></div></section>
+            <section className="mini-card" id="circuits"><div className="mini-heading"><div><span className="mini-icon"><Icon name="layers" size={17}/></span><h2>Circuit intelligence</h2></div><span className="coming-soon">NOT CONNECTED</span></div><p>TapeWatch will show circuit records and related ownership activity after the correct contracts, event sources, and network support are verified.</p><div className="mini-foot"><span><Icon name="clock" size={14}/> No chain events loaded</span><span>Evidence first <Icon name="arrow" size={13}/></span></div></section>
+            <section className="mini-card" id="activity"><div className="mini-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Trust timeline</h2></div><span className="coming-soon">AWAITING DATA</span></div><div className="activity-empty"><span className="activity-line"/><p>Website observations and verified events will appear here once their sources are connected.</p></div></section>
           </div>
           <footer className="footer"><span>© 2026 TapeWatch</span><span>Built for transparency <i>·</i> Read-only by design</span></footer>
         </div>}
