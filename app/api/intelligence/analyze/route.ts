@@ -4,7 +4,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const MAX_PAGE_BYTES = 300 * 1024;
-const MAX_PAGES = 7;
+const MAX_PAGES = 12;
+const MAX_SITEMAP_BYTES = 300 * 1024;
+const MAX_SITEMAP_URLS = 80;
 const TIMEOUT_MS = 9000;
 const MAX_REDIRECTS = 3;
 
@@ -233,6 +235,99 @@ async function fetchHtml(startUrl: URL) {
   throw new Error("The website could not be reached after redirects.");
 }
 
+
+async function fetchSmallText(startUrl: URL) {
+  let target = startUrl;
+  for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects++) {
+    await validatePublicTarget(target);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    let response: Response;
+    try {
+      response = await fetch(target, { method: "GET", redirect: "manual", signal: controller.signal, cache: "no-store",
+        headers: { "User-Agent": "TapeWatch-Intelligence/2.0", "Accept": "application/xml,text/xml,text/plain,*/*" } });
+    } finally { clearTimeout(timeout); }
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      await response.body?.cancel();
+      if (!location || redirects === MAX_REDIRECTS) throw new Error("Sitemap redirected too many times.");
+      target = new URL(location, target);
+      if (target.origin !== startUrl.origin) throw new Error("External sitemap redirects are not followed.");
+      continue;
+    }
+    if (!response.ok) { await response.body?.cancel(); throw new Error("Resource returned HTTP " + response.status + "."); }
+    const type = response.headers.get("content-type")?.toLowerCase() || "";
+    if (!(type.includes("xml") || type.includes("text/plain") || type.includes("octet-stream"))) {
+      await response.body?.cancel(); throw new Error("Resource is not a supported sitemap or robots file.");
+    }
+    const reader = response.body?.getReader();
+    if (!reader) return { url: target, text: "" };
+    const chunks: Uint8Array[] = []; let total = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > MAX_SITEMAP_BYTES) { await reader.cancel(); throw new Error("Sitemap is too large."); }
+        chunks.push(value);
+      }
+    } finally { reader.releaseLock(); }
+    const bytes = new Uint8Array(total); let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    return { url: target, text: new TextDecoder("utf-8").decode(bytes) };
+  }
+  throw new Error("Resource could not be reached.");
+}
+
+function sitemapLocations(xml: string, baseUrl: URL) {
+  const urls: URL[] = [];
+  for (const match of xml.matchAll(/<loc[^>]*>\\s*([\\s\\S]*?)\\s*<\\/loc>/gi)) {
+    try {
+      const raw = decode(match[1].replace(/<!\\[CDATA\\[|\\]\\]>/g, "").trim());
+      const url = new URL(raw, baseUrl);
+      if (url.origin === baseUrl.origin && ["http:", "https:"].includes(url.protocol)) {
+        url.hash = "";
+        if (!urls.some((item) => item.toString() === url.toString())) urls.push(url);
+      }
+    } catch { /* Ignore invalid or off-origin entries. */ }
+    if (urls.length >= MAX_SITEMAP_URLS) break;
+  }
+  return urls;
+}
+
+async function discoverSitemapPages(homepageUrl: URL) {
+  const sitemapUrls = new Set<string>([new URL("/sitemap.xml", homepageUrl).toString()]);
+  try {
+    const robots = await fetchSmallText(new URL("/robots.txt", homepageUrl));
+    for (const match of robots.text.matchAll(/^\\s*Sitemap:\\s*(\\S+)/gim)) {
+      try { const url = new URL(match[1], homepageUrl); if (url.origin === homepageUrl.origin) sitemapUrls.add(url.toString()); }
+      catch { /* Ignore malformed declarations. */ }
+    }
+  } catch { /* robots.txt is optional. */ }
+
+  const discovered: URL[] = []; let filesRead = 0;
+  for (const sitemapUrl of sitemapUrls) {
+    if (filesRead >= 3 || discovered.length >= MAX_SITEMAP_URLS) break;
+    try {
+      const fetched = await fetchSmallText(new URL(sitemapUrl));
+      if (fetched.url.origin !== homepageUrl.origin) continue;
+      filesRead++;
+      const entries = sitemapLocations(fetched.text, fetched.url);
+      if (/<sitemapindex\\b/i.test(fetched.text)) {
+        for (const child of entries.slice(0, 2)) {
+          if (filesRead >= 3) break;
+          try {
+            const childFile = await fetchSmallText(child);
+            if (childFile.url.origin !== homepageUrl.origin) continue;
+            filesRead++; discovered.push(...sitemapLocations(childFile.text, childFile.url));
+          } catch { /* Ignore unavailable child sitemaps. */ }
+        }
+      } else discovered.push(...entries);
+    } catch { /* Sitemap discovery is optional. */ }
+  }
+  return [...new Map(discovered.map((url) => [url.toString(), url])).values()].slice(0, MAX_SITEMAP_URLS);
+}
+
 function socialProfiles(links: Link[]) {
   const found = new Map<string, { platform: string; url: string }>();
   for (const link of links) {
@@ -310,14 +405,18 @@ export async function POST(request: Request) {
     pages.push({ url: homepage.url.toString(), profile: homepageProfile });
 
     const socialLinks: Link[] = [...homepageProfile.links];
-    const candidates = homepageProfile.links
+    const sitemapPages = await discoverSitemapPages(homepage.url);
+    const sitemapLinks: Link[] = sitemapPages.map((url) => ({ label: url.pathname.split("/").filter(Boolean).pop() || "Sitemap page", url: url.toString() }));
+    const combinedLinks = [...homepageProfile.links, ...sitemapLinks];
+    const candidates = [...new Map(combinedLinks
       .filter((link) => {
         try {
           const url = new URL(link.url);
-          return url.origin === origin && url.pathname !== "/" && !/\.(pdf|jpg|jpeg|png|gif|svg|zip|mp4|mp3)$/i.test(url.pathname);
+          return url.origin === origin && url.pathname !== "/" && !/\.(pdf|jpg|jpeg|png|gif|svg|zip|mp4|mp3|xml)$/i.test(url.pathname);
         } catch { return false; }
       })
-      .sort((a, b) => pagePriority(a) - pagePriority(b));
+      .sort((a, b) => pagePriority(a) - pagePriority(b))
+      .map((link) => [new URL(link.url).toString(), link])).values()];
 
     for (const candidate of candidates) {
       if (pages.length >= MAX_PAGES) break;
@@ -409,7 +508,8 @@ export async function POST(request: Request) {
       profile: data,
       pagesAnalysed: pages.length,
       socialProfilesFound: socials.length,
-      analysisType: "multi-page-and-structured-data-extraction",
+      analysisType: "multi-page-structured-data-and-sitemap-extraction",
+      sitemapPagesDiscovered: sitemapPages.length,
     });
   } catch (error) {
     const message = error instanceof Error
