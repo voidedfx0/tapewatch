@@ -785,3 +785,26 @@ h1 span { color: #777c84; }
 .evidence-verify-result.verified { border-color:#cce7d7;background:#f5fbf7; }
 .evidence-verify-result.mismatch { border-color:#ead8c4;background:#fffaf4; }
 @media (max-width:600px) { .evidence-verify-actions .secondary-button { width:100%; } }
+
+
+/* Trust Timeline evidence stream */
+.trust-timeline-card { padding:20px; }
+.timeline-intro { margin:0 0 18px; }
+.trust-timeline-list { position:relative;display:grid;gap:0;padding-left:5px; }
+.trust-timeline-list::before { content:"";position:absolute;left:18px;top:18px;bottom:20px;width:1px;background:#e3e5ed; }
+.trust-timeline-event { position:relative;display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;padding:0 0 21px; }
+.trust-timeline-event:last-child { padding-bottom:3px; }
+.trust-timeline-marker { z-index:1;display:grid;place-items:center;width:27px;height:27px;border:1px solid #dfe2ed;border-radius:50%;background:#fff;color:#626bd0; }
+.trust-timeline-marker.change { color:#9a7044;background:#fffaf4;border-color:#eadcc9; }
+.trust-timeline-marker.verification { color:#438563;background:#f5fbf7;border-color:#cce7d7; }
+.trust-timeline-event-body { min-width:0;padding:3px 0 0; }
+.trust-timeline-event-top { display:flex;align-items:flex-start;justify-content:space-between;gap:12px; }
+.trust-timeline-event-top strong { color:#30323a;font-size:11px;line-height:1.5; }
+.trust-timeline-event-top time { flex:0 0 auto;color:#9297a0;font-size:8px;line-height:1.6;text-align:right; }
+.trust-timeline-event-body > p { margin:5px 0 0;color:#777d87;font-size:9px;line-height:1.6;overflow-wrap:anywhere; }
+.trust-timeline-event-body .check-hash { margin-top:9px; }
+@media (max-width:650px) {
+  .trust-timeline-card { padding:15px; }
+  .trust-timeline-event-top { flex-direction:column;gap:3px; }
+  .trust-timeline-event-top time { text-align:left; }
+}
