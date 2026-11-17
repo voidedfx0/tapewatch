@@ -397,7 +397,11 @@ function socialProfiles(links: Link[]) {
       const hostname = url.hostname.toLowerCase().replace(/^(www|m|mobile)\./, "");
       const platform = SOCIAL_HOSTS[hostname];
       if (!platform) continue;
-      if (/^\/(?:share|sharer|intent|login|logout|policies|privacy)(?:\/|$)/i.test(url.pathname)) continue;
+      if (/^\/(?:share|sharer|intent|login|logout|policies|privacy|about|help|terms|watch|feed|explore|home)(?:\/|$)/i.test(url.pathname)) continue;
+      const pathParts = url.pathname.split("/").filter(Boolean);
+      // Ignore platform homepages; retain profile, channel, invite and company paths.
+      if (!pathParts.length && !["WhatsApp"].includes(platform)) continue;
+      if (platform === "YouTube" && pathParts[0] === "watch") continue;
       url.search = "";
       url.hash = "";
       const normalized = url.toString().replace(/\/$/, "");
@@ -634,6 +638,17 @@ export async function POST(request: Request) {
     }
     const importantPages = [...importantPageMap.values()].slice(0, 10);
     const socials = socialProfiles(socialLinks);
+    const identitySignals = [
+      ...(businessName ? ["A business or site name was identified"] : []),
+      ...(structuredNames.length ? ["Name appears in structured organisation data"] : []),
+      ...(homepageProfile.title ? ["Homepage title is available"] : []),
+      ...(homepageProfile.description || structuredDescriptions.length ? ["A public description is available"] : []),
+      ...(contactEmails.length || contactPhones.length ? ["Public contact details were found"] : []),
+      ...(pages.some((page) => /about|company|team|contact/i.test(page.url)) ? ["An About, company, team or contact page was analysed"] : []),
+      ...(socials.length ? ["Public social profile links were published by the site"] : []),
+    ];
+    const identityScore = identitySignals.length;
+    const confidence = identityScore >= 6 ? "strong" : identityScore >= 3 ? "moderate" : "limited";
     const analyzedAt = new Date().toISOString();
     const profileData = {
       business_name: businessName,
@@ -644,7 +659,7 @@ export async function POST(request: Request) {
       features,
       identity_type: identityType,
       alternate_names: alternateNames,
-      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", business_models: businessModels.join(" · "), use_cases: useCases.join(" · "), problems_solved: problemBlocks.join(" || "), value_proposition: valueBlocks.join(" || "), inferred_audiences: inferredAudiences.join(" · "), competitor_mentions: competitorBlocks.join(" || "), social_profiles: "Public links and metadata published by analysed pages", contact_details: "Email and phone-like text found in analysed HTML", locations: "Location phrases found in page text; not independently geocoded", pricing: "Pricing-related headings and text; not independently validated", technologies: "Technology names mentioned in page text, not technical fingerprinting", integrations: "Integration names mentioned in page text, not confirmed active connections" },
+      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", identity_signals: identitySignals.join(" · "), identity_confidence_note: "Confidence reflects the amount and variety of public evidence found; it is not proof of legal identity or legitimacy.", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", business_models: businessModels.join(" · "), use_cases: useCases.join(" · "), problems_solved: problemBlocks.join(" || "), value_proposition: valueBlocks.join(" || "), inferred_audiences: inferredAudiences.join(" · "), competitor_mentions: competitorBlocks.join(" || "), social_profiles: "Public links and metadata published by analysed pages", contact_details: "Email and phone-like text found in analysed HTML", locations: "Location phrases found in page text; not independently geocoded", pricing: "Pricing-related headings and text; not independently validated", technologies: "Technology names mentioned in page text, not technical fingerprinting", integrations: "Integration names mentioned in page text, not confirmed active connections" },
       contact_emails: contactEmails, contact_phones: contactPhones, locations, pricing_details: pricingDetails, technologies, integrations,
       discovery_evidence: discoveryEvidence,
       target_audience: structuredAudiences[0] || inferredAudiences.join(", ") || null,
@@ -657,7 +672,7 @@ export async function POST(request: Request) {
         title: page.profile.title,
         description: page.profile.description,
       })),
-      confidence: pages.length >= 3 && (summary || services.length) ? "moderate" : "limited",
+      confidence,
     };
 
     if (!summary && !keyTopics.length && !socials.length) {
@@ -680,7 +695,7 @@ export async function POST(request: Request) {
       profile: data,
       pagesAnalysed: pages.length,
       socialProfilesFound: socials.length,
-      analysisType: "deep-content-multi-page-sitemap-jsonld-business-model-use-case-audience-problem-value-competitor-evidence-extraction",
+      analysisType: "deep-content-identity-evidence-confidence-social-profile-discovery-business-analysis",
       sitemapPagesDiscovered: sitemapPages.length,
     });
   } catch (error) {
