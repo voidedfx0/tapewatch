@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 
 type Site = { id: string; url: string; status: "Setup draft" };
 type WebsiteCheck = { id: string; checked_at: string; status: string; http_status: number | null; final_url: string | null; content_hash: string | null; page_title: string | null; error_message: string | null };
+type WebsiteChange = { id: string; detected_at: string; change_type: string; previous_hash: string | null; current_hash: string | null; previous_title: string | null; current_title: string | null };
 
 const initialSites: Site[] = [];
 
@@ -41,6 +42,8 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState("");
   const [detailTab, setDetailTab] = useState<"overview" | "changes" | "checks" | "settings">("overview");
   const [checks, setChecks] = useState<WebsiteCheck[]>([]);
+  const [changes, setChanges] = useState<WebsiteChange[]>([]);
+  const [changesLoading, setChangesLoading] = useState(false);
   const [checksLoading, setChecksLoading] = useState(false);
   const [checkingWebsite, setCheckingWebsite] = useState(false);
 
@@ -112,6 +115,33 @@ export default function Home() {
       }
     }
     void loadChecks();
+    return () => { active = false; };
+  }, [selectedSite?.id]);
+  
+  useEffect(() => {
+    let active = true;
+    async function loadChanges() {
+      if (!selectedSite || !supabase) {
+        setChanges([]);
+        return;
+      }
+      setChangesLoading(true);
+      const { data, error } = await supabase
+        .from("website_changes")
+        .select("id, detected_at, change_type, previous_hash, current_hash, previous_title, current_title")
+        .eq("website_id", selectedSite.id)
+        .order("detected_at", { ascending: false });
+      if (active) {
+        if (error) {
+          console.error("TapeWatch change history loading failed:", error);
+          setNotice("Could not load this website's change history.");
+        } else {
+          setChanges((data ?? []) as WebsiteChange[]);
+        }
+        setChangesLoading(false);
+      }
+    }
+    void loadChanges();
     return () => { active = false; };
   }, [selectedSite?.id]);
 
@@ -204,12 +234,19 @@ export default function Home() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "The website check failed.");
       setChecks((current) => [result.check as WebsiteCheck, ...current]);
+      if (result.change) setChanges((current) => [result.change as WebsiteChange, ...current]);
       setDetailTab("checks");
-      setNotice(result.check.status === "reachable"
-        ? "Website check complete. The initial content fingerprint has been saved."
-        : result.check.status === "reachable_partial"
-          ? "Website responded, but its content exceeded the capture limit. No full fingerprint was saved."
-          : "Website check recorded. Review the result for details.");
+      setNotice(result.change
+        ? "Website check complete. A content change was detected and saved to Change history."
+        : result.changeDetectionError
+          ? result.changeDetectionError
+          : result.baselineCaptured
+            ? "Website check complete. Its first content fingerprint is saved as the baseline."
+            : result.check.content_hash
+              ? "Website check complete. The content matches the previous fingerprint; no new change was recorded."
+              : result.check.status === "reachable_partial"
+                ? "Website responded, but its content exceeded the capture limit. No full fingerprint comparison was possible."
+                : "Website check recorded. Review the result for details.");
     } catch (error) {
       console.error("TapeWatch website check failed:", error);
       setNotice(error instanceof Error ? error.message : "Could not complete the website check.");
@@ -278,10 +315,20 @@ export default function Home() {
             {detailTab === "overview" && <div className="detail-grid">
               <section className="detail-card detail-wide"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="shield" size={17}/></span><h2>Integrity status</h2></div><span className="coming-soon">AWAITING SETUP</span></div><div className="integrity-placeholder"><div className="integrity-ring"><Icon name="shield" size={27}/></div><div><strong>Not yet verified</strong><p>An integrity result will appear after a verification source is configured and the first check completes.</p></div></div></section>
               <section className="detail-card"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="clock" size={17}/></span><h2>Monitoring schedule</h2></div></div><div className="detail-metric">{checks.length}</div><p className="detail-muted">On-demand observations saved</p></section>
-              <section className="detail-card"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Detected changes</h2></div></div><div className="detail-metric">—</div><p className="detail-muted">Change comparison comes next</p></section>
+              <section className="detail-card"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Detected changes</h2></div></div><div className="detail-metric">{changes.length}</div><p className="detail-muted">Content differences recorded</p></section>
               <section className="detail-card detail-wide"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="globe" size={17}/></span><h2>Website information</h2></div></div><div className="info-rows"><div><span>Website address</span><strong>{selectedSite.url}</strong></div><div><span>Entry status</span><strong>Setup draft</strong></div><div><span>Monitoring source</span><strong>On-demand HTTP check</strong></div><div><span>Last checked</span><strong>{checks[0] ? new Date(checks[0].checked_at).toLocaleString() : "Never"}</strong></div></div></section>
             </div>}
-            {detailTab === "changes" && <section className="detail-card tab-empty"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="activity" size={27}/></div></div><h3>No changes to show</h3><p>When monitoring is connected, detected website changes and their timestamps will appear in this timeline. No events have been recorded yet.</p></section>}
+            {detailTab === "changes" && <section className="detail-card checks-history-card">
+              <div className="detail-card-heading check-history-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Detected content changes</h2></div><span className="coming-soon">{changes.length} EVENTS</span></div>
+              {changesLoading ? <p className="detail-muted">Loading change history…</p> : changes.length ? <div className="check-history-list">{changes.map((change) => <article className="check-history-row" key={change.id}>
+                <div className="check-history-top"><strong>Website content changed</strong><span className="coming-soon">SHA-256 DIFFERENCE</span></div>
+                <p>{new Date(change.detected_at).toLocaleString()}</p>
+                {(change.previous_title || change.current_title) && <div className="info-rows"><div><span>Previous page title</span><strong>{change.previous_title || "Not available"}</strong></div><div><span>Current page title</span><strong>{change.current_title || "Not available"}</strong></div></div>}
+                {change.previous_hash && <div className="check-hash"><span>Previous SHA-256</span><code>{change.previous_hash}</code></div>}
+                {change.current_hash && <div className="check-hash"><span>Current SHA-256</span><code>{change.current_hash}</code></div>}
+                <p className="detail-muted">A different page-content fingerprint was observed. This records a difference; it does not by itself mean the change is harmful.</p>
+              </article>)}</div> : <div className="checks-empty"><h3>No content changes recorded</h3><p>The first complete check establishes a baseline. If a later Check now produces a different fingerprint, the evidence will appear here.</p></div>}
+            </section>}
             {detailTab === "checks" && <section className="detail-card checks-history-card">
               <div className="detail-card-heading check-history-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Website check history</h2></div><div className="check-history-actions"><span className="coming-soon">{checks.length} RECORDS</span><button className="primary-button check-now-button" onClick={runWebsiteCheck} disabled={checkingWebsite}>{checkingWebsite ? "Checking…" : checks.length ? "Check again" : "Check now"} <Icon name="activity" size={14}/></button></div></div>
               {checksLoading ? <p className="detail-muted">Loading check history…</p> : checks.length ? <div className="check-history-list">{checks.map((check) => <article className="check-history-row" key={check.id}>
