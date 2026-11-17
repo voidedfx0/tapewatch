@@ -412,25 +412,36 @@ function socialProfiles(links: Link[]) {
 }
 
 function pageCategory(url: URL, label: string) {
-  const value = (url.pathname + " " + label).toLowerCase();
-  if (/about|who-we-are|our-story|company/.test(value)) return "About";
-  if (/service|product|solution|what-we-do|features/.test(value)) return "Products & Services";
-  if (/price|pricing|plans|packages/.test(value)) return "Pricing";
-  if (/contact|support|help/.test(value)) return "Contact & Support";
-  if (/documentation|\/docs|developer|guides/.test(value)) return "Documentation";
-  if (/blog|news|articles|insights/.test(value)) return "Blog & News";
+  let path = url.pathname;
+  try { path = decodeURIComponent(path); } catch { /* Keep encoded path. */ }
+  const value = (path + " " + label).toLowerCase().replace(/[._-]+/g, " ");
+  if (/\b(about|who we are|our story|our mission|our team|team|leadership|company)\b/.test(value)) return "About";
+  if (/\b(service|product|solution|what we do|features|platform|software|app|tool)\b/.test(value)) return "Products & Services";
+  if (/\b(price|pricing|plans|packages|billing|subscription)\b/.test(value)) return "Pricing";
+  if (/\b(contact|support|help|customer service)\b/.test(value)) return "Contact & Support";
+  if (/\b(documentation|docs|developer|developers|api|guides)\b/.test(value)) return "Documentation";
+  if (/\b(case study|case studies|customers|clients|portfolio|success stories|testimonials)\b/.test(value)) return "Case Studies";
+  if (/\b(use cases|use case|who we serve)\b/.test(value)) return "Use Cases";
+  if (/\b(faq|frequently asked questions)\b/.test(value)) return "FAQs";
+  if (/\b(resources|downloads|whitepapers|webinars)\b/.test(value)) return "Resources";
+  if (/\b(blog|news|articles|insights|updates|press|media)\b/.test(value)) return "Blog & News";
   return null;
 }
 
 function pagePriority(link: Link) {
-  const value = (link.url + " " + link.label).toLowerCase();
-  if (/about|who-we-are|our-story|company/.test(value)) return 1;
-  if (/service|product|solution|what-we-do|features/.test(value)) return 2;
-  if (/price|pricing|plans|packages/.test(value)) return 3;
-  if (/contact|support|help/.test(value)) return 4;
-  if (/documentation|\/docs|developer|guides/.test(value)) return 5;
-  if (/blog|news|articles|insights/.test(value)) return 6;
-  return 99;
+  const url = new URL(link.url);
+  const category = pageCategory(url, link.label);
+  const priorities: Record<string, number> = {
+    "About": 1, "Products & Services": 2, "Pricing": 3, "Contact & Support": 4,
+    "Documentation": 5, "Case Studies": 6, "Use Cases": 7, "FAQs": 8,
+    "Resources": 9, "Blog & News": 10,
+  };
+  if (category) return priorities[category];
+  let path = url.pathname;
+  try { path = decodeURIComponent(path); } catch { /* Keep encoded path. */ }
+  const value = (path + " " + link.label).toLowerCase().replace(/[._-]+/g, " ");
+  if (/\b(home|login|sign in|sign up|register|cart|checkout|privacy|terms|cookie|careers|jobs)\b/.test(value)) return 99;
+  return 50;
 }
 
 export async function POST(request: Request) {
@@ -475,15 +486,27 @@ export async function POST(request: Request) {
     const sitemapPages = await discoverSitemapPages(homepage.url);
     const sitemapLinks: Link[] = sitemapPages.map((url) => ({ label: url.pathname.split("/").filter(Boolean).pop() || "Sitemap page", url: url.toString() }));
     const combinedLinks = [...homepageProfile.links, ...sitemapLinks];
-    const candidates = [...new Map(combinedLinks
-      .filter((link) => {
-        try {
-          const url = new URL(link.url);
-          return url.origin === origin && url.pathname !== "/" && !/\.(pdf|jpg|jpeg|png|gif|svg|zip|mp4|mp3|xml)$/i.test(url.pathname);
-        } catch { return false; }
-      })
-      .sort((a, b) => pagePriority(a) - pagePriority(b))
-      .map((link) => [new URL(link.url).toString(), link])).values()];
+    const candidateMap = new Map<string, Link>();
+    for (const link of combinedLinks) {
+      try {
+        const url = new URL(link.url);
+        if (url.origin !== origin || url.pathname === "/" ||
+            /\.(pdf|jpg|jpeg|png|gif|svg|zip|mp4|mp3|xml|css|js|woff2?)$/i.test(url.pathname)) continue;
+        url.hash = "";
+        for (const key of [...url.searchParams.keys()]) {
+          if (/^(utm_.+|fbclid|gclid|mc_cid|mc_eid|ref|source)$/i.test(key)) url.searchParams.delete(key);
+        }
+        const key = url.toString().replace(/\/$/, "");
+        const previous = candidateMap.get(key);
+        if (!previous || (link.label && link.label.length > previous.label.length)) {
+          candidateMap.set(key, { label: link.label || url.pathname.split("/").filter(Boolean).pop() || "Website page", url: key });
+        }
+      } catch { /* Ignore malformed or off-site links. */ }
+    }
+    const candidates = [...candidateMap.values()]
+      .filter((link) => pagePriority(link) < 99)
+      .sort((a, b) => pagePriority(a) - pagePriority(b) ||
+        new URL(a.url).pathname.split("/").filter(Boolean).length - new URL(b.url).pathname.split("/").filter(Boolean).length);
 
     for (const candidate of candidates) {
       if (pages.length >= MAX_PAGES) break;
