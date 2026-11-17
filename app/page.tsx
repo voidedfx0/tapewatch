@@ -7,6 +7,7 @@ type Site = { id: string; url: string; status: "Setup draft" };
 type WebsiteCheck = { id: string; checked_at: string; status: string; http_status: number | null; final_url: string | null; content_hash: string | null; page_title: string | null; error_message: string | null };
 type WebsiteChange = { id: string; detected_at: string; change_type: string; previous_check_id: string | null; current_check_id: string; previous_hash: string | null; current_hash: string | null; previous_title: string | null; current_title: string | null };
 type MonitoringSetting = { id: string; website_id: string; user_id: string; enabled: boolean; frequency: "daily"; last_run_at: string | null; next_run_at: string | null };
+type IntelligenceProfile = { id: string; website_id: string; business_name: string | null; summary: string | null; purpose: string | null; services: string[]; target_audience: string | null; key_topics: string[]; important_pages: { type: string; label: string; url: string }[]; source_urls: string[]; confidence: string | null; analyzed_at: string | null };
 
 const initialSites: Site[] = [];
 
@@ -41,7 +42,10 @@ export default function Home() {
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [showChanges, setShowChanges] = useState(false);
   const [activeSection, setActiveSection] = useState("");
-  const [detailTab, setDetailTab] = useState<"overview" | "changes" | "checks" | "timeline" | "settings">("overview");
+  const [detailTab, setDetailTab] = useState<"overview" | "intelligence" | "changes" | "checks" | "timeline" | "settings">("overview");
+  const [intelligenceProfile, setIntelligenceProfile] = useState<IntelligenceProfile | null>(null);
+  const [intelligenceLoading, setIntelligenceLoading] = useState(false);
+  const [analyzingIntelligence, setAnalyzingIntelligence] = useState(false);
   const [checks, setChecks] = useState<WebsiteCheck[]>([]);
   const [changes, setChanges] = useState<WebsiteChange[]>([]);
   const [changesLoading, setChangesLoading] = useState(false);
@@ -162,6 +166,34 @@ export default function Home() {
       }
     }
     void loadMonitoringSetting();
+    return () => { active = false; };
+  }, [selectedSite?.id]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadIntelligenceProfile() {
+      if (!selectedSite || !supabase) {
+        setIntelligenceProfile(null);
+        return;
+      }
+      setIntelligenceLoading(true);
+      const { data, error } = await supabase
+        .from("website_intelligence_profiles")
+        .select("id, website_id, business_name, summary, purpose, services, target_audience, key_topics, important_pages, source_urls, confidence, analyzed_at")
+        .eq("website_id", selectedSite.id)
+        .maybeSingle();
+      if (active) {
+        if (error) {
+          console.error("TapeWatch intelligence profile loading failed:", error);
+          setNotice("Could not load this website's intelligence profile.");
+          setIntelligenceProfile(null);
+        } else {
+          setIntelligenceProfile(data as IntelligenceProfile | null);
+        }
+        setIntelligenceLoading(false);
+      }
+    }
+    void loadIntelligenceProfile();
     return () => { active = false; };
   }, [selectedSite?.id]);
 
@@ -324,6 +356,33 @@ export default function Home() {
     }
   }
 
+  async function analyzeWebsiteIntelligence() {
+    if (!selectedSite || !supabase) return;
+    setAnalyzingIntelligence(true);
+    setNotice("");
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) throw new Error("Your workspace session is not ready. Refresh and try again.");
+      const response = await fetch("/api/intelligence/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ websiteId: selectedSite.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Website intelligence analysis failed.");
+      setIntelligenceProfile(result.profile as IntelligenceProfile);
+      setNotice(result.truncated
+        ? "Profile saved from a partial homepage capture. Some page information may be missing."
+        : "Website intelligence profile updated from its public homepage.");
+    } catch (error) {
+      console.error("TapeWatch intelligence analysis failed:", error);
+      setNotice(error instanceof Error ? error.message : "Could not analyse this website.");
+    } finally {
+      setAnalyzingIntelligence(false);
+    }
+  }
+
   async function runWebsiteCheck() {
     if (!selectedSite || !supabase) return;
     setCheckingWebsite(true);
@@ -462,7 +521,7 @@ export default function Home() {
             </div>
             <div className="detail-notice"><Icon name="shield" size={18}/><div><strong>{checks.length ? "Website observations are being recorded" : "Ready for its first observation"}</strong><p>{checks.length ? "TapeWatch has saved on-demand website checks for this entry. These are point-in-time observations, not continuous monitoring or an on-chain verification." : "Run Check now to record reachability, response details, and an initial SHA-256 content fingerprint when a complete response is available."}</p></div></div>
             <div className="detail-tabs" role="tablist" aria-label="Website details sections">
-              {(["overview", "changes", "checks", "timeline", "settings"] as const).map((tab) => <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? "detail-tab active" : "detail-tab"} onClick={() => setDetailTab(tab)}>{tab === "overview" ? "Overview" : tab === "changes" ? "Change history" : tab === "checks" ? "Checks" : tab === "timeline" ? "Trust timeline" : "Settings"}</button>)}<button type="button" className="detail-tab detail-tab-action" onClick={() => { void runWebsiteCheck(); }} disabled={checkingWebsite}>{checkingWebsite ? "Checking…" : "Check now"}</button>
+              {(["overview", "intelligence", "changes", "checks", "timeline", "settings"] as const).map((tab) => <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? "detail-tab active" : "detail-tab"} onClick={() => setDetailTab(tab)}>{tab === "overview" ? "Overview" : tab === "intelligence" ? "Intelligence" : tab === "changes" ? "Change history" : tab === "checks" ? "Checks" : tab === "timeline" ? "Trust timeline" : "Settings"}</button>)}<button type="button" className="detail-tab detail-tab-action" onClick={() => { void runWebsiteCheck(); }} disabled={checkingWebsite}>{checkingWebsite ? "Checking…" : "Check now"}</button>
             </div>
             {detailTab === "overview" && <div className="detail-grid">
               <section className="detail-card detail-wide"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="shield" size={17}/></span><h2>Integrity status</h2></div><span className="coming-soon">AWAITING SETUP</span></div><div className="integrity-placeholder"><div className="integrity-ring"><Icon name="shield" size={27}/></div><div><strong>Not yet verified</strong><p>An integrity result will appear after a verification source is configured and the first check completes.</p></div></div></section>
@@ -470,6 +529,22 @@ export default function Home() {
               <section className="detail-card"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Detected changes</h2></div></div><div className="detail-metric">{changes.length}</div><p className="detail-muted">Content differences recorded</p></section>
               <section className="detail-card detail-wide"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="globe" size={17}/></span><h2>Website information</h2></div></div><div className="info-rows"><div><span>Website address</span><strong>{selectedSite.url}</strong></div><div><span>Entry status</span><strong>Setup draft</strong></div><div><span>Monitoring source</span><strong>On-demand HTTP check</strong></div><div><span>Last checked</span><strong>{checks[0] ? new Date(checks[0].checked_at).toLocaleString() : "Never"}</strong></div></div></section>
             </div>}
+            {detailTab === "intelligence" && <section className="detail-card intelligence-card">
+              <div className="detail-card-heading"><div><span className="mini-icon"><Icon name="globe" size={17}/></span><h2>Website intelligence profile</h2></div><span className="coming-soon">{intelligenceProfile ? "PROFILE SAVED" : "NOT ANALYSED"}</span></div>
+              <p className="detail-muted intelligence-intro">A structured profile extracted from this website's public homepage. Findings are limited to information the page actually exposes.</p>
+              <div className="intelligence-action-row"><span className="detail-muted">{intelligenceProfile?.analyzed_at ? "Last analysed " + new Date(intelligenceProfile.analyzed_at).toLocaleString() : "No profile has been created yet."}</span><button type="button" className="primary-button" onClick={() => void analyzeWebsiteIntelligence()} disabled={analyzingIntelligence || intelligenceLoading}>{analyzingIntelligence ? "Analysing…" : intelligenceProfile ? "Refresh profile" : "Analyse website"} <Icon name="activity" size={14}/></button></div>
+              {intelligenceLoading ? <p className="detail-muted">Loading saved profile…</p> : intelligenceProfile ? <>
+                <div className="intelligence-summary"><span>OVERVIEW</span><h3>{intelligenceProfile.business_name || selectedSite.url}</h3><p>{intelligenceProfile.summary || "The homepage did not provide a clear summary."}</p></div>
+                <div className="intelligence-grid">
+                  <article><span>PURPOSE</span><p>{intelligenceProfile.purpose || "Not clearly stated on the homepage."}</p></article>
+                  <article><span>TARGET AUDIENCE</span><p>{intelligenceProfile.target_audience || "Not determined from homepage evidence."}</p></article>
+                  <article><span>SERVICES & PRODUCTS</span>{intelligenceProfile.services?.length ? <ul>{intelligenceProfile.services.map((item, index) => <li key={index}>{item}</li>)}</ul> : <p>No clear service headings found.</p>}</article>
+                  <article><span>KEY TOPICS</span>{intelligenceProfile.key_topics?.length ? <div className="intelligence-tags">{intelligenceProfile.key_topics.map((item, index) => <span key={index}>{item}</span>)}</div> : <p>No key topics extracted.</p>}</article>
+                </div>
+                <div className="intelligence-pages"><span>IMPORTANT PAGES FOUND</span>{intelligenceProfile.important_pages?.length ? intelligenceProfile.important_pages.map((page, index) => <a key={index} href={page.url} target="_blank" rel="noreferrer"><span>{page.type}</span><strong>{page.label}</strong><Icon name="external" size={13}/></a>) : <p>No recognised About, Services, Pricing, Contact or Documentation links found on the homepage.</p>}</div>
+                <p className="intelligence-disclaimer">Extraction confidence: {intelligenceProfile.confidence || "limited"}. Target audience is intentionally left blank unless the homepage provides clear evidence. This is structured page extraction, not an AI assessment or independent business verification.</p>
+              </> : <div className="checks-empty"><h3>No intelligence profile yet</h3><p>Analyse the public homepage to extract its description, headings, possible services, topics and important internal links.</p><button className="secondary-button" onClick={() => void analyzeWebsiteIntelligence()} disabled={analyzingIntelligence}>{analyzingIntelligence ? "Analysing…" : "Build intelligence profile"}</button></div>}
+            </section>}
             {detailTab === "changes" && <section className="detail-card checks-history-card">
               <div className="detail-card-heading check-history-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Detected content changes</h2></div><span className="coming-soon">{changes.length} EVENTS</span></div>
               {changesLoading ? <p className="detail-muted">Loading change history…</p> : changes.length ? <div className="check-history-list">{changes.map((change) => <article className="check-history-row" key={change.id}>
