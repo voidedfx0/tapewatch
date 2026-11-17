@@ -19,6 +19,7 @@ type PageProfile = {
   contentBlocks: string[];
   links: Link[];
   structured: { names: string[]; descriptions: string[]; products: string[]; services: string[]; features: string[]; topics: string[]; audiences: string[]; socials: string[] };
+  emails: string[]; phones: string[]; locations: string[]; pricing: string[]; technologies: string[]; integrations: string[];
 };
 
 const SOCIAL_HOSTS: Record<string, string> = {
@@ -241,7 +242,16 @@ function extractPage(html: string, baseUrl: URL): PageProfile {
       } catch { return null; }
     }).filter((item): item is Link => Boolean(item));
   links.push(...extractSocialMetadata(html, baseUrl));
-  return { title, description, headings, paragraphs, contentBlocks, links, structured: extractStructuredData(html, baseUrl) };
+  const visibleText = clean(readableHtml).slice(0, 180000);
+  const emails = [...new Set([...html.matchAll(/(?:mailto:)?([A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,})/gi)].map((match) => match[1].toLowerCase()))].slice(0, 20);
+  const phones = [...new Set([...html.matchAll(/(?:tel:)?(\\+?[0-9][0-9().\\s-]{6,}[0-9])/g)].map((match) => match[1].replace(/\\s+/g, " ").trim()).filter((value) => value.replace(/\\D/g, "").length >= 8 && value.replace(/\\D/g, "").length <= 15))].slice(0, 15);
+  const locations = [...visibleText.matchAll(/\\b(?:headquarters|head office|based in|located in|office in|visit us at)\\s*[:,-]?\\s*([^.!?;]{3,90})/gi)].map((match) => match[1].trim()).slice(0, 8);
+  const pricing = [...new Set([...headings, ...contentBlocks].filter((value) => /pricing|plans? from|free plan|free trial|per month|per year|\\$\\s?\\d|USD\\s?\\d|NGN\\s?\\d|\\d+\\s?(?:USD|NGN|EUR|GBP)/i.test(value)).map((value) => value.slice(0, 220)))].slice(0, 12);
+  const technologyTerms = ["Next.js","React","Vue","Angular","WordPress","Shopify","Webflow","Node.js","Python","PHP","Laravel","Django","Supabase","Firebase","AWS","Vercel","Cloudflare","Ethereum","Solana","IPFS"];
+  const integrationTerms = ["Stripe","PayPal","Google Analytics","Google Maps","HubSpot","Salesforce","Slack","Discord","Telegram","GitHub","Zapier","Mailchimp","WooCommerce","Meta Pixel"];
+  const technologies = technologyTerms.filter((term) => visibleText.toLowerCase().includes(term.toLowerCase()));
+  const integrations = integrationTerms.filter((term) => visibleText.toLowerCase().includes(term.toLowerCase()));
+  return { title, description, headings, paragraphs, contentBlocks, links, emails, phones, locations, pricing, technologies, integrations, structured: extractStructuredData(html, baseUrl) };
 }
 
 async function fetchHtml(startUrl: URL) {
@@ -500,6 +510,12 @@ export async function POST(request: Request) {
     const allTitles = pages.map((page) => page.profile.title).filter((value): value is string => Boolean(value));
     const allParagraphs = pages.flatMap((page) => page.profile.paragraphs);
     const allContentBlocks = pages.flatMap((page) => page.profile.contentBlocks);
+    const contactEmails = [...new Set(pages.flatMap((page) => page.profile.emails))].slice(0, 20);
+    const contactPhones = [...new Set(pages.flatMap((page) => page.profile.phones))].slice(0, 15);
+    const locations = [...new Set(pages.flatMap((page) => page.profile.locations))].slice(0, 12);
+    const pricingDetails = [...new Set(pages.flatMap((page) => page.profile.pricing))].slice(0, 15);
+    const technologies = [...new Set(pages.flatMap((page) => page.profile.technologies))].slice(0, 20);
+    const integrations = [...new Set(pages.flatMap((page) => page.profile.integrations))].slice(0, 20);
     const structured = pages.map((page) => page.profile.structured);
     const structuredNames = structured.flatMap((item) => item.names);
     const structuredDescriptions = structured.flatMap((item) => item.descriptions);
@@ -548,7 +564,8 @@ export async function POST(request: Request) {
       features,
       identity_type: identityType,
       alternate_names: alternateNames,
-      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", social_profiles: "Public links and metadata published by analysed pages" },
+      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", social_profiles: "Public links and metadata published by analysed pages", contact_details: "Email and phone-like text found in analysed HTML", locations: "Location phrases found in page text; not independently geocoded", pricing: "Pricing-related headings and text; not independently validated", technologies: "Technology names mentioned in page text, not technical fingerprinting", integrations: "Integration names mentioned in page text, not confirmed active connections" },
+      contact_emails: contactEmails, contact_phones: contactPhones, locations, pricing_details: pricingDetails, technologies, integrations,
       target_audience: structuredAudiences[0] || null,
       key_topics: keyTopics,
       important_pages: importantPages,
@@ -572,7 +589,7 @@ export async function POST(request: Request) {
       analyzed_at: analyzedAt,
       updated_at: analyzedAt,
     }, { onConflict: "website_id" })
-      .select("id, website_id, business_name, summary, purpose, products, services, features, identity_type, alternate_names, field_evidence, target_audience, key_topics, important_pages, source_urls, social_profiles, pages_analyzed, confidence, analyzed_at")
+      .select("id, website_id, business_name, summary, purpose, products, services, features, identity_type, alternate_names, field_evidence, contact_emails, contact_phones, locations, pricing_details, technologies, integrations, target_audience, key_topics, important_pages, source_urls, social_profiles, pages_analyzed, confidence, analyzed_at")
       .single();
     if (error) {
       console.error("TapeWatch intelligence profile save failed:", error);
