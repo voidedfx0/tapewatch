@@ -16,6 +16,7 @@ type PageProfile = {
   description: string | null;
   headings: string[];
   paragraphs: string[];
+  contentBlocks: string[];
   links: Link[];
   structured: { names: string[]; descriptions: string[]; services: string[]; topics: string[]; audiences: string[]; socials: string[] };
 };
@@ -184,6 +185,16 @@ function extractPage(html: string, baseUrl: URL): PageProfile {
     .map((match) => clean(match[1])).filter((value) => value.length > 2).slice(0, 18);
   const paragraphs = [...html.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
     .map((match) => clean(match[1])).filter((value) => value.length > 45).slice(0, 12);
+  const contentRoot = html.match(/<(?:main|article)\b[^>]*>([\s\S]*?)<\/(?:main|article)>/i)?.[1]
+    || html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i)?.[1]
+    || html;
+  const readableHtml = contentRoot
+    .replace(/<(?:nav|header|footer|aside|form|script|style|noscript|svg)\b[\s\S]*?<\/(?:nav|header|footer|aside|form|script|style|noscript|svg)>/gi, " ");
+  const contentBlocks = [...readableHtml.matchAll(/<(?:h[1-3]|p|li|blockquote)\b[^>]*>([\s\S]*?)<\/(?:h[1-3]|p|li|blockquote)>/gi)]
+    .map((match) => clean(match[1]))
+    .filter((value) => value.length >= 35 && value.length <= 1200)
+    .filter((value, index, list) => list.findIndex((item) => item.toLowerCase() === value.toLowerCase()) === index)
+    .slice(0, 24);
   const links = [...html.matchAll(/<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)]
     .map((match) => {
       try {
@@ -193,7 +204,7 @@ function extractPage(html: string, baseUrl: URL): PageProfile {
         return { label: clean(match[2]).slice(0, 100), url: url.toString() };
       } catch { return null; }
     }).filter((item): item is Link => Boolean(item));
-  return { title, description, headings, paragraphs, links, structured: extractStructuredData(html, baseUrl) };
+  return { title, description, headings, paragraphs, contentBlocks, links, structured: extractStructuredData(html, baseUrl) };
 }
 
 async function fetchHtml(startUrl: URL) {
@@ -440,6 +451,7 @@ export async function POST(request: Request) {
     const allDescriptions = pages.map((page) => page.profile.description).filter((value): value is string => Boolean(value));
     const allTitles = pages.map((page) => page.profile.title).filter((value): value is string => Boolean(value));
     const allParagraphs = pages.flatMap((page) => page.profile.paragraphs);
+    const allContentBlocks = pages.flatMap((page) => page.profile.contentBlocks);
     const structured = pages.map((page) => page.profile.structured);
     const structuredNames = structured.flatMap((item) => item.names);
     const structuredDescriptions = structured.flatMap((item) => item.descriptions);
@@ -452,11 +464,14 @@ export async function POST(request: Request) {
     const summary = homepageProfile.description ||
       structuredDescriptions[0] ||
       allDescriptions[0] ||
+      allContentBlocks.slice(0, 3).join(" ").slice(0, 700) ||
       allHeadings.slice(0, 4).join(" · ") ||
       allParagraphs[0]?.slice(0, 400) || homepageProfile.title;
     const services = [...new Set(allHeadings.filter((heading) =>
       /service|product|solution|platform|tool|feature|offer|consult|pricing|plan|we help|our work/i.test(heading)
-    ))].concat(structuredServices).filter((value, index, list) => list.indexOf(value) === index).slice(0, 12);
+    ))].concat(allContentBlocks.filter((block) =>
+      /\\b(we offer|our services|our products|platform provides|product includes|solutions include)\\b/i.test(block)
+    ).map((block) => block.slice(0, 180)), structuredServices).filter((value, index, list) => list.indexOf(value) === index).slice(0, 12);
     const keyTopics = [...new Set([...allTitles, ...allHeadings, ...structuredTopics])]
       .filter((item) => item.length > 2).slice(0, 18);
     const importantPageMap = new Map<string, { type: string; label: string; url: string }>();
@@ -508,7 +523,7 @@ export async function POST(request: Request) {
       profile: data,
       pagesAnalysed: pages.length,
       socialProfilesFound: socials.length,
-      analysisType: "multi-page-structured-data-and-sitemap-extraction",
+      analysisType: "deep-content-multi-page-structured-data-and-sitemap-extraction",
       sitemapPagesDiscovered: sitemapPages.length,
     });
   } catch (error) {
