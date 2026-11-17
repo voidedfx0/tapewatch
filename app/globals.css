@@ -527,3 +527,58 @@ h1 span { color: #777c84; }
   }
   .stat-card:hover,.mini-card:hover,.section-card:hover,.getting-started:hover,.intelligence-card:hover { transform:none; }
 }
+
+/* Refined signature animation: a visibly blinking eye inside a rotating 3D globe */
+.motion-visual { perspective: 760px; perspective-origin: 50% 47%; }
+.motion-ring { transform-style:preserve-3d; backface-visibility:visible; }
+.ring-outer {
+  border-color:#aeb4c0;
+  border-style:dashed;
+  animation:globe-outer 19s linear infinite;
+  box-shadow:0 0 22px #5b63d90b;
+}
+.ring-middle {
+  border-color:#7f8798;
+  border-style:solid;
+  animation:globe-middle 13s linear infinite;
+  box-shadow:inset 0 0 18px #5b63d90a;
+}
+.ring-inner {
+  border-color:#c4c8d2;
+  border-style:dotted;
+  animation:globe-inner 9s linear infinite;
+}
+@keyframes globe-outer {
+  from { transform:translate(-50%,-50%) rotateX(67deg) rotateZ(0deg); }
+  to { transform:translate(-50%,-50%) rotateX(67deg) rotateZ(360deg); }
+}
+@keyframes globe-middle {
+  from { transform:translate(-50%,-50%) rotateY(69deg) rotateZ(0deg); }
+  to { transform:translate(-50%,-50%) rotateY(69deg) rotateZ(-360deg); }
+}
+@keyframes globe-inner {
+  from { transform:translate(-50%,-50%) rotateX(58deg) rotateY(55deg) rotateZ(0deg); }
+  to { transform:translate(-50%,-50%) rotateX(58deg) rotateY(55deg) rotateZ(360deg); }
+}
+.motion-core.eye-core { animation:eye-hover 4.8s ease-in-out infinite; }
+.watch-eye {
+  transform-origin:50% 50%;
+  animation:eye-blink 4.8s ease-in-out infinite;
+}
+@keyframes eye-blink {
+  0%,38%,42%,100% { transform:scaleY(1); }
+  40% { transform:scaleY(.055); }
+  41% { transform:scaleY(.12); }
+}
+.eye-iris { animation:eye-look 6.4s ease-in-out infinite; }
+@keyframes eye-look {
+  0%,24%,100% { transform:translateX(0); }
+  30%,40% { transform:translateX(6px); }
+  48%,58% { transform:translateX(-5px); }
+  66%,76% { transform:translateX(2px); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .ring-outer,.ring-middle,.ring-inner,.motion-core.eye-core,.watch-eye,.eye-iris {
+    animation:none!important;
+  }
+}
