@@ -32,6 +32,7 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState("");
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
+  const [showChanges, setShowChanges] = useState(false);
   const [detailTab, setDetailTab] = useState<"overview" | "changes" | "checks" | "settings">("overview");
 
   const filteredSites = useMemo(() => sites.filter((site) => site.url.toLowerCase().includes(query.toLowerCase())), [sites, query]);
@@ -58,8 +59,9 @@ export default function Home() {
         </a>
         <div className="workspace-label">WORKSPACE</div>
         <nav className="nav-list" aria-label="Main navigation">
-          <a className="nav-item active" href="#overview"><Icon name="grid"/> Overview</a>
-          <a className={`nav-item ${selectedSite ? "" : ""}`} href="#websites" onClick={() => setSelectedSite(null)}><Icon name="globe"/> Websites <span className="nav-count">{sites.length}</span></a>
+          <a className={`nav-item ${!selectedSite && !showChanges ? "active" : ""}`} href="#overview" onClick={() => { setSelectedSite(null); setShowChanges(false); }}><Icon name="grid"/> Overview</a>
+          <a className="nav-item" href="#websites" onClick={() => { setSelectedSite(null); setShowChanges(false); }}><Icon name="globe"/> Websites <span className="nav-count">{sites.length}</span></a>
+          <a className={`nav-item ${showChanges ? "active" : ""}`} href="#changes" onClick={() => { setSelectedSite(null); setShowChanges(true); }}><Icon name="activity"/> Changes <span className="nav-count">0</span></a>
           <a className="nav-item" href="#circuits"><Icon name="layers"/> Circuits</a>
           <a className="nav-item" href="#activity"><Icon name="activity"/> Activity</a>
         </nav>
@@ -80,7 +82,7 @@ export default function Home() {
 
       <section className="main-panel" id="overview">
         <header className="topbar">
-          <div className="breadcrumbs">Workspace <span>/</span> <strong>{selectedSite ? "Website details" : "Overview"}</strong></div>
+          <div className="breadcrumbs">Workspace <span>/</span> <strong>{selectedSite ? "Website details" : showChanges ? "Change intelligence" : "Overview"}</strong></div>
           <div className="topbar-right"><span className="preview-pill"><span/> Preview environment</span><button className="icon-button" aria-label="Search websites" onClick={() => document.getElementById("site-search")?.focus()}><Icon name="search"/></button></div>
         </header>
 
@@ -106,7 +108,31 @@ export default function Home() {
             {detailTab === "checks" && <section className="detail-card tab-empty"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="shield" size={27}/></div></div><h3>No integrity checks yet</h3><p>Checks will be listed here after a verification method is configured. TapeWatch is not currently checking this website.</p></section>}
             {detailTab === "settings" && <section className="detail-card settings-preview"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="settings" size={17}/></span><h2>Monitoring preferences</h2></div><span className="coming-soon">NOT ACTIVE</span></div><div className="info-rows"><div><span>Check frequency</span><strong>Not configured</strong></div><div><span>Change notifications</span><strong>Not configured</strong></div><div><span>Verification method</span><strong>Awaiting source review</strong></div></div><p className="detail-muted settings-footnote">These controls will become available when the monitoring service is implemented. No settings are being applied yet.</p></section>}
           </div>
-        ) : <div className="content">
+        ) : showChanges ? <div className="content changes-workspace" id="changes">
+          <div className="workspace-title-row">
+            <div><div className="eyebrow">WEBSITE INTELLIGENCE</div><h1>Change intelligence<span>.</span></h1><p className="intro">Investigate what changed across your monitored websites, with a clear trail back to the evidence.</p></div>
+            <span className="preview-pill"><span/> ENGINE NOT CONNECTED</span>
+          </div>
+          <section className="changes-intro-card">
+            <div className="changes-intro-icon"><Icon name="activity" size={22}/></div>
+            <div><span className="changes-kicker">THE CHANGE WORKFLOW</span><h2>From a detected difference to an explainable record.</h2><p>When monitoring is connected, this workspace will group observations into reviewable changes. Each record will include the affected files, observation time, previous and current hashes, and any available verification evidence.</p></div>
+          </section>
+          <div className="changes-summary-grid">
+            <article className="changes-summary-card"><span>CHANGES DETECTED</span><strong>—</strong><p>No monitoring data collected</p></article>
+            <article className="changes-summary-card"><span>AWAITING REVIEW</span><strong>—</strong><p>Review queue not active</p></article>
+            <article className="changes-summary-card"><span>VERIFIED RECORDS</span><strong>—</strong><p>Verification source not connected</p></article>
+          </div>
+          <section className="section-card changes-records-card">
+            <div className="section-heading"><div><h2>Change records</h2><p>Historical differences will appear here after the first real observation.</p></div><span className="coming-soon">NO DATA SOURCE</span></div>
+            <div className="changes-empty">
+              <div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="activity" size={28}/></div></div>
+              <h3>No change records yet</h3>
+              <p>TapeWatch has not monitored a website or captured a baseline. Once a real monitoring source is connected, detected differences will appear here for investigation.</p>
+              <button className="secondary-button" onClick={() => { setShowChanges(false); setShowAdd(true); setNotice(""); }}><Icon name="plus" size={15}/> Add a website</button>
+            </div>
+          </section>
+          <section className="changes-evidence-note"><Icon name="shield" size={17}/><p><strong>Evidence before conclusions.</strong> A detected difference is an observation, not automatically a security issue. Verification status will only be shown when the relevant hashes and source records have actually been checked.</p></section>
+        </div> : <div className="content">
           <div className="welcome-row">
             <div><div className="eyebrow">WEBSITE INTELLIGENCE PLATFORM</div><h1>See the signal <span>behind every change.</span></h1><p className="intro">Monitor websites, investigate changes, and connect integrity evidence with on-chain activity.</p></div>
             <button className="primary-button" onClick={() => { setShowAdd(true); setNotice(""); }}><Icon name="plus" size={17}/> Add a website</button>
