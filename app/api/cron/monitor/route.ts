@@ -127,7 +127,7 @@ export async function GET(request: Request) {
     .from("website_monitoring_settings")
     .select("id, website_id, user_id")
     .eq("enabled", true)
-    .lte("next_run_at", now.toISOString())
+    .or(`next_run_at.is.null,next_run_at.lte.${now.toISOString()}`)
     .order("next_run_at", { ascending: true })
     .limit(25);
 
