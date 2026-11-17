@@ -692,3 +692,13 @@ h1 span { color: #777c84; }
   content:none!important;
   display:none!important;
 }
+
+/* Give the orbital rings more visual presence without changing their styling. */
+.motion-visual .ring-outer { width:250px!important;height:250px!important; }
+.motion-visual .ring-middle { width:188px!important;height:188px!important; }
+.motion-visual .ring-inner { width:126px!important;height:126px!important; }
+@media (max-width:700px) {
+  .motion-visual .ring-outer { width:190px!important;height:190px!important; }
+  .motion-visual .ring-middle { width:144px!important;height:144px!important; }
+  .motion-visual .ring-inner { width:98px!important;height:98px!important; }
+}
