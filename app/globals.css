@@ -880,3 +880,88 @@ h1 span { color: #777c84; }
   .draft-status.monitoring-on span { width:7px;height:7px; }
   .detail-site-copy h1 { font-size:clamp(15px,4vw,20px); }
 }
+
+
+/* Premium observation and monitoring status indicators */
+.draft-status {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  min-height:27px;
+  padding:5px 10px;
+  border:1px solid #e0e3eb;
+  border-radius:999px;
+  background:linear-gradient(180deg,#fff 0%,#f8f9fc 100%);
+  color:#737987;
+  font-size:9px;
+  font-weight:750;
+  letter-spacing:.035em;
+  line-height:1;
+  white-space:nowrap;
+  transition:border-color .25s ease,background .25s ease,transform .25s ease;
+}
+.draft-status > span {
+  position:relative;
+  display:inline-block;
+  width:7px;
+  height:7px;
+  flex:0 0 7px;
+  border-radius:50%;
+  background:#aab0bb;
+}
+.draft-status.detail-status {
+  border-color:#d9def7;
+  background:linear-gradient(180deg,#fff 0%,#f5f6ff 100%);
+  color:#515bb9;
+  box-shadow:0 2px 8px #5b63d90b;
+}
+.draft-status.detail-status > span {
+  background:#5b63d9;
+  box-shadow:0 0 0 3px #5b63d91b;
+  animation:observed-pulse 2.4s ease-in-out infinite;
+}
+.draft-status.monitoring-on {
+  border-color:#cce8d8;
+  background:linear-gradient(180deg,#fff 0%,#f1faf5 100%);
+  color:#28724a;
+  box-shadow:0 2px 8px #2384510b;
+}
+.draft-status.monitoring-on > span {
+  background:#22a06b;
+  box-shadow:0 0 0 3px #22a06b1c;
+  animation:monitoring-pulse 2s ease-in-out infinite;
+}
+@keyframes observed-pulse {
+  0%,100% { box-shadow:0 0 0 3px #5b63d91b; }
+  50% { box-shadow:0 0 0 6px #5b63d90b; }
+}
+@keyframes monitoring-pulse {
+  0%,100% { box-shadow:0 0 0 3px #22a06b1c; }
+  50% { box-shadow:0 0 0 6px #22a06b0c; }
+}
+@media (hover:hover) and (pointer:fine) {
+  .draft-status:hover { transform:translateY(-1px); }
+}
+@media (max-width:700px) {
+  /* Keep the important Observed label visible on the website detail screen. */
+  .detail-actions .draft-status.detail-status {
+    display:inline-flex;
+    min-height:29px;
+    padding:6px 10px;
+    gap:7px;
+    font-size:9px;
+  }
+  /* The watchlist stays compact; its dot still communicates monitoring state. */
+  .site-row .draft-status {
+    min-height:25px;
+    padding:5px 7px;
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  .draft-status.detail-status > span,
+  .draft-status.monitoring-on > span {
+    animation:none!important;
+  }
+  .draft-status { transition:none!important; }
+}
