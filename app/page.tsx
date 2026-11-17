@@ -48,6 +48,8 @@ export default function Home() {
   const [checkingWebsite, setCheckingWebsite] = useState(false);
   const [compareOlderId, setCompareOlderId] = useState("");
   const [compareNewerId, setCompareNewerId] = useState("");
+  const [verifyingCheckId, setVerifyingCheckId] = useState("");
+  const [verificationResult, setVerificationResult] = useState<{ checkId: string; status: "verified" | "mismatch" | "unavailable"; message: string; verifiedAt: string } | null>(null);
 
 
   useEffect(() => {
@@ -274,6 +276,52 @@ export default function Home() {
     }
   }
 
+  async function verifySavedCheck(savedCheck: WebsiteCheck) {
+    if (!selectedSite || !supabase) return;
+    setVerifyingCheckId(savedCheck.id);
+    setVerificationResult(null);
+    setNotice("");
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) throw new Error("Your workspace session is not ready. Refresh and try again.");
+      const response = await fetch("/api/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ websiteId: selectedSite.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "The live evidence check failed.");
+      const liveCheck = result.check as WebsiteCheck;
+      setChecks((current) => [liveCheck, ...current]);
+      if (result.change) setChanges((current) => [result.change as WebsiteChange, ...current]);
+      const verifiedAt = new Date().toISOString();
+      const status = !savedCheck.content_hash || !liveCheck.content_hash
+        ? "unavailable"
+        : savedCheck.content_hash === liveCheck.content_hash ? "verified" : "mismatch";
+      setVerificationResult({
+        checkId: savedCheck.id,
+        status,
+        verifiedAt,
+        message: status === "verified"
+          ? "The current complete response matches this saved SHA-256 fingerprint."
+          : status === "mismatch"
+            ? "The current response fingerprint differs from this saved check. The website may have changed since it was recorded."
+            : "A complete fingerprint is missing from the saved check or the latest response, so a comparison was not possible.",
+      });
+    } catch (error) {
+      console.error("TapeWatch evidence verification failed:", error);
+      setVerificationResult({
+        checkId: savedCheck.id,
+        status: "unavailable",
+        verifiedAt: new Date().toISOString(),
+        message: error instanceof Error ? error.message : "The live evidence check could not be completed.",
+      });
+    } finally {
+      setVerifyingCheckId("");
+    }
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -379,6 +427,8 @@ export default function Home() {
                 <div className="check-history-top"><strong>{check.status === "reachable" ? "Website reachable" : check.status === "reachable_partial" ? "Reachable · partial capture" : check.status === "http_error" ? "HTTP response error" : "Website unavailable"}</strong><span className="coming-soon">{check.http_status ? `HTTP ${check.http_status}` : check.status.toUpperCase()}</span></div>
                 <p>{new Date(check.checked_at).toLocaleString()}{check.page_title ? ` · ${check.page_title}` : ""}</p>
                 {check.content_hash && <div className="check-hash"><span>SHA-256</span><code>{check.content_hash}</code></div>}
+                <div className="evidence-verify-actions"><button className="secondary-button" onClick={() => verifySavedCheck(check)} disabled={Boolean(verifyingCheckId)}>{verifyingCheckId === check.id ? "Checking live site…" : "Verify against live site"}</button></div>
+                {verificationResult?.checkId === check.id && <div className={`evidence-verify-result ${verificationResult.status}`}><strong>{verificationResult.status === "verified" ? "Current fingerprint matches" : verificationResult.status === "mismatch" ? "Fingerprint mismatch" : "Unable to verify"}</strong><span>{verificationResult.message}</span><small>Checked {new Date(verificationResult.verifiedAt).toLocaleString()}</small></div>}
                 {check.error_message && <p className="check-error">{check.error_message}</p>}
                 {check.final_url && <p className="detail-muted">Final address: {check.final_url}</p>}
               </article>)}</div> : <div className="checks-empty"><h3>No website checks yet</h3><p>Select Check now to record the first observation for this website.</p><button className="secondary-button" onClick={runWebsiteCheck} disabled={checkingWebsite}>{checkingWebsite ? "Checking…" : "Run first check"}</button></div>}
