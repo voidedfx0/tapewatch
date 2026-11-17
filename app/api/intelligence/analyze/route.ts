@@ -372,7 +372,13 @@ async function discoverSitemapPages(homepageUrl: URL) {
 }
 
 function socialProfiles(links: Link[]) {
-  const found = new Map<string, { platform: string; url: string }>();
+  const found = new Map<string, { platform: string; url: string; evidence: string }>();
+  const evidenceLabel = (label: string) => {
+    if (label === "Structured social profile") return "Declared in structured site data";
+    if (label === "Rel-me social profile") return "Linked with rel=me";
+    if (label === "Social profile metadata") return "Declared in social metadata";
+    return "Linked directly from the website";
+  };
   for (const link of links) {
     try {
       const url = new URL(link.url);
@@ -382,7 +388,11 @@ function socialProfiles(links: Link[]) {
       url.search = "";
       url.hash = "";
       const normalized = url.toString().replace(/\/$/, "");
-      if (!found.has(platform)) found.set(platform, { platform, url: normalized });
+      const evidence = evidenceLabel(link.label);
+      const existing = found.get(platform);
+      if (!existing || (existing.evidence === "Linked directly from the website" && evidence !== existing.evidence)) {
+        found.set(platform, { platform, url: normalized, evidence });
+      }
     } catch { /* Ignore malformed external links. */ }
   }
   return [...found.values()];
