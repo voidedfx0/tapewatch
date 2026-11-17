@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { supabase } from "../lib/supabase";
 
-type Site = { id: number; url: string; status: "Setup draft" };
+type Site = { id: string; url: string; status: "Setup draft" };
 
 const initialSites: Site[] = [];
 
@@ -28,6 +29,8 @@ function Icon({ name, size = 18 }: { name: string; size?: number }) {
 
 export default function Home() {
   const [sites, setSites] = useState<Site[]>(initialSites);
+  const [sitesLoading, setSitesLoading] = useState(true);
+  const [savingSite, setSavingSite] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [url, setUrl] = useState("");
   const [query, setQuery] = useState("");
@@ -36,6 +39,50 @@ export default function Home() {
   const [showChanges, setShowChanges] = useState(false);
   const [activeSection, setActiveSection] = useState("");
   const [detailTab, setDetailTab] = useState<"overview" | "changes" | "checks" | "settings">("overview");
+
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadWebsites() {
+      if (!supabase) {
+        if (active) {
+          setNotice("Supabase is not configured. Check the Vercel environment variables.");
+          setSitesLoading(false);
+        }
+        return;
+      }
+
+      try {
+        let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+
+        if (!session) {
+          const { data, error } = await supabase.auth.signInAnonymously();
+          if (error) throw error;
+          session = data.session;
+        }
+
+        if (!session) throw new Error("A secure workspace session could not be created.");
+
+        const { data, error } = await supabase
+          .from("websites")
+          .select("id, url, status")
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        if (active) setSites((data ?? []) as Site[]);
+      } catch (error) {
+        console.error("TapeWatch website loading failed:", error);
+        if (active) setNotice(error instanceof Error ? error.message : "Could not load your saved websites.");
+      } finally {
+        if (active) setSitesLoading(false);
+      }
+    }
+
+    void loadWebsites();
+    return () => { active = false; };
+  }, []);
 
   const filteredSites = useMemo(() => sites.filter((site) => site.url.toLowerCase().includes(query.toLowerCase())), [sites, query]);
   const sectionContent: Record<string, { title: string; eyebrow: string; description: string; items: { title: string; description: string; state: string }[] }> = {
@@ -53,17 +100,61 @@ export default function Home() {
     setActiveSection(section === "changes" || section === "overview" || section === "websites" ? "" : section);
   }
 
-  function addSite(event: FormEvent<HTMLFormElement>) {
+  async function addSite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = url.trim();
     if (!/^https?:\/\/.+\..+/.test(trimmed)) {
       setNotice("Enter a complete website address, including https://");
       return;
     }
-    setSites((current) => [...current, { id: Date.now(), url: trimmed, status: "Setup draft" }]);
-    setUrl("");
-    setShowAdd(false);
-    setNotice("Draft added to this preview. Monitoring is not connected yet.");
+    if (!supabase) {
+      setNotice("Supabase is not configured. Check the Vercel environment variables.");
+      return;
+    }
+
+    let normalizedUrl = trimmed;
+    try {
+      const parsed = new URL(trimmed);
+      parsed.hash = "";
+      normalizedUrl = parsed.toString().replace(/\/$/, "");
+    } catch {
+      setNotice("Enter a valid website address, including https://");
+      return;
+    }
+
+    setSavingSite(true);
+    setNotice("");
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session) throw new Error("Your workspace session is not ready. Refresh and try again.");
+
+      const { data, error } = await supabase
+        .from("websites")
+        .insert({
+          user_id: session.user.id,
+          url: trimmed,
+          normalized_url: normalizedUrl,
+          status: "Setup draft",
+        })
+        .select("id, url, status")
+        .single();
+
+      if (error) {
+        if (error.code === "23505") throw new Error("This website is already in your watchlist.");
+        throw error;
+      }
+
+      setSites((current) => [data as Site, ...current]);
+      setUrl("");
+      setShowAdd(false);
+      setNotice("Website saved to your TapeWatch workspace. Monitoring has not started yet.");
+    } catch (error) {
+      console.error("TapeWatch website save failed:", error);
+      setNotice(error instanceof Error ? error.message : "Could not save this website. Please try again.");
+    } finally {
+      setSavingSite(false);
+    }
   }
 
   return (
@@ -119,7 +210,7 @@ export default function Home() {
               <div className="detail-site-copy"><div className="eyebrow">WEBSITE WORKSPACE · SETUP DRAFT</div><h1>{selectedSite.url}</h1><p className="intro">A dedicated view for this website's integrity and monitoring setup.</p></div>
               <span className="draft-status detail-status"><span/> Setup draft</span>
             </div>
-            <div className="detail-notice"><Icon name="shield" size={18}/><div><strong>Monitoring has not started</strong><p>This entry is saved only in the current browser preview. No website checks, file hashes, or blockchain events have been collected.</p></div></div>
+            <div className="detail-notice"><Icon name="shield" size={18}/><div><strong>Monitoring has not started</strong><p>This entry is saved in your private TapeWatch workspace. No website checks, file hashes, or blockchain events have been collected.</p></div></div>
             <div className="detail-tabs" role="tablist" aria-label="Website details sections">
               {(["overview", "changes", "checks", "settings"] as const).map((tab) => <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? "detail-tab active" : "detail-tab"} onClick={() => setDetailTab(tab)}>{tab === "overview" ? "Overview" : tab === "changes" ? "Change history" : tab === "checks" ? "Checks" : "Settings"}</button>)}
             </div>
@@ -176,7 +267,7 @@ export default function Home() {
           <div className="notice-bar"><span className="notice-icon"><Icon name="shield" size={17}/></span><div><strong>Preview workspace · data connections pending</strong><p>Your workspace is ready to configure. Live website observations, integrity results, and blockchain events will appear after their data sources are connected.</p></div><span className="preview-tag">PREVIEW</span></div>
 
           <section className="stats-grid" aria-label="Monitoring summary">
-            <article className="stat-card"><div className="stat-head">Websites on watchlist <span className="stat-icon"><Icon name="globe"/></span></div><div className="stat-number">{sites.length}<small> / —</small></div><div className="stat-foot">Local preview entries only</div></article>
+            <article className="stat-card"><div className="stat-head">Websites on watchlist <span className="stat-icon"><Icon name="globe"/></span></div><div className="stat-number">{sites.length}<small> / —</small></div><div className="stat-foot">Saved workspace entries</div></article>
             <article className="stat-card"><div className="stat-head">Verified observations <span className="stat-icon"><Icon name="shield"/></span></div><div className="stat-number">—</div><div className="stat-foot">Verification source not connected</div></article>
             <article className="stat-card"><div className="stat-head">Changes recorded <span className="stat-icon"><Icon name="activity"/></span></div><div className="stat-number">—</div><div className="stat-foot">Change history not connected</div></article>
             <article className="stat-card"><div className="stat-head">Linked circuits <span className="stat-icon"><Icon name="layers"/></span></div><div className="stat-number">—</div><div className="stat-foot">Contract sources not configured</div></article>
@@ -197,9 +288,9 @@ export default function Home() {
           </section>}
 
           <section className="section-card" id="websites">
-            <div className="section-heading"><div><h2>Website watchlist</h2><p>Your registered websites and their current setup state.</p></div><button className="text-button" onClick={() => setShowAdd(true)}>Add website <Icon name="arrow" size={15}/></button></div>
+            <div className="section-heading"><div><h2>Website watchlist</h2><p>Your saved websites and their current setup state.</p></div><button className="text-button" onClick={() => setShowAdd(true)}>Add website <Icon name="arrow" size={15}/></button></div>
             <div className="table-toolbar"><div className="table-title">ALL SITES <span>{sites.length}</span></div><label className="search-box"><Icon name="search" size={16}/><input id="site-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search websites..." /></label></div>
-            {filteredSites.length ? <div className="site-list">{filteredSites.map((site) => <button className="site-row site-row-button" key={site.id} onClick={() => { setSelectedSite(site); setDetailTab("overview"); }}><div className="site-favicon"><Icon name="globe" size={17}/></div><div className="site-details"><strong>{site.url}</strong><span>Added in this browser preview</span></div><span className="draft-status"><span/> Setup draft</span><span className="site-open"><Icon name="arrow" size={15}/></span></button>)}</div> : <div className="empty-state"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="globe" size={29}/></div><span className="spark spark-one"/> <span className="spark spark-two"/></div><h3>{query ? "No matching websites" : "Nothing on your watchlist yet"}</h3><p>{query ? "Try a different search term." : "Add a website to start setting up your monitoring workspace. You can review the setup before anything is connected."}</p>{!query && <button className="secondary-button" onClick={() => setShowAdd(true)}><Icon name="plus" size={16}/> Add your first website</button>}</div>}
+            {sitesLoading ? <div className="empty-state"><p>Loading your saved websites…</p></div> : filteredSites.length ? <div className="site-list">{filteredSites.map((site) => <button className="site-row site-row-button" key={site.id} onClick={() => { setSelectedSite(site); setDetailTab("overview"); }}><div className="site-favicon"><Icon name="globe" size={17}/></div><div className="site-details"><strong>{site.url}</strong><span>Saved in your workspace</span></div><span className="draft-status"><span/> Setup draft</span><span className="site-open"><Icon name="arrow" size={15}/></span></button>)}</div> : <div className="empty-state"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="globe" size={29}/></div><span className="spark spark-one"/> <span className="spark spark-two"/></div><h3>{query ? "No matching websites" : "Nothing on your watchlist yet"}</h3><p>{query ? "Try a different search term." : "Add a website to start setting up your monitoring workspace. You can review the setup before anything is connected."}</p>{!query && <button className="secondary-button" onClick={() => setShowAdd(true)}><Icon name="plus" size={16}/> Add your first website</button>}</div>}
           </section>
 
           <section className="intelligence-section" aria-label="TapeWatch intelligence modules">
@@ -230,7 +321,7 @@ export default function Home() {
         </div>}
       </section>
 
-      {showAdd && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowAdd(false); }}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="modal-head"><div><div className="eyebrow">NEW WATCHLIST ENTRY</div><h2 id="modal-title">Add a website</h2></div><button className="icon-button" onClick={() => setShowAdd(false)} aria-label="Close"><Icon name="close"/></button></div><p className="modal-copy">Enter the public website address you'd like to monitor. For now, this creates a local preview draft only.</p><form onSubmit={addSite}><label className="field-label" htmlFor="website-url">Website URL</label><input id="website-url" className="url-input" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com" autoFocus/><div className="modal-note"><Icon name="shield" size={15}/> No wallet connection or transaction required.</div>{notice && <p className="form-notice">{notice}</p>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setShowAdd(false)}>Cancel</button><button type="submit" className="primary-button">Add preview draft <Icon name="arrow" size={15}/></button></div></form></section></div>}
+      {showAdd && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowAdd(false); }}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="modal-head"><div><div className="eyebrow">NEW WATCHLIST ENTRY</div><h2 id="modal-title">Add a website</h2></div><button className="icon-button" onClick={() => setShowAdd(false)} aria-label="Close"><Icon name="close"/></button></div><p className="modal-copy">Enter the public website address you'd like to monitor. This saves the website to your private TapeWatch workspace. Monitoring does not start yet.</p><form onSubmit={addSite}><label className="field-label" htmlFor="website-url">Website URL</label><input id="website-url" className="url-input" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com" autoFocus/><div className="modal-note"><Icon name="shield" size={15}/> No wallet connection or transaction required.</div>{notice && <p className="form-notice">{notice}</p>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setShowAdd(false)}>Cancel</button><button type="submit" className="primary-button" disabled={savingSite}>{savingSite ? "Saving…" : "Save website"} <Icon name="arrow" size={15}/></button></div></form></section></div>}
       {notice && !showAdd && <div className="toast" role="status">{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><Icon name="close" size={14}/></button></div>}
     </main>
   );
