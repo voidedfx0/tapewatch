@@ -845,3 +845,38 @@ h1 span { color: #777c84; }
   .monitoring-control-row { align-items:flex-start;flex-direction:column; }
   .monitoring-control-row button { width:100%;justify-content:center; }
 }
+
+
+/* Compact website URLs and clearly show active daily monitoring. */
+.site-details { flex:1;min-width:0; }
+.site-details strong {
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:10px;
+  line-height:1.4;
+}
+.draft-status { flex:0 0 auto; }
+.draft-status.monitoring-on { color:#238451; }
+.draft-status.monitoring-on span {
+  background:#22a06b;
+  box-shadow:0 0 0 3px #22a06b1c;
+}
+.detail-site-copy h1 {
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+@media (max-width:700px) {
+  .site-row { gap:8px; }
+  .site-details strong { font-size:9px; }
+  .draft-status { gap:0; }
+  .draft-status:not(.monitoring-on) { color:#686d75; }
+  .draft-status { font-size:0; }
+  .draft-status span { width:7px;height:7px;flex:0 0 7px; }
+  .draft-status.monitoring-on span { width:7px;height:7px; }
+  .detail-site-copy h1 { font-size:clamp(15px,4vw,20px); }
+}
