@@ -723,3 +723,10 @@ h1 span { color: #777c84; }
   .check-history-top { align-items:flex-start;flex-direction:column;gap:7px; }
   .checks-history-card { padding:15px; }
 }
+
+
+/* Make the primary website check action obvious inside the Checks tab. */
+.check-history-heading { flex-wrap:wrap; }
+.check-history-actions { display:flex;align-items:center;gap:10px;flex-wrap:wrap; }
+.check-now-button { min-height:35px!important;padding:0 13px!important;font-size:10px!important; }
+@media (max-width:520px) { .check-history-actions { width:100%;justify-content:space-between; } .check-now-button { flex:1; } }
