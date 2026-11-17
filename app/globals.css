@@ -1110,3 +1110,32 @@ h1 span { color: #777c84; }
   .watchlist-name-track > span[aria-hidden="true"] { display:none!important; }
 }
 
+
+
+/* Website intelligence profile */
+.intelligence-card { display:grid;gap:15px; }
+.intelligence-intro { margin:-5px 0 0;max-width:720px;line-height:1.65; }
+.intelligence-action-row { display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-top:1px solid #eceef2;border-bottom:1px solid #eceef2; }
+.intelligence-action-row .primary-button { flex:0 0 auto; }
+.intelligence-summary { padding:17px;border:1px solid #e3e5ef;border-radius:10px;background:linear-gradient(135deg,#fafaff,#fff 70%); }
+.intelligence-summary > span,.intelligence-grid article > span,.intelligence-pages > span { color:#777d87;font-size:8px;font-weight:800;letter-spacing:.9px; }
+.intelligence-summary h3 { margin:8px 0 6px;color:#292d36;font-size:17px; }
+.intelligence-summary p,.intelligence-grid article p,.intelligence-pages > p { margin:0;color:#737987;font-size:10px;line-height:1.7;overflow-wrap:anywhere; }
+.intelligence-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }
+.intelligence-grid article { min-width:0;padding:14px;border:1px solid #e8eaf0;border-radius:9px;background:#fff; }
+.intelligence-grid article p { margin-top:8px; }
+.intelligence-grid ul { display:grid;gap:6px;margin:9px 0 0;padding-left:17px;color:#626875;font-size:10px;line-height:1.5; }
+.intelligence-tags { display:flex;flex-wrap:wrap;gap:6px;margin-top:9px; }
+.intelligence-tags span { padding:5px 8px;border:1px solid #e1e4f0;border-radius:999px;background:#f8f8ff;color:#565fba;font-size:9px; }
+.intelligence-pages { display:grid;gap:8px; }
+.intelligence-pages > span { margin-bottom:2px; }
+.intelligence-pages a { display:flex;align-items:center;gap:10px;min-width:0;padding:10px 12px;border:1px solid #e8eaf0;border-radius:8px;color:#555dcc;text-decoration:none;background:#fff; }
+.intelligence-pages a > span { flex:0 0 auto;min-width:85px;color:#777d87;font-size:8px;font-weight:750;text-transform:uppercase; }
+.intelligence-pages a strong { min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#343943;font-size:10px; }
+.intelligence-disclaimer { margin:0;color:#9297a0;font-size:9px;line-height:1.65; }
+@media (max-width:650px) {
+  .intelligence-action-row { align-items:stretch;flex-direction:column; }
+  .intelligence-action-row .primary-button { width:100%;justify-content:center; }
+  .intelligence-grid { grid-template-columns:1fr; }
+  .intelligence-summary { padding:14px; }
+}
