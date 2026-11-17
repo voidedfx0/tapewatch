@@ -53,7 +53,7 @@ async function validatePublicTarget(url: URL) {
 }
 
 async function readLimitedBody(response: Response) {
-  if (!response.body) return new Uint8Array();
+  if (!response.body) return { body: new Uint8Array(), truncated: false };
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -142,6 +142,7 @@ export async function POST(request: Request) {
   try {
     let target = new URL(website.url);
     let response: Response | null = null;
+    let bodyResult: { body: Uint8Array; truncated: boolean } | null = null;
 
     for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects++) {
       await validatePublicTarget(target);
@@ -155,23 +156,24 @@ export async function POST(request: Request) {
           headers: { "User-Agent": "TapeWatch-Monitor/1.0 (+https://tapewatch.app)", "Accept": "text/html,application/xhtml+xml,application/json,text/plain;q=0.9,*/*;q=0.5" },
           cache: "no-store",
         });
+        if (response.status >= 300 && response.status < 400) {
+          const location = response.headers.get("location");
+          await response.body?.cancel();
+          if (!location || redirects === MAX_REDIRECTS) throw new Error("The website redirected too many times or returned an invalid redirect.");
+          target = new URL(location, target);
+          continue;
+        }
+        bodyResult = await readLimitedBody(response);
       } finally {
         clearTimeout(timeout);
-      }
-
-      if (response.status >= 300 && response.status < 400) {
-        const location = response.headers.get("location");
-        if (!location || redirects === MAX_REDIRECTS) throw new Error("The website redirected too many times or returned an invalid redirect.");
-        target = new URL(location, target);
-        continue;
       }
       break;
     }
 
-    if (!response) throw new Error("The website did not return a response.");
+    if (!response || !bodyResult) throw new Error("The website did not return a complete response.");
     httpStatus = response.status;
     finalUrl = target.toString();
-    const result = await readLimitedBody(response);
+    const result = bodyResult;
     const contentType = response.headers.get("content-type");
     if (!result.truncated) {
       contentHash = createHash("sha256").update(result.body).digest("hex");
