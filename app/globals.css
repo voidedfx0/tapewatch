@@ -833,3 +833,15 @@ h1 span { color: #777c84; }
 .timeline-category.verification { border-color:#d9dafa;background:#f7f7ff;color:#555dcc; }
 .trust-timeline-event-top { align-items:flex-start; }
 @media (max-width:650px) { .trust-timeline-event-heading { gap:4px; } }
+
+/* Daily monitoring controls */
+.monitoring-control-row { display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 0;border-bottom:1px solid #eceef0; }
+.monitoring-control-row > div { min-width:0; }
+.monitoring-control-row strong { display:block;font-size:14px;color:#202226; }
+.monitoring-control-row p { margin:6px 0 0;max-width:470px;line-height:1.55; }
+.status-pill { display:inline-flex;align-items:center;border:1px solid #d8e9df;border-radius:999px;padding:6px 9px;background:#f1f8f4;color:#28724a;font-size:9px;font-weight:750;letter-spacing:.08em;white-space:nowrap; }
+.status-active { border-color:#d8e9df;background:#f1f8f4;color:#28724a; }
+@media (max-width:600px) {
+  .monitoring-control-row { align-items:flex-start;flex-direction:column; }
+  .monitoring-control-row button { width:100%;justify-content:center; }
+}
