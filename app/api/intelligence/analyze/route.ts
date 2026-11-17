@@ -281,9 +281,9 @@ async function fetchSmallText(startUrl: URL) {
 
 function sitemapLocations(xml: string, baseUrl: URL) {
   const urls: URL[] = [];
-  for (const match of xml.matchAll(/<loc[^>]*>\\s*([\\s\\S]*?)\\s*<\\/loc>/gi)) {
+  for (const match of xml.matchAll(/<loc[^>]*>\s*([\s\S]*?)\s*<\/loc>/gi)) {
     try {
-      const raw = decode(match[1].replace(/<!\\[CDATA\\[|\\]\\]>/g, "").trim());
+      const raw = decode(match[1].replace(/<!\[CDATA\[|\]\]>/g, "").trim());
       const url = new URL(raw, baseUrl);
       if (url.origin === baseUrl.origin && ["http:", "https:"].includes(url.protocol)) {
         url.hash = "";
@@ -299,7 +299,7 @@ async function discoverSitemapPages(homepageUrl: URL) {
   const sitemapUrls = new Set<string>([new URL("/sitemap.xml", homepageUrl).toString()]);
   try {
     const robots = await fetchSmallText(new URL("/robots.txt", homepageUrl));
-    for (const match of robots.text.matchAll(/^\\s*Sitemap:\\s*(\\S+)/gim)) {
+    for (const match of robots.text.matchAll(/^\s*Sitemap:\s*(\S+)/gim)) {
       try { const url = new URL(match[1], homepageUrl); if (url.origin === homepageUrl.origin) sitemapUrls.add(url.toString()); }
       catch { /* Ignore malformed declarations. */ }
     }
@@ -313,7 +313,7 @@ async function discoverSitemapPages(homepageUrl: URL) {
       if (fetched.url.origin !== homepageUrl.origin) continue;
       filesRead++;
       const entries = sitemapLocations(fetched.text, fetched.url);
-      if (/<sitemapindex\\b/i.test(fetched.text)) {
+      if (/<sitemapindex\b/i.test(fetched.text)) {
         for (const child of entries.slice(0, 2)) {
           if (filesRead >= 3) break;
           try {
