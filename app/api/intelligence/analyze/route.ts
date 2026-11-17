@@ -180,21 +180,21 @@ function extractStructuredData(html: string, baseUrl: URL) {
 
 function extractSocialMetadata(html: string, baseUrl: URL): Link[] {
   const found: Link[] = [];
-  for (const match of html.matchAll(/<link\\b[^>]*>/gi)) {
+  for (const match of html.matchAll(/<link\b[^>]*>/gi)) {
     const tag = match[0];
-    const rel = tag.match(/\\brel\\s*=\\s*["']([^"']+)["']/i)?.[1] || "";
-    const href = tag.match(/\\bhref\\s*=\\s*["']([^"']+)["']/i)?.[1];
-    if (!href || !/(^|\\s)me(\\s|$)/i.test(rel)) continue;
+    const rel = tag.match(/\brel\s*=\s*["']([^"']+)["']/i)?.[1] || "";
+    const href = tag.match(/\bhref\s*=\s*["']([^"']+)["']/i)?.[1];
+    if (!href || !/(^|\s)me(\s|$)/i.test(rel)) continue;
     try {
       const url = new URL(decode(href), baseUrl);
       if (["http:", "https:"].includes(url.protocol)) found.push({ label: "Rel-me social profile", url: url.toString() });
     } catch { /* Ignore malformed profile links. */ }
   }
 
-  for (const match of html.matchAll(/<meta\\b[^>]*>/gi)) {
+  for (const match of html.matchAll(/<meta\b[^>]*>/gi)) {
     const tag = match[0];
-    const key = tag.match(/\\b(?:name|property)\\s*=\\s*["']([^"']*)["']/i)?.[1]?.toLowerCase();
-    const value = tag.match(/\\bcontent\\s*=\\s*["']([^"']*)["']/i)?.[1]?.trim();
+    const key = tag.match(/\b(?:name|property)\s*=\s*["']([^"']*)["']/i)?.[1]?.toLowerCase();
+    const value = tag.match(/\bcontent\s*=\s*["']([^"']*)["']/i)?.[1]?.trim();
     if (!key || !value) continue;
     if (key === "og:see_also" || key === "twitter:site" || key === "twitter:creator") {
       const candidate = value.startsWith("@") && (key === "twitter:site" || key === "twitter:creator")
@@ -376,7 +376,7 @@ function socialProfiles(links: Link[]) {
   for (const link of links) {
     try {
       const url = new URL(link.url);
-      const hostname = url.hostname.toLowerCase().replace(/^(www|m|mobile)\\./, "");
+      const hostname = url.hostname.toLowerCase().replace(/^(www|m|mobile)\./, "");
       const platform = SOCIAL_HOSTS[hostname] || SOCIAL_HOSTS["www." + hostname];
       if (!platform) continue;
       url.search = "";
