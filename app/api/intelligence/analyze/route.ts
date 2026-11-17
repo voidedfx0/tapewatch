@@ -86,14 +86,13 @@ function clean(value: string) {
 }
 
 function meta(html: string, key: string) {
-  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const patterns = [
-    new RegExp('<meta[^>]+name=["\\']' + escaped + '["\\'][^>]+content=["\\']([^"\\']*)["\\'][^>]*>', "i"),
-    new RegExp('<meta[^>]+property=["\\']' + escaped + '["\\'][^>]+content=["\\']([^"\\']*)["\\'][^>]*>', "i"),
-  ];
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match?.[1]) return clean(match[1]).slice(0, 500);
+  for (const match of html.matchAll(/<meta\\b[^>]*>/gi)) {
+    const tag = match[0];
+    const name = tag.match(/\\b(?:name|property)\\s*=\\s*["']([^"']*)["']/i)?.[1];
+    const content = tag.match(/\\bcontent\\s*=\\s*["']([^"']*)["']/i)?.[1];
+    if (name?.toLowerCase() === key.toLowerCase() && content) {
+      return clean(content).slice(0, 500);
+    }
   }
   return null;
 }
