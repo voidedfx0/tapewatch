@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 type Site = { id: string; url: string; status: "Setup draft" };
 type WebsiteCheck = { id: string; checked_at: string; status: string; http_status: number | null; final_url: string | null; content_hash: string | null; page_title: string | null; error_message: string | null };
 type WebsiteChange = { id: string; detected_at: string; change_type: string; previous_check_id: string | null; current_check_id: string; previous_hash: string | null; current_hash: string | null; previous_title: string | null; current_title: string | null };
+type MonitoringSetting = { id: string; website_id: string; user_id: string; enabled: boolean; frequency: "daily"; last_run_at: string | null; next_run_at: string | null };
 
 const initialSites: Site[] = [];
 
@@ -50,6 +51,9 @@ export default function Home() {
   const [compareNewerId, setCompareNewerId] = useState("");
   const [verifyingCheckId, setVerifyingCheckId] = useState("");
   const [verificationResult, setVerificationResult] = useState<{ checkId: string; status: "verified" | "mismatch" | "unavailable"; message: string; verifiedAt: string } | null>(null);
+  const [monitoringSetting, setMonitoringSetting] = useState<MonitoringSetting | null>(null);
+  const [monitoringLoading, setMonitoringLoading] = useState(false);
+  const [savingMonitoring, setSavingMonitoring] = useState(false);
 
 
   useEffect(() => {
@@ -122,6 +126,34 @@ export default function Home() {
     return () => { active = false; };
   }, [selectedSite?.id]);
   
+  useEffect(() => {
+    let active = true;
+    async function loadMonitoringSetting() {
+      if (!selectedSite || !supabase) {
+        setMonitoringSetting(null);
+        return;
+      }
+      setMonitoringLoading(true);
+      const { data, error } = await supabase
+        .from("website_monitoring_settings")
+        .select("id, website_id, user_id, enabled, frequency, last_run_at, next_run_at")
+        .eq("website_id", selectedSite.id)
+        .maybeSingle();
+      if (active) {
+        if (error) {
+          console.error("TapeWatch monitoring settings loading failed:", error);
+          setNotice("Could not load this website's monitoring settings.");
+          setMonitoringSetting(null);
+        } else {
+          setMonitoringSetting(data as MonitoringSetting | null);
+        }
+        setMonitoringLoading(false);
+      }
+    }
+    void loadMonitoringSetting();
+    return () => { active = false; };
+  }, [selectedSite?.id]);
+
   useEffect(() => {
     let active = true;
     async function loadChanges() {
@@ -241,6 +273,40 @@ export default function Home() {
       setNotice(error instanceof Error ? error.message : "Could not save this website. Please try again.");
     } finally {
       setSavingSite(false);
+    }
+  }
+
+  async function toggleDailyMonitoring(enabled: boolean) {
+    if (!selectedSite || !supabase) return;
+    setSavingMonitoring(true);
+    setNotice("");
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.user?.id) throw new Error("Your workspace session is not ready. Refresh and try again.");
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("website_monitoring_settings")
+        .upsert({
+          website_id: selectedSite.id,
+          user_id: session.user.id,
+          enabled,
+          frequency: "daily",
+          next_run_at: enabled ? (monitoringSetting?.next_run_at || now) : null,
+          updated_at: now,
+        }, { onConflict: "website_id" })
+        .select("id, website_id, user_id, enabled, frequency, last_run_at, next_run_at")
+        .single();
+      if (error) throw error;
+      setMonitoringSetting(data as MonitoringSetting);
+      setNotice(enabled
+        ? "Daily monitoring enabled. The next scheduled run will check this website."
+        : "Daily monitoring paused. Existing check and change history is preserved.");
+    } catch (error) {
+      console.error("TapeWatch monitoring setting save failed:", error);
+      setNotice(error instanceof Error ? error.message : "Could not update monitoring settings.");
+    } finally {
+      setSavingMonitoring(false);
     }
   }
 
@@ -453,7 +519,7 @@ export default function Home() {
               </article>)}</div> : <div className="checks-empty"><h3>No evidence events yet</h3><p>Run a website check to create the first timestamped event. Later changes and live comparisons will appear here too.</p><button className="secondary-button" onClick={runWebsiteCheck} disabled={checkingWebsite}>{checkingWebsite ? "Checking…" : "Run first check"}</button></div>}
               <p className="version-compare-disclaimer">This timeline is built from saved website checks and change records. A live comparison result is shown for this session; it is not a permanent verification certificate. No on-chain events are connected yet.</p>
             </section>}
-            {detailTab === "settings" && <section className="detail-card settings-preview"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="settings" size={17}/></span><h2>Monitoring preferences</h2></div><span className="coming-soon">NOT ACTIVE</span></div><div className="info-rows"><div><span>Check frequency</span><strong>Not configured</strong></div><div><span>Change notifications</span><strong>Not configured</strong></div><div><span>Verification method</span><strong>Awaiting source review</strong></div></div><p className="detail-muted settings-footnote">These controls will become available when the monitoring service is implemented. No settings are being applied yet.</p></section>}
+            {detailTab === "settings" && <section className="detail-card settings-preview"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="settings" size={17}/></span><h2>Monitoring preferences</h2></div><span className={monitoringSetting?.enabled ? "status-pill status-active" : "coming-soon"}>{monitoringSetting?.enabled ? "DAILY MONITORING ON" : "PAUSED"}</span></div><div className="monitoring-control-row"><div><strong>Automatic daily checks</strong><p className="detail-muted">Capture a website fingerprint once per day and record detected content changes.</p></div><button type="button" className={monitoringSetting?.enabled ? "secondary-button" : "primary-button"} onClick={() => void toggleDailyMonitoring(!monitoringSetting?.enabled)} disabled={monitoringLoading || savingMonitoring}>{monitoringLoading ? "Loading…" : savingMonitoring ? "Saving…" : monitoringSetting?.enabled ? "Pause monitoring" : "Enable daily checks"}</button></div><div className="info-rows"><div><span>Check frequency</span><strong>Daily</strong></div><div><span>Last scheduled check</span><strong>{monitoringSetting?.last_run_at ? new Date(monitoringSetting.last_run_at).toLocaleString() : "Not run yet"}</strong></div><div><span>Next scheduled check</span><strong>{monitoringSetting?.enabled && monitoringSetting.next_run_at ? new Date(monitoringSetting.next_run_at).toLocaleString() : "Not scheduled"}</strong></div></div><p className="detail-muted settings-footnote">Scheduled checks run through the secure server scheduler. Pausing monitoring preserves existing evidence history. Change notifications are not active yet.</p></section>}
           </div>
         ) : activeSection && sectionContent[activeSection] ? <div className="content module-workspace" id={activeSection}><div className="workspace-title-row"><div><div className="eyebrow">{sectionContent[activeSection].eyebrow}</div><h1>{sectionContent[activeSection].title}<span>.</span></h1><p className="intro">{sectionContent[activeSection].description}</p></div><span className="preview-pill"><span/> PREVIEW</span></div><div className="module-notice"><Icon name="shield" size={18}/><div><strong>Data sources are not connected</strong><p>This section is a frontend foundation. It will display real records only after the relevant monitoring or network integration is implemented and validated.</p></div></div><div className="module-page-grid">{sectionContent[activeSection].items.map((item) => <article className="module-page-card" key={item.title}><div className="module-page-card-top"><span className="mini-icon"><Icon name={activeSection === "settings" ? "settings" : activeSection === "timeline" ? "clock" : activeSection === "reports" ? "file" : "shield"} size={17}/></span><span className="coming-soon">{item.state}</span></div><h2>{item.title}</h2><p>{item.description}</p></article>)}</div><div className="module-evidence-note"><strong>Evidence-first design.</strong> No live activity, verification result or network status is being fabricated in this preview.</div></div> : showChanges ? <div className="content changes-workspace" id="changes">
           <div className="workspace-title-row">
