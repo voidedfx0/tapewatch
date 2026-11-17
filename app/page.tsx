@@ -131,6 +131,20 @@ export default function Home() {
             <article className="stat-card"><div className="stat-head">Linked circuits <span className="stat-icon"><Icon name="layers"/></span></div><div className="stat-number">—</div><div className="stat-foot">Contract sources not configured</div></article>
           </section>
 
+          {sites.length === 0 && <section className="getting-started" aria-label="Getting started">
+            <div className="getting-started-main">
+              <div className="getting-started-kicker"><span className="getting-started-dot"/> YOUR FIRST WORKFLOW</div>
+              <h2>Start with one website.</h2>
+              <p>Build a trustworthy history from the first observation. TapeWatch will only show verification results after a real source has been connected and checked.</p>
+              <button className="primary-button" onClick={() => { setShowAdd(true); setNotice(""); }}><Icon name="plus" size={16}/> Add your first website</button>
+            </div>
+            <div className="getting-started-steps">
+              <div className="getting-step"><span className="getting-step-number">01</span><div><strong>Register a website</strong><p>Add a public URL or a supported DeWEB reference.</p></div><span className="getting-step-state">READY</span></div>
+              <div className="getting-step"><span className="getting-step-number">02</span><div><strong>Capture a baseline</strong><p>Record the initial files and available integrity metadata.</p></div><span className="getting-step-state pending">NEXT</span></div>
+              <div className="getting-step"><span className="getting-step-number">03</span><div><strong>Track verified changes</strong><p>Compare later observations and inspect their evidence.</p></div><span className="getting-step-state pending">PLANNED</span></div>
+            </div>
+          </section>}
+
           <section className="section-card" id="websites">
             <div className="section-heading"><div><h2>Website watchlist</h2><p>Your registered websites and their current setup state.</p></div><button className="text-button" onClick={() => setShowAdd(true)}>Add website <Icon name="arrow" size={15}/></button></div>
             <div className="table-toolbar"><div className="table-title">ALL SITES <span>{sites.length}</span></div><label className="search-box"><Icon name="search" size={16}/><input id="site-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search websites..." /></label></div>
