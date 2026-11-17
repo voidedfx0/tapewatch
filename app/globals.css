@@ -1018,3 +1018,52 @@ h1 span { color: #777c84; }
   .site-details strong::after { animation:none!important; }
   .site-details strong { transition:none!important; }
 }
+
+/* Match the animated URL capsule on the website details page. */
+.detail-site-copy h1.detail-url-capsule {
+  position:relative;
+  display:block;
+  width:fit-content;
+  max-width:100%;
+  min-width:0;
+  box-sizing:border-box;
+  margin:0;
+  padding:7px 11px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  overflow-wrap:normal;
+  border:1px solid #e3e6ef;
+  border-radius:9px;
+  background:linear-gradient(110deg,#fff 0%,#f8f9fd 48%,#fff 100%);
+  background-size:180% 100%;
+  color:#292b30;
+  font-size:clamp(16px,2vw,23px);
+  line-height:1.35;
+  letter-spacing:-.55px;
+  box-shadow:inset 0 1px 0 #ffffff,0 2px 7px #252b4a08;
+}
+.detail-site-copy h1.detail-url-capsule::after {
+  content:"";
+  position:absolute;
+  top:0;
+  bottom:0;
+  left:-45%;
+  width:28%;
+  pointer-events:none;
+  background:linear-gradient(90deg,transparent,#5b63d912,transparent);
+  transform:skewX(-18deg);
+  animation:url-capsule-sheen 5.5s ease-in-out infinite;
+}
+@media (max-width:700px) {
+  .detail-site-copy h1.detail-url-capsule {
+    max-width:100%;
+    padding:6px 9px;
+    font-size:13px;
+    border-radius:8px;
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  .detail-site-copy h1.detail-url-capsule::after { animation:none!important; }
+}
+
