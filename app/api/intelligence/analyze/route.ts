@@ -574,6 +574,34 @@ export async function POST(request: Request) {
     const products = [...new Set([...structuredProducts, ...allHeadings.filter((heading) => /product|platform|software|application|tool|app|catalogue|catalog/i.test(heading)), ...allContentBlocks.filter((block) => /\b(our products|our platform|our software|we built|product includes|available products)\b/i.test(block)).map((block) => block.slice(0, 180))])].filter((value) => value.length > 2).slice(0, 12);
     const services = [...new Set([...structuredServices, ...allHeadings.filter((heading) => /service|consult|support|implementation|maintenance|delivery|solutions/i.test(heading)), ...allContentBlocks.filter((block) => /\b(we offer|our services|services include|we provide|we help|professional services)\b/i.test(block)).map((block) => block.slice(0, 180))])].filter((value) => value.length > 2).slice(0, 12);
     const features = [...new Set([...structuredFeatures, ...allHeadings.filter((heading) => /feature|capabilit|functionality|benefit/i.test(heading)), ...allContentBlocks.filter((block) => /\b(features include|key features|built-in|supports)\b/i.test(block)).map((block) => block.slice(0, 180))])].filter((value) => value.length > 2).slice(0, 12);
+    const businessText = [summary, ...allDescriptions, ...allHeadings, ...allContentBlocks].filter(Boolean).join(" ").slice(0, 50000);
+    const conceptRules: { label: string; pattern: RegExp }[] = [
+      { label: "E-commerce / online retail", pattern: /\b(shop online|online store|e-?commerce|shopping cart|checkout|product catalogue|product catalog)\b/i },
+      { label: "SaaS / software platform", pattern: /\b(software as a service|saas|cloud platform|web application|online platform|subscription software)\b/i },
+      { label: "Financial technology", pattern: /\b(fintech|payments? processing|digital wallet|banking platform|financial services|money transfer)\b/i },
+      { label: "Education / e-learning", pattern: /\b(e-?learning|online courses?|learning management|education platform|students and teachers|training platform)\b/i },
+      { label: "Healthcare / wellness", pattern: /\b(healthcare|medical services|telemedicine|patient care|wellness platform|clinic)\b/i },
+      { label: "Agency / professional services", pattern: /\b(digital agency|marketing agency|consultancy|professional services|we help businesses|creative studio)\b/i },
+      { label: "Media / publishing", pattern: /\b(newsroom|digital publishing|magazine|editorial|media platform|latest news)\b/i },
+      { label: "Community / social platform", pattern: /\b(online community|community platform|social network|members connect|discussion forum)\b/i },
+      { label: "Blockchain / Web3", pattern: /\b(blockchain|web3|decentralized|decentralised|smart contract|crypto(?:currency)?|tokenization|tokenisation)\b/i },
+      { label: "Logistics / delivery", pattern: /\b(logistics|shipping services|delivery tracking|fleet management|supply chain)\b/i },
+      { label: "Real estate", pattern: /\b(real estate|property listings|property management|rental properties)\b/i },
+      { label: "Travel / hospitality", pattern: /\b(hotel bookings?|travel agency|tour packages|hospitality|flight bookings?)\b/i },
+    ];
+    const businessModels = conceptRules.filter((rule) => rule.pattern.test(businessText)).map((rule) => rule.label).slice(0, 5);
+    const useCaseRules: { label: string; pattern: RegExp }[] = [
+      { label: "Buying or selling online", pattern: /\b(buy online|sell online|online shopping|checkout|marketplace)\b/i },
+      { label: "Managing business operations", pattern: /\b(manage (?:your )?(?:business|team|projects|operations)|workflow automation|business operations)\b/i },
+      { label: "Accepting or sending payments", pattern: /\b(accept payments|send money|payment links|process payments|billing and invoicing)\b/i },
+      { label: "Learning and skills development", pattern: /\b(learn online|online learning|courses|certifications|skill development)\b/i },
+      { label: "Connecting people or communities", pattern: /\b(connect with|community|members|networking|discussion forum)\b/i },
+      { label: "Tracking and analysing data", pattern: /\b(analytics|track performance|monitor (?:your )?(?:website|business|data)|reporting dashboard)\b/i },
+      { label: "Building or deploying websites", pattern: /\b(build websites?|website builder|deploy websites?|web hosting)\b/i },
+      { label: "Booking appointments or services", pattern: /\b(book appointments?|schedule (?:a )?(?:service|appointment)|reservations?)\b/i },
+      { label: "Discovering products or services", pattern: /\b(discover products?|find (?:local )?services|compare providers|directory)\b/i },
+    ];
+    const useCases = useCaseRules.filter((rule) => rule.pattern.test(businessText)).map((rule) => rule.label).slice(0, 6);
     const keyTopics = [...new Set([...allTitles, ...allHeadings, ...structuredTopics])]
       .filter((item) => item.length > 2).slice(0, 18);
     const importantPageMap = new Map<string, { type: string; label: string; url: string }>();
@@ -596,7 +624,7 @@ export async function POST(request: Request) {
       features,
       identity_type: identityType,
       alternate_names: alternateNames,
-      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", social_profiles: "Public links and metadata published by analysed pages", contact_details: "Email and phone-like text found in analysed HTML", locations: "Location phrases found in page text; not independently geocoded", pricing: "Pricing-related headings and text; not independently validated", technologies: "Technology names mentioned in page text, not technical fingerprinting", integrations: "Integration names mentioned in page text, not confirmed active connections" },
+      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", business_models: businessModels.join(" · "), use_cases: useCases.join(" · "), social_profiles: "Public links and metadata published by analysed pages", contact_details: "Email and phone-like text found in analysed HTML", locations: "Location phrases found in page text; not independently geocoded", pricing: "Pricing-related headings and text; not independently validated", technologies: "Technology names mentioned in page text, not technical fingerprinting", integrations: "Integration names mentioned in page text, not confirmed active connections" },
       contact_emails: contactEmails, contact_phones: contactPhones, locations, pricing_details: pricingDetails, technologies, integrations,
       discovery_evidence: discoveryEvidence,
       target_audience: structuredAudiences[0] || null,
@@ -632,7 +660,7 @@ export async function POST(request: Request) {
       profile: data,
       pagesAnalysed: pages.length,
       socialProfilesFound: socials.length,
-      analysisType: "deep-content-multi-page-sitemap-jsonld-contact-commercial-social-and-evidence-extraction",
+      analysisType: "deep-content-multi-page-sitemap-jsonld-business-model-use-case-contact-commercial-social-and-evidence-extraction",
       sitemapPagesDiscovered: sitemapPages.length,
     });
   } catch (error) {
