@@ -18,7 +18,7 @@ type PageProfile = {
   paragraphs: string[];
   contentBlocks: string[];
   links: Link[];
-  structured: { names: string[]; descriptions: string[]; services: string[]; topics: string[]; audiences: string[]; socials: string[] };
+  structured: { names: string[]; descriptions: string[]; products: string[]; services: string[]; features: string[]; topics: string[]; audiences: string[]; socials: string[] };
 };
 
 const SOCIAL_HOSTS: Record<string, string> = {
@@ -138,7 +138,7 @@ function meta(html: string, key: string) {
 }
 
 function extractStructuredData(html: string, baseUrl: URL) {
-  const result = { names: [] as string[], descriptions: [] as string[], services: [] as string[], topics: [] as string[], audiences: [] as string[], socials: [] as string[] };
+  const result = { names: [] as string[], descriptions: [] as string[], products: [] as string[], services: [] as string[], features: [] as string[], topics: [] as string[], audiences: [] as string[], socials: [] as string[] };
   const add = (list: string[], value: unknown) => {
     if (typeof value === "string" && value.trim()) list.push(value.trim().slice(0, 300));
     else if (Array.isArray(value)) for (const item of value) add(list, item);
@@ -163,7 +163,9 @@ function extractStructuredData(html: string, baseUrl: URL) {
           add(result.names, obj.alternateName);
         }
         add(result.descriptions, obj.description);
-        if (/Product|Service|Offer|SoftwareApplication|WebApplication/i.test(type)) add(result.services, obj.name);
+        if (/Product|SoftwareApplication|WebApplication/i.test(type)) add(result.products, obj.name);
+        if (/Service|ProfessionalService/i.test(type)) add(result.services, obj.name);
+        if (/Offer|Feature/i.test(type)) add(result.features, obj.name);
         add(result.topics, obj.knowsAbout);
         add(result.audiences, obj.audience);
         add(result.socials, obj.sameAs);
@@ -501,7 +503,9 @@ export async function POST(request: Request) {
     const structured = pages.map((page) => page.profile.structured);
     const structuredNames = structured.flatMap((item) => item.names);
     const structuredDescriptions = structured.flatMap((item) => item.descriptions);
+    const structuredProducts = structured.flatMap((item) => item.products);
     const structuredServices = structured.flatMap((item) => item.services);
+    const structuredFeatures = structured.flatMap((item) => item.features);
     const structuredTopics = structured.flatMap((item) => item.topics);
     const structuredAudiences = structured.flatMap((item) => item.audiences);
     for (const value of structured.flatMap((item) => item.socials)) socialLinks.push({ label: "Structured social profile", url: value });
@@ -510,17 +514,18 @@ export async function POST(request: Request) {
       structuredNames[0] ||
       meta(homepage.html, "author") ||
       homepageProfile.title;
+    const alternateNames = [...new Set(structuredNames.filter((name) => name !== businessName))].slice(0, 8);
+    const identityType = structuredNames.length ? "Structured organisation identity" :
+      meta(homepage.html, "og:site_name") || meta(homepage.html, "application-name") ? "Website metadata identity" : "Page-title identity";
     const summary = homepageProfile.description ||
       structuredDescriptions[0] ||
       allDescriptions[0] ||
       allContentBlocks.slice(0, 3).join(" ").slice(0, 700) ||
       allHeadings.slice(0, 4).join(" · ") ||
       allParagraphs[0]?.slice(0, 400) || homepageProfile.title;
-    const services = [...new Set(allHeadings.filter((heading) =>
-      /service|product|solution|platform|tool|feature|offer|consult|pricing|plan|we help|our work/i.test(heading)
-    ))].concat(allContentBlocks.filter((block) =>
-      /\b(we offer|our services|our products|platform provides|product includes|solutions include)\b/i.test(block)
-    ).map((block) => block.slice(0, 180)), structuredServices).filter((value, index, list) => list.indexOf(value) === index).slice(0, 12);
+    const products = [...new Set([...structuredProducts, ...allHeadings.filter((heading) => /product|platform|software|application|tool|app|catalogue|catalog/i.test(heading)), ...allContentBlocks.filter((block) => /\b(our products|our platform|our software|we built|product includes|available products)\b/i.test(block)).map((block) => block.slice(0, 180))])].filter((value) => value.length > 2).slice(0, 12);
+    const services = [...new Set([...structuredServices, ...allHeadings.filter((heading) => /service|consult|support|implementation|maintenance|delivery|solutions/i.test(heading)), ...allContentBlocks.filter((block) => /\b(we offer|our services|services include|we provide|we help|professional services)\b/i.test(block)).map((block) => block.slice(0, 180))])].filter((value) => value.length > 2).slice(0, 12);
+    const features = [...new Set([...structuredFeatures, ...allHeadings.filter((heading) => /feature|capabilit|functionality|benefit/i.test(heading)), ...allContentBlocks.filter((block) => /\b(features include|key features|built-in|supports)\b/i.test(block)).map((block) => block.slice(0, 180))])].filter((value) => value.length > 2).slice(0, 12);
     const keyTopics = [...new Set([...allTitles, ...allHeadings, ...structuredTopics])]
       .filter((item) => item.length > 2).slice(0, 18);
     const importantPageMap = new Map<string, { type: string; label: string; url: string }>();
@@ -538,7 +543,12 @@ export async function POST(request: Request) {
       business_name: businessName,
       summary,
       purpose: summary,
+      products,
       services,
+      features,
+      identity_type: identityType,
+      alternate_names: alternateNames,
+      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", social_profiles: "Public links and metadata published by analysed pages" },
       target_audience: structuredAudiences[0] || null,
       key_topics: keyTopics,
       important_pages: importantPages,
@@ -562,7 +572,7 @@ export async function POST(request: Request) {
       analyzed_at: analyzedAt,
       updated_at: analyzedAt,
     }, { onConflict: "website_id" })
-      .select("id, website_id, business_name, summary, purpose, services, target_audience, key_topics, important_pages, source_urls, social_profiles, pages_analyzed, confidence, analyzed_at")
+      .select("id, website_id, business_name, summary, purpose, products, services, features, identity_type, alternate_names, field_evidence, target_audience, key_topics, important_pages, source_urls, social_profiles, pages_analyzed, confidence, analyzed_at")
       .single();
     if (error) {
       console.error("TapeWatch intelligence profile save failed:", error);
