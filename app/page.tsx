@@ -166,7 +166,7 @@ export default function Home() {
               <div className="motion-ring ring-outer" />
               <div className="motion-ring ring-middle" />
               <div className="motion-ring ring-inner" />
-              <div className="motion-core"><span className="core-mark" /></div>
+              <div className="motion-core eye-core" aria-label="TapeWatch watchful eye"><svg className="watch-eye" viewBox="0 0 88 56" role="img" aria-hidden="true"><path className="eye-outline" d="M5 28C15 12 29 4 44 4s29 8 39 24C73 44 59 52 44 52S15 44 5 28Z"/><ellipse className="eye-iris" cx="44" cy="28" rx="13" ry="16"/><circle className="eye-pupil" cx="44" cy="28" r="6"/><circle className="eye-glint" cx="48" cy="22" r="2.5"/></svg></div>
               <span className="motion-node node-a" /><span className="motion-node node-b" /><span className="motion-node node-c" />
               <div className="motion-scan" />
               <div className="motion-caption"><span className="motion-live-dot" /> INTEGRITY SIGNAL <b>READY TO CONNECT</b></div>
