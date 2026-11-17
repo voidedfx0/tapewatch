@@ -15,6 +15,7 @@ type PageProfile = {
   headings: string[];
   paragraphs: string[];
   links: Link[];
+  structured: { names: string[]; descriptions: string[]; services: string[]; topics: string[]; audiences: string[]; socials: string[] };
 };
 
 const SOCIAL_HOSTS: Record<string, string> = {
@@ -133,6 +134,47 @@ function meta(html: string, key: string) {
   return null;
 }
 
+function extractStructuredData(html: string, baseUrl: URL) {
+  const result = { names: [] as string[], descriptions: [] as string[], services: [] as string[], topics: [] as string[], audiences: [] as string[], socials: [] as string[] };
+  const add = (list: string[], value: unknown) => {
+    if (typeof value === "string" && value.trim()) list.push(value.trim().slice(0, 300));
+    else if (Array.isArray(value)) for (const item of value) add(list, item);
+    else if (value && typeof value === "object" && "name" in value) add(list, (value as { name?: unknown }).name);
+  };
+  const scripts = [...html.matchAll(/<script\b[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  for (const script of scripts.slice(0, 12)) {
+    try {
+      const parsed: unknown = JSON.parse(script[1].trim());
+      const queue: unknown[] = Array.isArray(parsed) ? [...parsed] : [parsed];
+      let visited = 0;
+      while (queue.length && visited < 100) {
+        const item = queue.shift();
+        visited++;
+        if (!item || typeof item !== "object") continue;
+        if (Array.isArray(item)) { queue.push(...item); continue; }
+        const obj = item as Record<string, unknown>;
+        if (obj["@graph"]) queue.push(obj["@graph"]);
+        const type = Array.isArray(obj["@type"]) ? obj["@type"].join(" ") : String(obj["@type"] || "");
+        add(result.names, obj.name);
+        add(result.descriptions, obj.description);
+        if (/Product|Service|Offer|SoftwareApplication|WebApplication/i.test(type)) add(result.services, obj.name);
+        add(result.topics, obj.knowsAbout);
+        add(result.audiences, obj.audience);
+        add(result.socials, obj.sameAs);
+        for (const value of Object.values(obj)) {
+          if (Array.isArray(value)) queue.push(...value.filter((entry) => entry && typeof entry === "object"));
+          else if (value && typeof value === "object") queue.push(value);
+        }
+      }
+    } catch { /* Ignore invalid JSON-LD blocks. */ }
+  }
+  result.socials = result.socials.filter((value) => {
+    try { return ["http:", "https:"].includes(new URL(value, baseUrl).protocol); }
+    catch { return false; }
+  });
+  return result;
+}
+
 function extractPage(html: string, baseUrl: URL): PageProfile {
   const title = clean(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "").slice(0, 200) || null;
   const description = meta(html, "description") || meta(html, "og:description") || meta(html, "twitter:description");
@@ -149,7 +191,7 @@ function extractPage(html: string, baseUrl: URL): PageProfile {
         return { label: clean(match[2]).slice(0, 100), url: url.toString() };
       } catch { return null; }
     }).filter((item): item is Link => Boolean(item));
-  return { title, description, headings, paragraphs, links };
+  return { title, description, headings, paragraphs, links, structured: extractStructuredData(html, baseUrl) };
 }
 
 async function fetchHtml(startUrl: URL) {
@@ -299,16 +341,24 @@ export async function POST(request: Request) {
     const allDescriptions = pages.map((page) => page.profile.description).filter((value): value is string => Boolean(value));
     const allTitles = pages.map((page) => page.profile.title).filter((value): value is string => Boolean(value));
     const allParagraphs = pages.flatMap((page) => page.profile.paragraphs);
+    const structured = pages.map((page) => page.profile.structured);
+    const structuredNames = structured.flatMap((item) => item.names);
+    const structuredDescriptions = structured.flatMap((item) => item.descriptions);
+    const structuredServices = structured.flatMap((item) => item.services);
+    const structuredTopics = structured.flatMap((item) => item.topics);
+    const structuredAudiences = structured.flatMap((item) => item.audiences);
+    for (const value of structured.flatMap((item) => item.socials)) socialLinks.push({ label: "Structured social profile", url: value });
     const businessName = meta(homepage.html, "og:site_name") ||
-      meta(homepage.html, "application-name") || homepageProfile.title;
+      meta(homepage.html, "application-name") || structuredNames[0] || homepageProfile.title;
     const summary = homepageProfile.description ||
+      structuredDescriptions[0] ||
       allDescriptions[0] ||
       allHeadings.slice(0, 4).join(" · ") ||
       allParagraphs[0]?.slice(0, 400) || homepageProfile.title;
     const services = [...new Set(allHeadings.filter((heading) =>
       /service|product|solution|platform|tool|feature|offer|consult|pricing|plan|we help|our work/i.test(heading)
-    ))].slice(0, 12);
-    const keyTopics = [...new Set([...allTitles, ...allHeadings])]
+    ))].concat(structuredServices).filter((value, index, list) => list.indexOf(value) === index).slice(0, 12);
+    const keyTopics = [...new Set([...allTitles, ...allHeadings, ...structuredTopics])]
       .filter((item) => item.length > 2).slice(0, 18);
     const importantPageMap = new Map<string, { type: string; label: string; url: string }>();
     for (const page of pages.slice(1)) {
@@ -326,7 +376,7 @@ export async function POST(request: Request) {
       summary,
       purpose: summary,
       services,
-      target_audience: null,
+      target_audience: structuredAudiences[0] || null,
       key_topics: keyTopics,
       important_pages: importantPages,
       source_urls: pages.map((page) => page.url),
@@ -359,7 +409,7 @@ export async function POST(request: Request) {
       profile: data,
       pagesAnalysed: pages.length,
       socialProfilesFound: socials.length,
-      analysisType: "multi-page-public-site-extraction",
+      analysisType: "multi-page-and-structured-data-extraction",
     });
   } catch (error) {
     const message = error instanceof Error
