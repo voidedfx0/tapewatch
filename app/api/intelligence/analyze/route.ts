@@ -602,6 +602,26 @@ export async function POST(request: Request) {
       { label: "Discovering products or services", pattern: /\b(discover products?|find (?:local )?services|compare providers|directory)\b/i },
     ];
     const useCases = useCaseRules.filter((rule) => rule.pattern.test(businessText)).map((rule) => rule.label).slice(0, 6);
+    const audienceRules: { label: string; pattern: RegExp }[] = [
+      { label: "Businesses and organisations", pattern: /\\b(for businesses|business owners|companies|enterprises|organisations|organizations|teams)\\b/i },
+      { label: "Consumers and individuals", pattern: /\\b(for individuals|consumers|everyday users|personal use|for everyone)\\b/i },
+      { label: "Developers and technical teams", pattern: /\\b(developers|software engineers|technical teams|api users|builders)\\b/i },
+      { label: "Students and educators", pattern: /\\b(students|teachers|educators|learners|schools|universities)\\b/i },
+      { label: "Creators and publishers", pattern: /\\b(content creators|creators|publishers|writers|streamers)\\b/i },
+      { label: "Online sellers and merchants", pattern: /\\b(merchants|online sellers|retailers|store owners|vendors)\\b/i },
+    ];
+    const inferredAudiences = audienceRules.filter((rule) => rule.pattern.test(businessText)).map((rule) => rule.label).slice(0, 4);
+    const problemBlocks = [...new Set(allContentBlocks.filter((block) =>
+      block.length >= 45 && block.length <= 360 &&
+      /\\b(problem|challenge|pain point|struggle|difficult|time-consuming|inefficient|without|reduce|eliminate|avoid|solve|simplif|streamlin)\\b/i.test(block)
+    ))].slice(0, 5);
+    const valueBlocks = [...new Set(allContentBlocks.filter((block) =>
+      block.length >= 45 && block.length <= 360 &&
+      /\\b(we help|helps? (?:you|businesses|teams|users)|designed to|built to|enables? you|make it easier|all-in-one|save time|increase|improve|simplif|streamlin)\\b/i.test(block)
+    ))].slice(0, 5);
+    const competitorBlocks = [...new Set(allContentBlocks.filter((block) =>
+      /\\b(competitors? such as|alternative to|compared with|compared to|unlike [A-Z]|versus|vs\\.?)\\b/i.test(block)
+    ))].slice(0, 8);
     const keyTopics = [...new Set([...allTitles, ...allHeadings, ...structuredTopics])]
       .filter((item) => item.length > 2).slice(0, 18);
     const importantPageMap = new Map<string, { type: string; label: string; url: string }>();
@@ -624,10 +644,10 @@ export async function POST(request: Request) {
       features,
       identity_type: identityType,
       alternate_names: alternateNames,
-      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", business_models: businessModels.join(" · "), use_cases: useCases.join(" · "), social_profiles: "Public links and metadata published by analysed pages", contact_details: "Email and phone-like text found in analysed HTML", locations: "Location phrases found in page text; not independently geocoded", pricing: "Pricing-related headings and text; not independently validated", technologies: "Technology names mentioned in page text, not technical fingerprinting", integrations: "Integration names mentioned in page text, not confirmed active connections" },
+      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", business_models: businessModels.join(" · "), use_cases: useCases.join(" · "), problems_solved: problemBlocks.join(" || "), value_proposition: valueBlocks.join(" || "), inferred_audiences: inferredAudiences.join(" · "), competitor_mentions: competitorBlocks.join(" || "), social_profiles: "Public links and metadata published by analysed pages", contact_details: "Email and phone-like text found in analysed HTML", locations: "Location phrases found in page text; not independently geocoded", pricing: "Pricing-related headings and text; not independently validated", technologies: "Technology names mentioned in page text, not technical fingerprinting", integrations: "Integration names mentioned in page text, not confirmed active connections" },
       contact_emails: contactEmails, contact_phones: contactPhones, locations, pricing_details: pricingDetails, technologies, integrations,
       discovery_evidence: discoveryEvidence,
-      target_audience: structuredAudiences[0] || null,
+      target_audience: structuredAudiences[0] || inferredAudiences.join(", ") || null,
       key_topics: keyTopics,
       important_pages: importantPages,
       source_urls: pages.map((page) => page.url),
@@ -660,7 +680,7 @@ export async function POST(request: Request) {
       profile: data,
       pagesAnalysed: pages.length,
       socialProfilesFound: socials.length,
-      analysisType: "deep-content-multi-page-sitemap-jsonld-business-model-use-case-contact-commercial-social-and-evidence-extraction",
+      analysisType: "deep-content-multi-page-sitemap-jsonld-business-model-use-case-audience-problem-value-competitor-evidence-extraction",
       sitemapPagesDiscovered: sitemapPages.length,
     });
   } catch (error) {
