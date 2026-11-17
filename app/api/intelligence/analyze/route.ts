@@ -12,6 +12,7 @@ const MAX_REDIRECTS = 3;
 
 type Link = { label: string; url: string };
 type PageProfile = {
+  language: string | null;
   title: string | null;
   description: string | null;
   headings: string[];
@@ -213,6 +214,7 @@ function extractSocialMetadata(html: string, baseUrl: URL): Link[] {
 }
 
 function extractPage(html: string, baseUrl: URL): PageProfile {
+  const language = html.match(/<html\\b[^>]*\\blang\\s*=\\s*["']([^"']+)["']/i)?.[1]?.trim().slice(0, 35) || null;
   const title = clean(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "").slice(0, 200) || null;
   const description = meta(html, "description") || meta(html, "og:description") || meta(html, "twitter:description");
   const headings = [...html.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi)]
@@ -248,7 +250,7 @@ function extractPage(html: string, baseUrl: URL): PageProfile {
   const integrationTerms = ["Stripe","PayPal","Google Analytics","Google Maps","HubSpot","Salesforce","Slack","Discord","Telegram","GitHub","Zapier","Mailchimp","WooCommerce","Meta Pixel"];
   const technologies = technologyTerms.filter((term) => visibleText.toLowerCase().includes(term.toLowerCase()));
   const integrations = integrationTerms.filter((term) => visibleText.toLowerCase().includes(term.toLowerCase()));
-  return { title, description, headings, paragraphs, contentBlocks, links, emails, phones, locations, pricing, technologies, integrations, structured: extractStructuredData(html, baseUrl) };
+  return { language, title, description, headings, paragraphs, contentBlocks, links, emails, phones, locations, pricing, technologies, integrations, structured: extractStructuredData(html, baseUrl) };
 }
 
 async function fetchHtml(startUrl: URL) {
@@ -541,7 +543,7 @@ export async function POST(request: Request) {
     const pricingDetails = [...new Set([...pages.flatMap((page) => page.profile.pricing), ...pages.flatMap((page) => page.profile.structured.prices)])].slice(0, 18);
     const technologies = [...new Set(pages.flatMap((page) => page.profile.technologies))].slice(0, 20);
     const integrations = [...new Set(pages.flatMap((page) => page.profile.integrations))].slice(0, 20);
-    const discoveryEvidence = pages.flatMap((page) => {
+    const baseDiscoveryEvidence = pages.flatMap((page) => {
       const fields: [string, string[]][] = [
         ["Email", [...page.profile.emails, ...page.profile.structured.emails]], ["Phone", [...page.profile.phones, ...page.profile.structured.phones]], ["Location", [...page.profile.locations, ...page.profile.structured.locations]],
         ["Pricing", [...page.profile.pricing, ...page.profile.structured.prices]], ["Technology mention", page.profile.technologies], ["Integration mention", page.profile.integrations],
@@ -552,7 +554,18 @@ export async function POST(request: Request) {
         excerpt: page.profile.contentBlocks.find((block) => block.toLowerCase().includes(value.toLowerCase()))?.slice(0, 280)
           || page.profile.description || page.profile.title || "Found in the page HTML or structured metadata.",
       })));
-    }).filter((item, index, list) => list.findIndex((other) => other.type === item.type && other.value.toLowerCase() === item.value.toLowerCase() && other.source_url === item.source_url) === index).slice(0, 100);
+    });
+    const inferenceEvidence = [
+      ...products.map((value) => ({ type: "Product or offering clue", value, source_url: pages.find((page) => page.profile.contentBlocks.some((block) => block.includes(value)) || page.profile.headings.includes(value))?.url || homepage.url.toString(), excerpt: "Inferred from public page headings or descriptive content; not a confirmed product catalogue entry." })),
+      ...services.map((value) => ({ type: "Service clue", value, source_url: pages.find((page) => page.profile.contentBlocks.some((block) => block.includes(value)) || page.profile.headings.includes(value))?.url || homepage.url.toString(), excerpt: "Inferred from public page headings or descriptive content; confirm against the linked source." })),
+      ...features.map((value) => ({ type: "Feature clue", value, source_url: pages.find((page) => page.profile.contentBlocks.some((block) => block.includes(value)) || page.profile.headings.includes(value))?.url || homepage.url.toString(), excerpt: "Inferred from public page headings or descriptive content; not independently tested." })),
+      ...problemBlocks.map((value) => ({ type: "Claimed customer problem", value, source_url: pages.find((page) => page.profile.contentBlocks.includes(value))?.url || homepage.url.toString(), excerpt: value })),
+      ...valueBlocks.map((value) => ({ type: "Value proposition claim", value, source_url: pages.find((page) => page.profile.contentBlocks.includes(value))?.url || homepage.url.toString(), excerpt: value })),
+      ...competitorBlocks.map((value) => ({ type: "Competitor reference", value, source_url: pages.find((page) => page.profile.contentBlocks.includes(value))?.url || homepage.url.toString(), excerpt: value })),
+    ];
+    const discoveryEvidence = [...baseDiscoveryEvidence, ...inferenceEvidence]
+      .filter((item, index, list) => list.findIndex((other) => other.type === item.type && other.value.toLowerCase() === item.value.toLowerCase() && other.source_url === item.source_url) === index)
+      .slice(0, 100);
     const structured = pages.map((page) => page.profile.structured);
     const structuredNames = structured.flatMap((item) => item.names);
     const structuredDescriptions = structured.flatMap((item) => item.descriptions);
@@ -638,6 +651,16 @@ export async function POST(request: Request) {
     }
     const importantPages = [...importantPageMap.values()].slice(0, 10);
     const socials = socialProfiles(socialLinks);
+    const languageCodes = [...new Set(pages.map((page) => page.profile.language).filter((value): value is string => Boolean(value)))];
+    const primaryLanguage = homepageProfile.language || languageCodes[0] || "Not declared";
+    const homepageTextLength = homepageProfile.contentBlocks.join(" ").length;
+    const scriptCount = [...homepage.html.matchAll(/<script\\b/gi)].length;
+    const renderingNote = homepageTextLength < 180 && scriptCount > 4
+      ? "The homepage appears to rely heavily on JavaScript. TapeWatch reads server-delivered HTML and may miss content rendered only in a browser."
+      : "Readable server-delivered HTML content was found. Content that requires browser-side interaction may still be missing.";
+    const coverageNote = pages.length >= MAX_PAGES
+      ? "The analysis reached its 12-page limit. Large websites may contain additional relevant pages that were not reviewed."
+      : "The analysis reviewed the homepage and selected relevant public pages; it did not crawl every URL on the website.";
     const identitySignals = [
       ...(businessName ? ["A business or site name was identified"] : []),
       ...(structuredNames.length ? ["Name appears in structured organisation data"] : []),
@@ -685,7 +708,7 @@ export async function POST(request: Request) {
       features,
       identity_type: identityType,
       alternate_names: alternateNames,
-      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", identity_signals: identitySignals.join(" · "), trust_checks: trustChecks.join(" || "), trust_check_note: "These are public-site transparency observations, not a security audit or proof of legitimacy. Missing pages and external email domains are not proof of wrongdoing.", identity_confidence_note: "Confidence reflects the amount and variety of public evidence found; it is not proof of legal identity or legitimacy.", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", business_models: businessModels.join(" · "), use_cases: useCases.join(" · "), problems_solved: problemBlocks.join(" || "), value_proposition: valueBlocks.join(" || "), inferred_audiences: inferredAudiences.join(" · "), competitor_mentions: competitorBlocks.join(" || "), social_profiles: "Public links and metadata published by analysed pages", contact_details: "Email and phone-like text found in analysed HTML", locations: "Location phrases found in page text; not independently geocoded", pricing: "Pricing-related headings and text; not independently validated", technologies: "Technology names mentioned in page text, not technical fingerprinting", integrations: "Integration names mentioned in page text, not confirmed active connections" },
+      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", identity_signals: identitySignals.join(" · "), trust_checks: trustChecks.join(" || "), trust_check_note: "These are public-site transparency observations, not a security audit or proof of legitimacy. Missing pages and external email domains are not proof of wrongdoing.", identity_confidence_note: "Confidence reflects the amount and variety of public evidence found; it is not proof of legal identity or legitimacy.", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", business_models: businessModels.join(" · "), use_cases: useCases.join(" · "), problems_solved: problemBlocks.join(" || "), value_proposition: valueBlocks.join(" || "), inferred_audiences: inferredAudiences.join(" · "), competitor_mentions: competitorBlocks.join(" || "), social_profiles: "Public links and metadata published by analysed pages", detected_language: primaryLanguage, language_coverage: languageCodes.join(" · ") || "No HTML language declaration found", rendering_coverage: renderingNote, crawl_coverage: coverageNote, analysis_scope: "Up to 12 selected same-site public HTML pages; no full-site crawl, browser rendering, translation or independent fact verification.", structured_data_pages: String(pages.filter((page) => page.profile.structured.names.length || page.profile.structured.products.length || page.profile.structured.services.length).length), contact_details: "Email and phone-like text found in analysed HTML", locations: "Location phrases found in page text; not independently geocoded", pricing: "Pricing-related headings and text; not independently validated", technologies: "Technology names mentioned in page text, not technical fingerprinting", integrations: "Integration names mentioned in page text, not confirmed active connections" },
       contact_emails: contactEmails, contact_phones: contactPhones, locations, pricing_details: pricingDetails, technologies, integrations,
       discovery_evidence: discoveryEvidence,
       target_audience: structuredAudiences[0] || inferredAudiences.join(", ") || null,
