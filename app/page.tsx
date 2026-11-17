@@ -52,6 +52,7 @@ export default function Home() {
   const [verifyingCheckId, setVerifyingCheckId] = useState("");
   const [verificationResult, setVerificationResult] = useState<{ checkId: string; status: "verified" | "mismatch" | "unavailable"; message: string; verifiedAt: string } | null>(null);
   const [monitoringSetting, setMonitoringSetting] = useState<MonitoringSetting | null>(null);
+  const [monitoredSiteIds, setMonitoredSiteIds] = useState<string[]>([]);
   const [monitoringLoading, setMonitoringLoading] = useState(false);
   const [savingMonitoring, setSavingMonitoring] = useState(false);
 
@@ -87,6 +88,16 @@ export default function Home() {
 
         if (error) throw error;
         if (active) setSites((data ?? []) as Site[]);
+
+        const { data: monitoringRows, error: monitoringError } = await supabase
+          .from("website_monitoring_settings")
+          .select("website_id")
+          .eq("enabled", true);
+        if (monitoringError) {
+          console.error("TapeWatch active monitoring list failed:", monitoringError);
+        } else if (active) {
+          setMonitoredSiteIds((monitoringRows ?? []).map((row) => row.website_id as string));
+        }
       } catch (error) {
         console.error("TapeWatch website loading failed:", error);
         if (active) setNotice(error instanceof Error ? error.message : "Could not load your saved websites.");
@@ -299,6 +310,9 @@ export default function Home() {
         .single();
       if (error) throw error;
       setMonitoringSetting(data as MonitoringSetting);
+      setMonitoredSiteIds((current) => enabled
+        ? Array.from(new Set([...current, selectedSite.id]))
+        : current.filter((id) => id !== selectedSite.id));
       setNotice(enabled
         ? "Daily monitoring enabled. The next scheduled run will check this website."
         : "Daily monitoring paused. Existing check and change history is preserved.");
@@ -587,7 +601,7 @@ export default function Home() {
           <section className="section-card" id="websites">
             <div className="section-heading"><div><h2>Website watchlist</h2><p>Your saved websites and their current setup state.</p></div><button className="text-button" onClick={() => setShowAdd(true)}>Add website <Icon name="arrow" size={15}/></button></div>
             <div className="table-toolbar"><div className="table-title">ALL SITES <span>{sites.length}</span></div><label className="search-box"><Icon name="search" size={16}/><input id="site-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search websites..." /></label></div>
-            {sitesLoading ? <div className="empty-state"><p>Loading your saved websites…</p></div> : filteredSites.length ? <div className="site-list">{filteredSites.map((site) => <button className="site-row site-row-button" key={site.id} onClick={() => { setSelectedSite(site); setDetailTab("overview"); }}><div className="site-favicon"><Icon name="globe" size={17}/></div><div className="site-details"><strong>{site.url}</strong><span>Saved in your workspace</span></div><span className="draft-status"><span/> Setup draft</span><span className="site-open"><Icon name="arrow" size={15}/></span></button>)}</div> : <div className="empty-state"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="globe" size={29}/></div><span className="spark spark-one"/> <span className="spark spark-two"/></div><h3>{query ? "No matching websites" : "Nothing on your watchlist yet"}</h3><p>{query ? "Try a different search term." : "Add a website to start setting up your monitoring workspace. You can review the setup before anything is connected."}</p>{!query && <button className="secondary-button" onClick={() => setShowAdd(true)}><Icon name="plus" size={16}/> Add your first website</button>}</div>}
+            {sitesLoading ? <div className="empty-state"><p>Loading your saved websites…</p></div> : filteredSites.length ? <div className="site-list">{filteredSites.map((site) => <button className="site-row site-row-button" key={site.id} onClick={() => { setSelectedSite(site); setDetailTab("overview"); }}><div className="site-favicon"><Icon name="globe" size={17}/></div><div className="site-details"><strong title={site.url}>{site.url}</strong><span>Saved in your workspace</span></div><span className={`draft-status ${monitoredSiteIds.includes(site.id) ? "monitoring-on" : ""}`} title={monitoredSiteIds.includes(site.id) ? "Daily monitoring is enabled" : "Daily monitoring is off"}><span/> {monitoredSiteIds.includes(site.id) ? "Monitoring on" : "Setup draft"}</span><span className="site-open"><Icon name="arrow" size={15}/></span></button>)}</div> : <div className="empty-state"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="globe" size={29}/></div><span className="spark spark-one"/> <span className="spark spark-two"/></div><h3>{query ? "No matching websites" : "Nothing on your watchlist yet"}</h3><p>{query ? "Try a different search term." : "Add a website to start setting up your monitoring workspace. You can review the setup before anything is connected."}</p>{!query && <button className="secondary-button" onClick={() => setShowAdd(true)}><Icon name="plus" size={16}/> Add your first website</button>}</div>}
           </section>
 
           <section className="intelligence-section" aria-label="TapeWatch intelligence modules">
