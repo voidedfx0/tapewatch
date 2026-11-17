@@ -6,8 +6,8 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "TapeWatch — Website Integrity Monitor",
-  description: "A transparency workspace for monitoring DeWEB website changes and circuit activity.",
+  title: "TapeWatch — Website Intelligence & Transparency",
+  description: "Monitor website changes, investigate integrity evidence, and explore supported DeWEB and blockchain activity with TapeWatch.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
