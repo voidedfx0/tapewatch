@@ -275,7 +275,7 @@ export async function POST(request: Request) {
           return url.origin === origin && url.pathname !== "/" && !/\.(pdf|jpg|jpeg|png|gif|svg|zip|mp4|mp3)$/i.test(url.pathname);
         } catch { return false; }
       })
-      .sort((a, b) => pagePriority(a) - pagePriority(b.url ? b : a));
+      .sort((a, b) => pagePriority(a) - pagePriority(b));
 
     for (const candidate of candidates) {
       if (pages.length >= MAX_PAGES) break;
@@ -310,11 +310,15 @@ export async function POST(request: Request) {
     ))].slice(0, 12);
     const keyTopics = [...new Set([...allTitles, ...allHeadings])]
       .filter((item) => item.length > 2).slice(0, 18);
-    const importantPages = [...new Map(pages.slice(1).map((page) => {
+    const importantPageMap = new Map<string, { type: string; label: string; url: string }>();
+    for (const page of pages.slice(1)) {
       const pageUrl = new URL(page.url);
       const category = pageCategory(pageUrl, page.profile.title || "");
-      return category ? [category, { type: category, label: page.profile.title || category, url: page.url }] as const : null;
-    }).filter((item): item is readonly [string, { type: string; label: string; url: string }] => Boolean(item))).values()].slice(0, 10);
+      if (category && !importantPageMap.has(category)) {
+        importantPageMap.set(category, { type: category, label: page.profile.title || category, url: page.url });
+      }
+    }
+    const importantPages = [...importantPageMap.values()].slice(0, 10);
     const socials = socialProfiles(socialLinks);
     const analyzedAt = new Date().toISOString();
     const profileData = {
