@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 type Site = { id: string; url: string; status: "Setup draft" };
+type WebsiteCheck = { id: string; checked_at: string; status: string; http_status: number | null; final_url: string | null; content_hash: string | null; page_title: string | null; error_message: string | null };
 
 const initialSites: Site[] = [];
 
@@ -39,6 +40,9 @@ export default function Home() {
   const [showChanges, setShowChanges] = useState(false);
   const [activeSection, setActiveSection] = useState("");
   const [detailTab, setDetailTab] = useState<"overview" | "changes" | "checks" | "settings">("overview");
+  const [checks, setChecks] = useState<WebsiteCheck[]>([]);
+  const [checksLoading, setChecksLoading] = useState(false);
+  const [checkingWebsite, setCheckingWebsite] = useState(false);
 
 
   useEffect(() => {
@@ -83,6 +87,33 @@ export default function Home() {
     void loadWebsites();
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function loadChecks() {
+      if (!selectedSite || !supabase) {
+        setChecks([]);
+        return;
+      }
+      setChecksLoading(true);
+      const { data, error } = await supabase
+        .from("website_checks")
+        .select("id, checked_at, status, http_status, final_url, content_hash, page_title, error_message")
+        .eq("website_id", selectedSite.id)
+        .order("checked_at", { ascending: false });
+      if (active) {
+        if (error) {
+          console.error("TapeWatch check history loading failed:", error);
+          setNotice("Could not load this website's check history.");
+        } else {
+          setChecks((data ?? []) as WebsiteCheck[]);
+        }
+        setChecksLoading(false);
+      }
+    }
+    void loadChecks();
+    return () => { active = false; };
+  }, [selectedSite?.id]);
 
   const filteredSites = useMemo(() => sites.filter((site) => site.url.toLowerCase().includes(query.toLowerCase())), [sites, query]);
   const sectionContent: Record<string, { title: string; eyebrow: string; description: string; items: { title: string; description: string; state: string }[] }> = {
@@ -157,6 +188,36 @@ export default function Home() {
     }
   }
 
+  async function runWebsiteCheck() {
+    if (!selectedSite || !supabase) return;
+    setCheckingWebsite(true);
+    setNotice("");
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) throw new Error("Your workspace session is not ready. Refresh and try again.");
+      const response = await fetch("/api/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ websiteId: selectedSite.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "The website check failed.");
+      setChecks((current) => [result.check as WebsiteCheck, ...current]);
+      setDetailTab("checks");
+      setNotice(result.check.status === "reachable"
+        ? "Website check complete. The initial content fingerprint has been saved."
+        : result.check.status === "reachable_partial"
+          ? "Website responded, but its content exceeded the capture limit. No full fingerprint was saved."
+          : "Website check recorded. Review the result for details.");
+    } catch (error) {
+      console.error("TapeWatch website check failed:", error);
+      setNotice(error instanceof Error ? error.message : "Could not complete the website check.");
+    } finally {
+      setCheckingWebsite(false);
+    }
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -208,20 +269,29 @@ export default function Home() {
             <div className="detail-hero">
               <div className="detail-site-icon"><Icon name="globe" size={24}/></div>
               <div className="detail-site-copy"><div className="eyebrow">WEBSITE WORKSPACE · SETUP DRAFT</div><h1>{selectedSite.url}</h1><p className="intro">A dedicated view for this website's integrity and monitoring setup.</p></div>
-              <span className="draft-status detail-status"><span/> Setup draft</span>
+              <div className="detail-actions"><span className="draft-status detail-status"><span/> {checks.length ? "Observed" : "Setup draft"}</span><button className="primary-button" onClick={runWebsiteCheck} disabled={checkingWebsite}>{checkingWebsite ? "Checking…" : checks.length ? "Check again" : "Check now"} <Icon name="activity" size={15}/></button></div>
             </div>
-            <div className="detail-notice"><Icon name="shield" size={18}/><div><strong>Monitoring has not started</strong><p>This entry is saved in your private TapeWatch workspace. No website checks, file hashes, or blockchain events have been collected.</p></div></div>
+            <div className="detail-notice"><Icon name="shield" size={18}/><div><strong>{checks.length ? "Website observations are being recorded" : "Ready for its first observation"}</strong><p>{checks.length ? "TapeWatch has saved on-demand website checks for this entry. These are point-in-time observations, not continuous monitoring or an on-chain verification." : "Run Check now to record reachability, response details, and an initial SHA-256 content fingerprint when a complete response is available."}</p></div></div>
             <div className="detail-tabs" role="tablist" aria-label="Website details sections">
               {(["overview", "changes", "checks", "settings"] as const).map((tab) => <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? "detail-tab active" : "detail-tab"} onClick={() => setDetailTab(tab)}>{tab === "overview" ? "Overview" : tab === "changes" ? "Change history" : tab === "checks" ? "Checks" : "Settings"}</button>)}
             </div>
             {detailTab === "overview" && <div className="detail-grid">
               <section className="detail-card detail-wide"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="shield" size={17}/></span><h2>Integrity status</h2></div><span className="coming-soon">AWAITING SETUP</span></div><div className="integrity-placeholder"><div className="integrity-ring"><Icon name="shield" size={27}/></div><div><strong>Not yet verified</strong><p>An integrity result will appear after a verification source is configured and the first check completes.</p></div></div></section>
-              <section className="detail-card"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="clock" size={17}/></span><h2>Monitoring schedule</h2></div></div><div className="detail-metric">—</div><p className="detail-muted">No checks scheduled</p></section>
-              <section className="detail-card"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Detected changes</h2></div></div><div className="detail-metric">—</div><p className="detail-muted">No change history available</p></section>
-              <section className="detail-card detail-wide"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="globe" size={17}/></span><h2>Website information</h2></div></div><div className="info-rows"><div><span>Website address</span><strong>{selectedSite.url}</strong></div><div><span>Entry status</span><strong>Setup draft</strong></div><div><span>Monitoring source</span><strong>Not configured</strong></div><div><span>Last checked</span><strong>Never</strong></div></div></section>
+              <section className="detail-card"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="clock" size={17}/></span><h2>Monitoring schedule</h2></div></div><div className="detail-metric">{checks.length}</div><p className="detail-muted">On-demand observations saved</p></section>
+              <section className="detail-card"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Detected changes</h2></div></div><div className="detail-metric">—</div><p className="detail-muted">Change comparison comes next</p></section>
+              <section className="detail-card detail-wide"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="globe" size={17}/></span><h2>Website information</h2></div></div><div className="info-rows"><div><span>Website address</span><strong>{selectedSite.url}</strong></div><div><span>Entry status</span><strong>Setup draft</strong></div><div><span>Monitoring source</span><strong>On-demand HTTP check</strong></div><div><span>Last checked</span><strong>{checks[0] ? new Date(checks[0].checked_at).toLocaleString() : "Never"}</strong></div></div></section>
             </div>}
             {detailTab === "changes" && <section className="detail-card tab-empty"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="activity" size={27}/></div></div><h3>No changes to show</h3><p>When monitoring is connected, detected website changes and their timestamps will appear in this timeline. No events have been recorded yet.</p></section>}
-            {detailTab === "checks" && <section className="detail-card tab-empty"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="shield" size={27}/></div></div><h3>No integrity checks yet</h3><p>Checks will be listed here after a verification method is configured. TapeWatch is not currently checking this website.</p></section>}
+            {detailTab === "checks" && <section className="detail-card checks-history-card">
+              <div className="detail-card-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Website check history</h2></div><span className="coming-soon">{checks.length} RECORDS</span></div>
+              {checksLoading ? <p className="detail-muted">Loading check history…</p> : checks.length ? <div className="check-history-list">{checks.map((check) => <article className="check-history-row" key={check.id}>
+                <div className="check-history-top"><strong>{check.status === "reachable" ? "Website reachable" : check.status === "reachable_partial" ? "Reachable · partial capture" : check.status === "http_error" ? "HTTP response error" : "Website unavailable"}</strong><span className="coming-soon">{check.http_status ? `HTTP ${check.http_status}` : check.status.toUpperCase()}</span></div>
+                <p>{new Date(check.checked_at).toLocaleString()}{check.page_title ? ` · ${check.page_title}` : ""}</p>
+                {check.content_hash && <div className="check-hash"><span>SHA-256</span><code>{check.content_hash}</code></div>}
+                {check.error_message && <p className="check-error">{check.error_message}</p>}
+                {check.final_url && <p className="detail-muted">Final address: {check.final_url}</p>}
+              </article>)}</div> : <div className="checks-empty"><h3>No website checks yet</h3><p>Select Check now to record the first observation for this website.</p><button className="secondary-button" onClick={runWebsiteCheck} disabled={checkingWebsite}>{checkingWebsite ? "Checking…" : "Run first check"}</button></div>}
+            </section>}
             {detailTab === "settings" && <section className="detail-card settings-preview"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="settings" size={17}/></span><h2>Monitoring preferences</h2></div><span className="coming-soon">NOT ACTIVE</span></div><div className="info-rows"><div><span>Check frequency</span><strong>Not configured</strong></div><div><span>Change notifications</span><strong>Not configured</strong></div><div><span>Verification method</span><strong>Awaiting source review</strong></div></div><p className="detail-muted settings-footnote">These controls will become available when the monitoring service is implemented. No settings are being applied yet.</p></section>}
           </div>
         ) : activeSection && sectionContent[activeSection] ? <div className="content module-workspace" id={activeSection}><div className="workspace-title-row"><div><div className="eyebrow">{sectionContent[activeSection].eyebrow}</div><h1>{sectionContent[activeSection].title}<span>.</span></h1><p className="intro">{sectionContent[activeSection].description}</p></div><span className="preview-pill"><span/> PREVIEW</span></div><div className="module-notice"><Icon name="shield" size={18}/><div><strong>Data sources are not connected</strong><p>This section is a frontend foundation. It will display real records only after the relevant monitoring or network integration is implemented and validated.</p></div></div><div className="module-page-grid">{sectionContent[activeSection].items.map((item) => <article className="module-page-card" key={item.title}><div className="module-page-card-top"><span className="mini-icon"><Icon name={activeSection === "settings" ? "settings" : activeSection === "timeline" ? "clock" : activeSection === "reports" ? "file" : "shield"} size={17}/></span><span className="coming-soon">{item.state}</span></div><h2>{item.title}</h2><p>{item.description}</p></article>)}</div><div className="module-evidence-note"><strong>Evidence-first design.</strong> No live activity, verification result or network status is being fabricated in this preview.</div></div> : showChanges ? <div className="content changes-workspace" id="changes">
