@@ -394,13 +394,13 @@ function socialProfiles(links: Link[]) {
   for (const link of links) {
     try {
       const url = new URL(link.url);
-      const hostname = url.hostname.toLowerCase().replace(/^(www|m|mobile)\\./, "");
+      const hostname = url.hostname.toLowerCase().replace(/^(www|m|mobile)\./, "");
       const platform = SOCIAL_HOSTS[hostname];
       if (!platform) continue;
-      if (/^\\/(?:share|sharer|intent|login|logout|policies|privacy)(?:\\/|$)/i.test(url.pathname)) continue;
+      if (/^\/(?:share|sharer|intent|login|logout|policies|privacy)(?:\/|$)/i.test(url.pathname)) continue;
       url.search = "";
       url.hash = "";
-      const normalized = url.toString().replace(/\\/$/, "");
+      const normalized = url.toString().replace(/\/$/, "");
       const evidence = evidenceLabel(link.label);
       const existing = found.get(platform);
       if (!existing || (existing.evidence === "Linked directly from the website" && evidence !== existing.evidence)) {
