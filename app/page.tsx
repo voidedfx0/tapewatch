@@ -7,7 +7,7 @@ type Site = { id: string; url: string; status: "Setup draft" };
 type WebsiteCheck = { id: string; checked_at: string; status: string; http_status: number | null; final_url: string | null; content_hash: string | null; page_title: string | null; error_message: string | null };
 type WebsiteChange = { id: string; detected_at: string; change_type: string; previous_check_id: string | null; current_check_id: string; previous_hash: string | null; current_hash: string | null; previous_title: string | null; current_title: string | null };
 type MonitoringSetting = { id: string; website_id: string; user_id: string; enabled: boolean; frequency: "daily"; last_run_at: string | null; next_run_at: string | null };
-type IntelligenceProfile = { id: string; website_id: string; business_name: string | null; summary: string | null; purpose: string | null; services: string[]; target_audience: string | null; key_topics: string[]; important_pages: { type: string; label: string; url: string }[]; source_urls: string[]; confidence: string | null; analyzed_at: string | null };
+type IntelligenceProfile = { id: string; website_id: string; business_name: string | null; summary: string | null; purpose: string | null; services: string[]; target_audience: string | null; key_topics: string[]; important_pages: { type: string; label: string; url: string }[]; source_urls: string[]; social_profiles: { platform: string; url: string }[]; pages_analyzed: { url: string; title: string | null; description: string | null }[]; confidence: string | null; analyzed_at: string | null };
 
 const initialSites: Site[] = [];
 
@@ -179,7 +179,7 @@ export default function Home() {
       setIntelligenceLoading(true);
       const { data, error } = await supabase
         .from("website_intelligence_profiles")
-        .select("id, website_id, business_name, summary, purpose, services, target_audience, key_topics, important_pages, source_urls, confidence, analyzed_at")
+        .select("id, website_id, business_name, summary, purpose, services, target_audience, key_topics, important_pages, source_urls, social_profiles, pages_analyzed, confidence, analyzed_at")
         .eq("website_id", selectedSite.id)
         .maybeSingle();
       if (active) {
@@ -372,9 +372,7 @@ export default function Home() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Website intelligence analysis failed.");
       setIntelligenceProfile(result.profile as IntelligenceProfile);
-      setNotice(result.truncated
-        ? "Profile saved from a partial homepage capture. Some page information may be missing."
-        : "Website intelligence profile updated from its public homepage.");
+      setNotice("Intelligence updated: analysed " + (result.pagesAnalysed || 1) + " public pages and found " + (result.socialProfilesFound || 0) + " social profiles.");
     } catch (error) {
       console.error("TapeWatch intelligence analysis failed:", error);
       setNotice(error instanceof Error ? error.message : "Could not analyse this website.");
@@ -531,19 +529,21 @@ export default function Home() {
             </div>}
             {detailTab === "intelligence" && <section className="detail-card intelligence-card">
               <div className="detail-card-heading"><div><span className="mini-icon"><Icon name="globe" size={17}/></span><h2>Website intelligence profile</h2></div><span className="coming-soon">{intelligenceProfile ? "PROFILE SAVED" : "NOT ANALYSED"}</span></div>
-              <p className="detail-muted intelligence-intro">A structured profile extracted from this website's public homepage. Findings are limited to information the page actually exposes.</p>
+              <p className="detail-muted intelligence-intro">A multi-page profile built from publicly accessible pages and linked social profiles. Findings are limited to information TapeWatch could actually retrieve.</p>
               <div className="intelligence-action-row"><span className="detail-muted">{intelligenceProfile?.analyzed_at ? "Last analysed " + new Date(intelligenceProfile.analyzed_at).toLocaleString() : "No profile has been created yet."}</span><button type="button" className="primary-button" onClick={() => void analyzeWebsiteIntelligence()} disabled={analyzingIntelligence || intelligenceLoading}>{analyzingIntelligence ? "Analysing…" : intelligenceProfile ? "Refresh profile" : "Analyse website"} <Icon name="activity" size={14}/></button></div>
               {intelligenceLoading ? <p className="detail-muted">Loading saved profile…</p> : intelligenceProfile ? <>
                 <div className="intelligence-summary"><span>OVERVIEW</span><h3>{intelligenceProfile.business_name || selectedSite.url}</h3><p>{intelligenceProfile.summary || "The homepage did not provide a clear summary."}</p></div>
                 <div className="intelligence-grid">
-                  <article><span>PURPOSE</span><p>{intelligenceProfile.purpose || "Not clearly stated on the homepage."}</p></article>
-                  <article><span>TARGET AUDIENCE</span><p>{intelligenceProfile.target_audience || "Not determined from homepage evidence."}</p></article>
+                  <article><span>PURPOSE</span><p>{intelligenceProfile.purpose || "Not clearly stated in the pages analysed."}</p></article>
+                  <article><span>TARGET AUDIENCE</span><p>{intelligenceProfile.target_audience || "Not confidently identified from available page evidence."}</p></article>
                   <article><span>SERVICES & PRODUCTS</span>{intelligenceProfile.services?.length ? <ul>{intelligenceProfile.services.map((item, index) => <li key={index}>{item}</li>)}</ul> : <p>No clear service headings found.</p>}</article>
                   <article><span>KEY TOPICS</span>{intelligenceProfile.key_topics?.length ? <div className="intelligence-tags">{intelligenceProfile.key_topics.map((item, index) => <span key={index}>{item}</span>)}</div> : <p>No key topics extracted.</p>}</article>
                 </div>
-                <div className="intelligence-pages"><span>IMPORTANT PAGES FOUND</span>{intelligenceProfile.important_pages?.length ? intelligenceProfile.important_pages.map((page, index) => <a key={index} href={page.url} target="_blank" rel="noreferrer"><span>{page.type}</span><strong>{page.label}</strong><Icon name="external" size={13}/></a>) : <p>No recognised About, Services, Pricing, Contact or Documentation links found on the homepage.</p>}</div>
-                <p className="intelligence-disclaimer">Extraction confidence: {intelligenceProfile.confidence || "limited"}. Target audience is intentionally left blank unless the homepage provides clear evidence. This is structured page extraction, not an AI assessment or independent business verification.</p>
-              </> : <div className="checks-empty"><h3>No intelligence profile yet</h3><p>Analyse the public homepage to extract its description, headings, possible services, topics and important internal links.</p><button className="secondary-button" onClick={() => void analyzeWebsiteIntelligence()} disabled={analyzingIntelligence}>{analyzingIntelligence ? "Analysing…" : "Build intelligence profile"}</button></div>}
+                <div className="intelligence-socials"><div className="intelligence-section-heading"><span>SOCIAL PROFILES DISCOVERED</span><small>{intelligenceProfile.social_profiles?.length || 0} FOUND</small></div>{intelligenceProfile.social_profiles?.length ? <div className="intelligence-social-grid">{intelligenceProfile.social_profiles.map((social, index) => <a key={index} href={social.url} target="_blank" rel="noreferrer"><strong>{social.platform}</strong><span>Open profile</span><Icon name="external" size={13}/></a>)}</div> : <p className="intelligence-empty-note">No recognised social links were found on the pages TapeWatch could access. Some sites do not publish social links publicly.</p>}</div>
+                <div className="intelligence-pages"><span>IMPORTANT PAGES FOUND</span>{intelligenceProfile.important_pages?.length ? intelligenceProfile.important_pages.map((page, index) => <a key={index} href={page.url} target="_blank" rel="noreferrer"><span>{page.type}</span><strong>{page.label}</strong><Icon name="external" size={13}/></a>) : <p>No recognised About, Products, Services, Pricing, Contact or Documentation pages could be reached.</p>}</div>
+                <div className="intelligence-pages"><span>ANALYSED SOURCE PAGES ({intelligenceProfile.pages_analyzed?.length || intelligenceProfile.source_urls?.length || 0})</span>{intelligenceProfile.pages_analyzed?.length ? intelligenceProfile.pages_analyzed.map((page, index) => <a key={index} href={page.url} target="_blank" rel="noreferrer"><span>Source {index + 1}</span><strong>{page.title || page.url}</strong><Icon name="external" size={13}/></a>) : intelligenceProfile.source_urls?.map((source, index) => <a key={index} href={source} target="_blank" rel="noreferrer"><span>Source {index + 1}</span><strong>{source}</strong><Icon name="external" size={13}/></a>)}</div>
+                <p className="intelligence-disclaimer">Extraction confidence: {intelligenceProfile.confidence || "limited"}. TapeWatch checks up to 7 publicly linked pages on the same site. Social profiles are shown only when a recognised public link is found. This is structured page extraction, not independent business verification.</p>
+              </> : <div className="checks-empty"><h3>No intelligence profile yet</h3><p>Analyse up to 7 relevant public pages to discover the site purpose, products, services, topics, important pages and linked social profiles.</p><button className="secondary-button" onClick={() => void analyzeWebsiteIntelligence()} disabled={analyzingIntelligence}>{analyzingIntelligence ? "Analysing…" : "Build intelligence profile"}</button></div>}
             </section>}
             {detailTab === "changes" && <section className="detail-card checks-history-card">
               <div className="detail-card-heading check-history-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Detected content changes</h2></div><span className="coming-soon">{changes.length} EVENTS</span></div>
