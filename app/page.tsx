@@ -33,9 +33,24 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [showChanges, setShowChanges] = useState(false);
+  const [activeSection, setActiveSection] = useState("");
   const [detailTab, setDetailTab] = useState<"overview" | "changes" | "checks" | "settings">("overview");
 
   const filteredSites = useMemo(() => sites.filter((site) => site.url.toLowerCase().includes(query.toLowerCase())), [sites, query]);
+  const sectionContent: Record<string, { title: string; eyebrow: string; description: string; items: { title: string; description: string; state: string }[] }> = {
+    circuits: { title: "Circuit intelligence", eyebrow: "ECOSYSTEM", description: "Explore supported circuit references and the website records associated with them. Contract sources will be added only after they are validated.", items: [{ title: "Circuit directory", description: "A searchable catalogue of supported circuit records.", state: "SOURCE REVIEW PENDING" }, { title: "Ownership activity", description: "Relevant ownership changes from verified on-chain events.", state: "AWAITING EVENTS" }, { title: "Linked websites", description: "Websites associated with each supported circuit.", state: "AWAITING DATA" }] },
+    networks: { title: "Network explorer", eyebrow: "ECOSYSTEM", description: "Review network support and connection health. A listed network does not imply that TapeWatch is connected to it.", items: [{ title: "X Layer", description: "Planned first network integration. Read-only connection is not active.", state: "NOT CONNECTED" }, { title: "Network registry", description: "Supported chain identifiers, explorers and verified data sources.", state: "PLANNED" }, { title: "Source health", description: "RPC and indexer availability once integrations are configured.", state: "NOT CONNECTED" }] },
+    timeline: { title: "Trust timeline", eyebrow: "EVIDENCE HISTORY", description: "A chronological record connecting website observations, integrity checks and relevant on-chain events.", items: [{ title: "Website observations", description: "Timestamped snapshots and detected differences.", state: "AWAITING MONITORING" }, { title: "Verification events", description: "Hash comparisons and source-backed verification outcomes.", state: "AWAITING VERIFICATION" }, { title: "On-chain activity", description: "Relevant circuit and ownership events from supported networks.", state: "AWAITING EVENTS" }] },
+    alerts: { title: "Alerts centre", eyebrow: "MONITORING MANAGEMENT", description: "Configure and review notifications for meaningful changes after monitoring sources are connected.", items: [{ title: "Website availability", description: "Potential downtime and recovery notifications.", state: "NOT ACTIVE" }, { title: "Website changes", description: "Notifications when monitored content or files differ.", state: "NOT ACTIVE" }, { title: "Verification issues", description: "Alerts for failed or inconclusive evidence checks.", state: "NOT ACTIVE" }] },
+    reports: { title: "Transparency reports", eyebrow: "SHAREABLE EVIDENCE", description: "Create clear, shareable summaries of a website's monitoring history and available integrity evidence.", items: [{ title: "Website integrity report", description: "A summary of observations, checks and known limitations.", state: "PLANNED" }, { title: "Public verification page", description: "A public-facing page for inspecting supported evidence.", state: "PLANNED" }, { title: "Export history", description: "Downloadable records with timestamps and source references.", state: "PLANNED" }] },
+    settings: { title: "Workspace settings", eyebrow: "PREFERENCES", description: "Manage workspace preferences, monitoring defaults and future integrations.", items: [{ title: "Workspace profile", description: "Workspace name and account preferences.", state: "BASIC PREVIEW" }, { title: "Monitoring defaults", description: "Default check intervals and notification preferences.", state: "NOT ACTIVE" }, { title: "Connected services", description: "Manage approved network and data-source connections.", state: "NOT CONNECTED" }] }
+  };
+
+  function openSection(section: string) {
+    setSelectedSite(null);
+    setShowChanges(section === "changes");
+    setActiveSection(section === "changes" || section === "overview" || section === "websites" ? "" : section);
+  }
 
   function addSite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,11 +74,20 @@ export default function Home() {
         </a>
         <div className="workspace-label">WORKSPACE</div>
         <nav className="nav-list" aria-label="Main navigation">
-          <a className={`nav-item ${!selectedSite && !showChanges ? "active" : ""}`} href="#overview" onClick={() => { setSelectedSite(null); setShowChanges(false); }}><Icon name="grid"/> Overview</a>
-          <a className="nav-item" href="#websites" onClick={() => { setSelectedSite(null); setShowChanges(false); }}><Icon name="globe"/> Websites <span className="nav-count">{sites.length}</span></a>
-          <a className={`nav-item ${showChanges ? "active" : ""}`} href="#changes" onClick={() => { setSelectedSite(null); setShowChanges(true); }}><Icon name="activity"/> Changes <span className="nav-count">0</span></a>
-          <a className="nav-item" href="#circuits"><Icon name="layers"/> Circuits</a>
-          <a className="nav-item" href="#activity"><Icon name="activity"/> Activity</a>
+          <a className={`nav-item ${!selectedSite && !showChanges && !activeSection ? "active" : ""}`} href="#overview" onClick={() => openSection("overview")}><Icon name="grid"/> Overview</a>
+          <a className="nav-item" href="#websites" onClick={() => { openSection("websites"); document.getElementById("websites")?.scrollIntoView({ behavior: "smooth" }); }}><Icon name="globe"/> Websites <span className="nav-count">{sites.length}</span></a>
+          <a className={`nav-item ${showChanges ? "active" : ""}`} href="#changes" onClick={() => openSection("changes")}><Icon name="activity"/> Changes</a>
+          <a className={`nav-item ${activeSection === "timeline" ? "active" : ""}`} href="#timeline" onClick={() => openSection("timeline")}><Icon name="clock"/> Trust Timeline</a>
+        </nav>
+        <div className="workspace-label nav-group-label">ECOSYSTEM</div>
+        <nav className="nav-list" aria-label="Ecosystem navigation">
+          <a className={`nav-item ${activeSection === "circuits" ? "active" : ""}`} href="#circuits" onClick={() => openSection("circuits")}><Icon name="layers"/> Circuits</a>
+          <a className={`nav-item ${activeSection === "networks" ? "active" : ""}`} href="#networks" onClick={() => openSection("networks")}><Icon name="globe"/> Networks</a>
+        </nav>
+        <div className="workspace-label nav-group-label">MANAGEMENT</div>
+        <nav className="nav-list" aria-label="Management navigation">
+          <a className={`nav-item ${activeSection === "alerts" ? "active" : ""}`} href="#alerts" onClick={() => openSection("alerts")}><Icon name="activity"/> Alerts</a>
+          <a className={`nav-item ${activeSection === "reports" ? "active" : ""}`} href="#reports" onClick={() => openSection("reports")}><Icon name="file"/> Reports</a>
         </nav>
         <div className="sidebar-bottom">
           <div className="network-card">
@@ -71,7 +95,7 @@ export default function Home() {
             <strong>X Layer</strong>
             <span className="network-sub">Read-only connection · not active</span>
           </div>
-          <a className="nav-item settings-link" href="#settings"><Icon name="settings"/> Settings</a>
+          <a className={`nav-item settings-link ${activeSection === "settings" ? "active" : ""}`} href="#settings" onClick={() => openSection("settings")}><Icon name="settings"/> Settings</a>
           <div className="profile">
             <div className="avatar">V</div>
             <div><strong>voidedfx0</strong><span>Personal workspace</span></div>
@@ -82,7 +106,7 @@ export default function Home() {
 
       <section className="main-panel" id="overview">
         <header className="topbar">
-          <div className="breadcrumbs">Workspace <span>/</span> <strong>{selectedSite ? "Website details" : showChanges ? "Change intelligence" : "Overview"}</strong></div>
+          <div className="breadcrumbs">Workspace <span>/</span> <strong>{selectedSite ? "Website details" : showChanges ? "Change intelligence" : activeSection ? sectionContent[activeSection]?.title ?? "Workspace" : "Overview"}</strong></div>
           <div className="topbar-right"><span className="preview-pill"><span/> Preview environment</span><button className="icon-button" aria-label="Search websites" onClick={() => document.getElementById("site-search")?.focus()}><Icon name="search"/></button></div>
         </header>
 
@@ -108,7 +132,7 @@ export default function Home() {
             {detailTab === "checks" && <section className="detail-card tab-empty"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="shield" size={27}/></div></div><h3>No integrity checks yet</h3><p>Checks will be listed here after a verification method is configured. TapeWatch is not currently checking this website.</p></section>}
             {detailTab === "settings" && <section className="detail-card settings-preview"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="settings" size={17}/></span><h2>Monitoring preferences</h2></div><span className="coming-soon">NOT ACTIVE</span></div><div className="info-rows"><div><span>Check frequency</span><strong>Not configured</strong></div><div><span>Change notifications</span><strong>Not configured</strong></div><div><span>Verification method</span><strong>Awaiting source review</strong></div></div><p className="detail-muted settings-footnote">These controls will become available when the monitoring service is implemented. No settings are being applied yet.</p></section>}
           </div>
-        ) : showChanges ? <div className="content changes-workspace" id="changes">
+        ) : activeSection && sectionContent[activeSection] ? <div className="content module-workspace" id={activeSection}><div className="workspace-title-row"><div><div className="eyebrow">{sectionContent[activeSection].eyebrow}</div><h1>{sectionContent[activeSection].title}<span>.</span></h1><p className="intro">{sectionContent[activeSection].description}</p></div><span className="preview-pill"><span/> PREVIEW</span></div><div className="module-notice"><Icon name="shield" size={18}/><div><strong>Data sources are not connected</strong><p>This section is a frontend foundation. It will display real records only after the relevant monitoring or network integration is implemented and validated.</p></div></div><div className="module-page-grid">{sectionContent[activeSection].items.map((item) => <article className="module-page-card" key={item.title}><div className="module-page-card-top"><span className="mini-icon"><Icon name={activeSection === "settings" ? "settings" : activeSection === "timeline" ? "clock" : activeSection === "reports" ? "file" : "shield"} size={17}/></span><span className="coming-soon">{item.state}</span></div><h2>{item.title}</h2><p>{item.description}</p></article>)}</div><div className="module-evidence-note"><strong>Evidence-first design.</strong> No live activity, verification result or network status is being fabricated in this preview.</div></div> : showChanges ? <div className="content changes-workspace" id="changes">
           <div className="workspace-title-row">
             <div><div className="eyebrow">WEBSITE INTELLIGENCE</div><h1>Change intelligence<span>.</span></h1><p className="intro">Investigate what changed across your monitored websites, with a clear trail back to the evidence.</p></div>
             <span className="preview-pill"><span/> ENGINE NOT CONNECTED</span>
