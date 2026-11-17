@@ -647,7 +647,33 @@ export async function POST(request: Request) {
       ...(pages.some((page) => /about|company|team|contact/i.test(page.url)) ? ["An About, company, team or contact page was analysed"] : []),
       ...(socials.length ? ["Public social profile links were published by the site"] : []),
     ];
-    const identityScore = identitySignals.length;
+    const siteUrl = new URL(website.url);
+    const siteHost = siteUrl.hostname.toLowerCase().replace(/^www\\./, "");
+    const emailDomains = [...new Set(contactEmails.map((email) => email.split("@")[1]?.toLowerCase()).filter(Boolean))];
+    const matchingEmailDomains = emailDomains.filter((domain) => domain === siteHost || domain.endsWith("." + siteHost));
+    const externalEmailDomains = emailDomains.filter((domain) => !matchingEmailDomains.includes(domain));
+    const hasPrivacyPage = pages.some((page) => /privacy|data-protection/i.test(page.url + " " + (page.profile.title || "")));
+    const hasTermsPage = pages.some((page) => /terms|conditions|legal/i.test(page.url + " " + (page.profile.title || "")));
+    const hasContactPage = pages.some((page) => /contact|support/i.test(page.url + " " + (page.profile.title || "")));
+    const distinctStructuredNames = [...new Set(structuredNames.map((name) => name.trim().toLowerCase()).filter(Boolean))];
+    const trustChecks = [
+      siteUrl.protocol === "https:" ? "Website uses HTTPS" : "Website does not use HTTPS",
+      hasPrivacyPage ? "A privacy or data-protection page was found" : "No privacy policy page was found in the analysed pages",
+      hasTermsPage ? "A terms or legal page was found" : "No terms or legal page was found in the analysed pages",
+      hasContactPage ? "A contact or support page was found" : "No contact or support page was found in the analysed pages",
+      matchingEmailDomains.length ? "At least one public contact email uses the website domain" : contactEmails.length ? "Public contact email domain differs from the website domain; this can be legitimate but merits checking" : "No public contact email was found in the analysed pages",
+      distinctStructuredNames.length > 1 ? "Structured data contains multiple organisation names; review for consistency" : "No conflicting organisation names were detected in structured data",
+      homepage.url.hostname.toLowerCase().replace(/^www\\./, "") !== siteHost ? "The website redirected to a different hostname" : "The final homepage hostname matches the submitted hostname",
+    ];
+    // Score independent evidence categories rather than simply counting every available field.
+    const identityScore =
+      (structuredNames.length ? 2 : 0) +
+      (homepageProfile.title ? 1 : 0) +
+      (homepageProfile.description || structuredDescriptions.length ? 1 : 0) +
+      (contactEmails.length || contactPhones.length ? 1 : 0) +
+      (hasContactPage ? 1 : 0) +
+      (socials.length ? 1 : 0) +
+      (pages.length >= 3 ? 1 : 0);
     const confidence = identityScore >= 6 ? "strong" : identityScore >= 3 ? "moderate" : "limited";
     const analyzedAt = new Date().toISOString();
     const profileData = {
@@ -659,7 +685,7 @@ export async function POST(request: Request) {
       features,
       identity_type: identityType,
       alternate_names: alternateNames,
-      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", identity_signals: identitySignals.join(" · "), identity_confidence_note: "Confidence reflects the amount and variety of public evidence found; it is not proof of legal identity or legitimacy.", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", business_models: businessModels.join(" · "), use_cases: useCases.join(" · "), problems_solved: problemBlocks.join(" || "), value_proposition: valueBlocks.join(" || "), inferred_audiences: inferredAudiences.join(" · "), competitor_mentions: competitorBlocks.join(" || "), social_profiles: "Public links and metadata published by analysed pages", contact_details: "Email and phone-like text found in analysed HTML", locations: "Location phrases found in page text; not independently geocoded", pricing: "Pricing-related headings and text; not independently validated", technologies: "Technology names mentioned in page text, not technical fingerprinting", integrations: "Integration names mentioned in page text, not confirmed active connections" },
+      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", identity_signals: identitySignals.join(" · "), trust_checks: trustChecks.join(" || "), trust_check_note: "These are public-site transparency observations, not a security audit or proof of legitimacy. Missing pages and external email domains are not proof of wrongdoing.", identity_confidence_note: "Confidence reflects the amount and variety of public evidence found; it is not proof of legal identity or legitimacy.", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", business_models: businessModels.join(" · "), use_cases: useCases.join(" · "), problems_solved: problemBlocks.join(" || "), value_proposition: valueBlocks.join(" || "), inferred_audiences: inferredAudiences.join(" · "), competitor_mentions: competitorBlocks.join(" || "), social_profiles: "Public links and metadata published by analysed pages", contact_details: "Email and phone-like text found in analysed HTML", locations: "Location phrases found in page text; not independently geocoded", pricing: "Pricing-related headings and text; not independently validated", technologies: "Technology names mentioned in page text, not technical fingerprinting", integrations: "Integration names mentioned in page text, not confirmed active connections" },
       contact_emails: contactEmails, contact_phones: contactPhones, locations, pricing_details: pricingDetails, technologies, integrations,
       discovery_evidence: discoveryEvidence,
       target_audience: structuredAudiences[0] || inferredAudiences.join(", ") || null,
