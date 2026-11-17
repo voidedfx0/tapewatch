@@ -649,7 +649,7 @@ export async function POST(request: Request) {
     ];
     const siteUrl = new URL(website.url);
     const siteHost = siteUrl.hostname.toLowerCase().replace(/^www\\./, "");
-    const emailDomains = [...new Set(contactEmails.map((email) => email.split("@")[1]?.toLowerCase()).filter(Boolean))];
+    const emailDomains = [...new Set(contactEmails.map((email) => email.split("@")[1]?.toLowerCase()).filter((domain): domain is string => Boolean(domain)))];
     const matchingEmailDomains = emailDomains.filter((domain) => domain === siteHost || domain.endsWith("." + siteHost));
     const externalEmailDomains = emailDomains.filter((domain) => !matchingEmailDomains.includes(domain));
     const hasPrivacyPage = pages.some((page) => /privacy|data-protection/i.test(page.url + " " + (page.profile.title || "")));
