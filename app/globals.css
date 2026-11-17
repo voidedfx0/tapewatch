@@ -670,3 +670,22 @@ h1 span { color: #777c84; }
     animation-iteration-count:1!important;
   }
 }
+
+
+/* Keep the original ring appearance; animate only the existing rings. */
+.motion-visual .ring-outer {
+  border-width:1px!important;
+  animation:globe-outer 12s linear infinite!important;
+}
+.motion-visual .ring-middle {
+  border-width:1px!important;
+  animation:globe-middle 8s linear infinite!important;
+}
+.motion-visual .ring-inner {
+  border-width:1px!important;
+  animation:globe-inner 6s linear infinite!important;
+}
+.motion-visual .motion-ring::before {
+  content:none!important;
+  display:none!important;
+}
