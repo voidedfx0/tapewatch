@@ -128,6 +128,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "That website was not found in your workspace." }, { status: 404 });
   }
 
+  const { data: previousCheck, error: previousCheckError } = await supabase
+    .from("website_checks")
+    .select("id, content_hash, page_title")
+    .eq("website_id", website.id)
+    .eq("user_id", userData.user.id)
+    .not("content_hash", "is", null)
+    .order("checked_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (previousCheckError) {
+    console.error("TapeWatch previous baseline lookup failed:", previousCheckError);
+    return NextResponse.json({ error: "The previous website baseline could not be loaded. Please try again." }, { status: 500 });
+  }
+
   const startedAt = Date.now();
   let status = "unreachable";
   let httpStatus: number | null = null;
@@ -206,5 +221,39 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "The website was checked, but its result could not be saved." }, { status: 500 });
   }
 
-  return NextResponse.json({ check, durationMs: Date.now() - startedAt });
+  let change: Record<string, unknown> | null = null;
+  let changeDetectionError: string | null = null;
+
+  if (previousCheck?.content_hash && check.content_hash && previousCheck.content_hash !== check.content_hash) {
+    const { data: savedChange, error: changeError } = await supabase
+      .from("website_changes")
+      .insert({
+        website_id: website.id,
+        user_id: userData.user.id,
+        previous_check_id: previousCheck.id,
+        current_check_id: check.id,
+        change_type: "content_changed",
+        previous_hash: previousCheck.content_hash,
+        current_hash: check.content_hash,
+        previous_title: previousCheck.page_title,
+        current_title: check.page_title,
+      })
+      .select("id, detected_at, change_type, previous_hash, current_hash, previous_title, current_title")
+      .single();
+
+    if (changeError) {
+      console.error("TapeWatch change record save failed:", changeError);
+      changeDetectionError = "The check was saved, but the detected change could not be recorded.";
+    } else {
+      change = savedChange;
+    }
+  }
+
+  return NextResponse.json({
+    check,
+    change,
+    changeDetectionError,
+    baselineCaptured: !previousCheck,
+    durationMs: Date.now() - startedAt,
+  });
 }
