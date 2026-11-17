@@ -19,7 +19,7 @@ type PageProfile = {
   paragraphs: string[];
   contentBlocks: string[];
   links: Link[];
-  structured: { names: string[]; descriptions: string[]; products: string[]; services: string[]; features: string[]; topics: string[]; audiences: string[]; socials: string[] };
+  structured: { names: string[]; descriptions: string[]; products: string[]; services: string[]; features: string[]; topics: string[]; audiences: string[]; socials: string[]; emails: string[]; phones: string[]; locations: string[]; prices: string[] };
   emails: string[]; phones: string[]; locations: string[]; pricing: string[]; technologies: string[]; integrations: string[];
 };
 
@@ -628,6 +628,7 @@ export async function POST(request: Request) {
     const competitorBlocks = [...new Set(allContentBlocks.filter((block) =>
       /\\b(competitors? such as|alternative to|compared with|compared to|unlike [A-Z]|versus|vs\\.?)\\b/i.test(block)
     ))].slice(0, 8);
+    const reviewFlags: { value: string; source_url: string; excerpt: string }[] = [];
     const inferenceEvidence = [
       ...products.map((value) => ({ type: "Product or offering clue", value, source_url: pages.find((page) => page.profile.contentBlocks.some((block) => block.includes(value)) || page.profile.headings.includes(value))?.url || homepage.url.toString(), excerpt: "Inferred from public page headings or descriptive content; not a confirmed product catalogue entry." })),
       ...services.map((value) => ({ type: "Service clue", value, source_url: pages.find((page) => page.profile.contentBlocks.some((block) => block.includes(value)) || page.profile.headings.includes(value))?.url || homepage.url.toString(), excerpt: "Inferred from public page headings or descriptive content; confirm against the linked source." })),
@@ -636,8 +637,7 @@ export async function POST(request: Request) {
       ...valueBlocks.map((value) => ({ type: "Value proposition claim", value, source_url: pages.find((page) => page.profile.contentBlocks.includes(value))?.url || homepage.url.toString(), excerpt: value })),
       ...competitorBlocks.map((value) => ({ type: "Competitor reference", value, source_url: pages.find((page) => page.profile.contentBlocks.includes(value))?.url || homepage.url.toString(), excerpt: value })),
     ];
-    const reviewEvidence = reviewFlags.map((flag) => ({ type: "Review flag", value: flag.value, source_url: flag.source_url, excerpt: flag.excerpt }));
-    const discoveryEvidence = [...baseDiscoveryEvidence, ...inferenceEvidence, ...reviewEvidence]
+    const discoveryEvidence = [...baseDiscoveryEvidence, ...inferenceEvidence, ...reviewFlags.map((flag) => ({ type: "Review flag", value: flag.value, source_url: flag.source_url, excerpt: flag.excerpt }))]
       .filter((item, index, list) => list.findIndex((other) => other.type === item.type && other.value.toLowerCase() === item.value.toLowerCase() && other.source_url === item.source_url) === index)
       .slice(0, 100);
     const keyTopics = [...new Set([...allTitles, ...allHeadings, ...structuredTopics])]
@@ -689,7 +689,7 @@ export async function POST(request: Request) {
       distinctStructuredNames.length > 1 ? "Structured data contains multiple organisation names; review for consistency" : "No conflicting organisation names were detected in structured data",
       homepage.url.hostname.toLowerCase().replace(/^www\\./, "") !== siteHost ? "The website redirected to a different hostname" : "The final homepage hostname matches the submitted hostname",
     ];
-    const reviewFlags: { value: string; source_url: string; excerpt: string }[] = [];
+
     const addReviewFlag = (value: string, sourceUrl: string, excerpt: string) => {
       if (!reviewFlags.some((flag) => flag.value === value)) reviewFlags.push({ value, source_url: sourceUrl, excerpt });
     };
