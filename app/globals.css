@@ -910,13 +910,13 @@ h1 span { color: #777c84; }
   border-radius:50%;
   background:#aab0bb;
 }
-.draft-status.detail-status {
+.draft-status.detail-status.observed {
   border-color:#d9def7;
   background:linear-gradient(180deg,#fff 0%,#f5f6ff 100%);
   color:#515bb9;
   box-shadow:0 2px 8px #5b63d90b;
 }
-.draft-status.detail-status > span {
+.draft-status.detail-status.observed > span {
   background:#5b63d9;
   box-shadow:0 0 0 3px #5b63d91b;
   animation:observed-pulse 2.4s ease-in-out infinite;
@@ -959,7 +959,7 @@ h1 span { color: #777c84; }
   }
 }
 @media (prefers-reduced-motion:reduce) {
-  .draft-status.detail-status > span,
+  .draft-status.detail-status.observed > span,
   .draft-status.monitoring-on > span {
     animation:none!important;
   }
