@@ -457,7 +457,7 @@ export default function Home() {
             <button className="back-link" onClick={() => { setSelectedSite(null); setDetailTab("overview"); }}>← Back to websites</button>
             <div className="detail-hero">
               <div className="detail-site-icon"><Icon name="globe" size={24}/></div>
-              <div className="detail-site-copy"><div className="eyebrow">WEBSITE WORKSPACE · SETUP DRAFT</div><h1>{selectedSite.url}</h1><p className="intro">A dedicated view for this website's integrity and monitoring setup.</p></div>
+              <div className="detail-site-copy"><div className="eyebrow">WEBSITE WORKSPACE · SETUP DRAFT</div><h1 className="detail-url-capsule">{selectedSite.url}</h1><p className="intro">A dedicated view for this website's integrity and monitoring setup.</p></div>
               <div className="detail-actions"><span className={`draft-status detail-status ${checks.length ? "observed" : ""}`}><span/> {checks.length ? "Observed" : "Setup draft"}</span><button className="primary-button" onClick={runWebsiteCheck} disabled={checkingWebsite}>{checkingWebsite ? "Checking…" : checks.length ? "Check again" : "Check now"} <Icon name="activity" size={15}/></button></div>
             </div>
             <div className="detail-notice"><Icon name="shield" size={18}/><div><strong>{checks.length ? "Website observations are being recorded" : "Ready for its first observation"}</strong><p>{checks.length ? "TapeWatch has saved on-demand website checks for this entry. These are point-in-time observations, not continuous monitoring or an on-chain verification." : "Run Check now to record reachability, response details, and an initial SHA-256 content fingerprint when a complete response is available."}</p></div></div>
