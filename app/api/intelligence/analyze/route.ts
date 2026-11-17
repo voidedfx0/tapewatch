@@ -243,10 +243,10 @@ function extractPage(html: string, baseUrl: URL): PageProfile {
     }).filter((item): item is Link => Boolean(item));
   links.push(...extractSocialMetadata(html, baseUrl));
   const visibleText = clean(readableHtml).slice(0, 180000);
-  const emails = [...new Set([...html.matchAll(/(?:mailto:)?([A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,})/gi)].map((match) => match[1].toLowerCase()))].slice(0, 20);
-  const phones = [...new Set([...html.matchAll(/(?:tel:)?(\\+?[0-9][0-9().\\s-]{6,}[0-9])/g)].map((match) => match[1].replace(/\\s+/g, " ").trim()).filter((value) => value.replace(/\\D/g, "").length >= 8 && value.replace(/\\D/g, "").length <= 15))].slice(0, 15);
-  const locations = [...visibleText.matchAll(/\\b(?:headquarters|head office|based in|located in|office in|visit us at)\\s*[:,-]?\\s*([^.!?;]{3,90})/gi)].map((match) => match[1].trim()).slice(0, 8);
-  const pricing = [...new Set([...headings, ...contentBlocks].filter((value) => /pricing|plans? from|free plan|free trial|per month|per year|\\$\\s?\\d|USD\\s?\\d|NGN\\s?\\d|\\d+\\s?(?:USD|NGN|EUR|GBP)/i.test(value)).map((value) => value.slice(0, 220)))].slice(0, 12);
+  const emails = [...new Set([...html.matchAll(/(?:mailto:)?([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/gi)].map((match) => match[1].toLowerCase()))].slice(0, 20);
+  const phones = [...new Set([...html.matchAll(/(?:tel:)?(\+?[0-9][0-9().\s-]{6,}[0-9])/g)].map((match) => match[1].replace(/\s+/g, " ").trim()).filter((value) => value.replace(/\D/g, "").length >= 8 && value.replace(/\D/g, "").length <= 15))].slice(0, 15);
+  const locations = [...visibleText.matchAll(/\b(?:headquarters|head office|based in|located in|office in|visit us at)\s*[:,-]?\s*([^.!?;]{3,90})/gi)].map((match) => match[1].trim()).slice(0, 8);
+  const pricing = [...new Set([...headings, ...contentBlocks].filter((value) => /pricing|plans? from|free plan|free trial|per month|per year|\$\s?\d|USD\s?\d|NGN\s?\d|\d+\s?(?:USD|NGN|EUR|GBP)/i.test(value)).map((value) => value.slice(0, 220)))].slice(0, 12);
   const technologyTerms = ["Next.js","React","Vue","Angular","WordPress","Shopify","Webflow","Node.js","Python","PHP","Laravel","Django","Supabase","Firebase","AWS","Vercel","Cloudflare","Ethereum","Solana","IPFS"];
   const integrationTerms = ["Stripe","PayPal","Google Analytics","Google Maps","HubSpot","Salesforce","Slack","Discord","Telegram","GitHub","Zapier","Mailchimp","WooCommerce","Meta Pixel"];
   const technologies = technologyTerms.filter((term) => visibleText.toLowerCase().includes(term.toLowerCase()));
