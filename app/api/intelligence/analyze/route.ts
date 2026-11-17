@@ -556,9 +556,9 @@ export async function POST(request: Request) {
     const identityType = structuredNames.length ? "Structured organisation identity" :
       meta(homepage.html, "og:site_name") || meta(homepage.html, "application-name") ? "Website metadata identity" : "Page-title identity";
     const summaryCandidate = homepageProfile.description || structuredDescriptions[0] || allDescriptions[0] ||
-      allContentBlocks.find((block) => block.length >= 90 && /\\b(we |our |provides|offers|helps|platform|company|business|organisation|organization|service|product)\\b/i.test(block)) ||
+      allContentBlocks.find((block) => block.length >= 90 && /\b(we |our |provides|offers|helps|platform|company|business|organisation|organization|service|product)\b/i.test(block)) ||
       allParagraphs.find((paragraph) => paragraph.length >= 90) || allContentBlocks.slice(0, 2).join(" ");
-    const summary = summaryCandidate?.replace(/\\s+/g, " ").trim().slice(0, 700) ||
+    const summary = summaryCandidate?.replace(/\s+/g, " ").trim().slice(0, 700) ||
       [businessName, ...allHeadings.slice(0, 3)].filter(Boolean).join(" — ") || homepageProfile.title;
     const products = [...new Set([...structuredProducts, ...allHeadings.filter((heading) => /product|platform|software|application|tool|app|catalogue|catalog/i.test(heading)), ...allContentBlocks.filter((block) => /\b(our products|our platform|our software|we built|product includes|available products)\b/i.test(block)).map((block) => block.slice(0, 180))])].filter((value) => value.length > 2).slice(0, 12);
     const services = [...new Set([...structuredServices, ...allHeadings.filter((heading) => /service|consult|support|implementation|maintenance|delivery|solutions/i.test(heading)), ...allContentBlocks.filter((block) => /\b(we offer|our services|services include|we provide|we help|professional services)\b/i.test(block)).map((block) => block.slice(0, 180))])].filter((value) => value.length > 2).slice(0, 12);
