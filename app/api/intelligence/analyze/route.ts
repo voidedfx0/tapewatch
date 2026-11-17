@@ -178,6 +178,37 @@ function extractStructuredData(html: string, baseUrl: URL) {
   return result;
 }
 
+function extractSocialMetadata(html: string, baseUrl: URL): Link[] {
+  const found: Link[] = [];
+  for (const match of html.matchAll(/<link\\b[^>]*>/gi)) {
+    const tag = match[0];
+    const rel = tag.match(/\\brel\\s*=\\s*["']([^"']+)["']/i)?.[1] || "";
+    const href = tag.match(/\\bhref\\s*=\\s*["']([^"']+)["']/i)?.[1];
+    if (!href || !/(^|\\s)me(\\s|$)/i.test(rel)) continue;
+    try {
+      const url = new URL(decode(href), baseUrl);
+      if (["http:", "https:"].includes(url.protocol)) found.push({ label: "Rel-me social profile", url: url.toString() });
+    } catch { /* Ignore malformed profile links. */ }
+  }
+
+  for (const match of html.matchAll(/<meta\\b[^>]*>/gi)) {
+    const tag = match[0];
+    const key = tag.match(/\\b(?:name|property)\\s*=\\s*["']([^"']*)["']/i)?.[1]?.toLowerCase();
+    const value = tag.match(/\\bcontent\\s*=\\s*["']([^"']*)["']/i)?.[1]?.trim();
+    if (!key || !value) continue;
+    if (key === "og:see_also" || key === "twitter:site" || key === "twitter:creator") {
+      const candidate = value.startsWith("@") && (key === "twitter:site" || key === "twitter:creator")
+        ? "https://x.com/" + value.slice(1)
+        : value;
+      try {
+        const url = new URL(candidate, baseUrl);
+        if (["http:", "https:"].includes(url.protocol)) found.push({ label: "Social profile metadata", url: url.toString() });
+      } catch { /* Ignore handles or malformed metadata for unsupported networks. */ }
+    }
+  }
+  return found;
+}
+
 function extractPage(html: string, baseUrl: URL): PageProfile {
   const title = clean(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "").slice(0, 200) || null;
   const description = meta(html, "description") || meta(html, "og:description") || meta(html, "twitter:description");
@@ -204,6 +235,7 @@ function extractPage(html: string, baseUrl: URL): PageProfile {
         return { label: clean(match[2]).slice(0, 100), url: url.toString() };
       } catch { return null; }
     }).filter((item): item is Link => Boolean(item));
+  links.push(...extractSocialMetadata(html, baseUrl));
   return { title, description, headings, paragraphs, contentBlocks, links, structured: extractStructuredData(html, baseUrl) };
 }
 
@@ -344,7 +376,8 @@ function socialProfiles(links: Link[]) {
   for (const link of links) {
     try {
       const url = new URL(link.url);
-      const platform = SOCIAL_HOSTS[url.hostname.toLowerCase()];
+      const hostname = url.hostname.toLowerCase().replace(/^(www|m|mobile)\\./, "");
+      const platform = SOCIAL_HOSTS[hostname] || SOCIAL_HOSTS["www." + hostname];
       if (!platform) continue;
       url.search = "";
       url.hash = "";
@@ -523,7 +556,7 @@ export async function POST(request: Request) {
       profile: data,
       pagesAnalysed: pages.length,
       socialProfilesFound: socials.length,
-      analysisType: "deep-content-multi-page-structured-data-and-sitemap-extraction",
+      analysisType: "deep-content-multi-page-structured-data-sitemap-and-social-metadata-extraction",
       sitemapPagesDiscovered: sitemapPages.length,
     });
   } catch (error) {
