@@ -158,7 +158,10 @@ function extractStructuredData(html: string, baseUrl: URL) {
         const obj = item as Record<string, unknown>;
         if (obj["@graph"]) queue.push(obj["@graph"]);
         const type = Array.isArray(obj["@type"]) ? obj["@type"].join(" ") : String(obj["@type"] || "");
-        add(result.names, obj.name);
+        if (/Organization|Corporation|LocalBusiness|ProfessionalService|NGO|EducationalOrganization|GovernmentOrganization|SportsOrganization|PerformingGroup|Store|MedicalOrganization/i.test(type)) {
+          add(result.names, obj.name);
+          add(result.names, obj.alternateName);
+        }
         add(result.descriptions, obj.description);
         if (/Product|Service|Offer|SoftwareApplication|WebApplication/i.test(type)) add(result.services, obj.name);
         add(result.topics, obj.knowsAbout);
@@ -503,7 +506,10 @@ export async function POST(request: Request) {
     const structuredAudiences = structured.flatMap((item) => item.audiences);
     for (const value of structured.flatMap((item) => item.socials)) socialLinks.push({ label: "Structured social profile", url: value });
     const businessName = meta(homepage.html, "og:site_name") ||
-      meta(homepage.html, "application-name") || structuredNames[0] || homepageProfile.title;
+      meta(homepage.html, "application-name") ||
+      structuredNames[0] ||
+      meta(homepage.html, "author") ||
+      homepageProfile.title;
     const summary = homepageProfile.description ||
       structuredDescriptions[0] ||
       allDescriptions[0] ||
