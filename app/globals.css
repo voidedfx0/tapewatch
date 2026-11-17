@@ -592,3 +592,81 @@ h1 span { color: #777c84; }
 .motion-visual .watch-eye { animation:eye-blink 3.8s ease-in-out infinite!important; }
 .motion-visual .eye-iris { animation:eye-look 5.2s ease-in-out infinite!important; }
 .motion-visual .motion-core.eye-core::after { animation:eye-ripple 4.5s ease-out infinite!important; }
+
+
+/* Forced motion polish: faster orbital rings and responsive card entrances */
+.motion-visual .ring-outer {
+  animation:globe-outer 10s linear infinite!important;
+  border-width:1.5px;
+}
+.motion-visual .ring-middle {
+  animation:globe-middle 7s linear infinite!important;
+  border-width:1.5px;
+}
+.motion-visual .ring-inner {
+  animation:globe-inner 5s linear infinite!important;
+  border-width:1.5px;
+}
+.motion-visual .motion-ring::before {
+  content:"";
+  position:absolute;
+  top:50%;
+  left:-4px;
+  width:7px;
+  height:7px;
+  border:1px solid #fff;
+  border-radius:50%;
+  background:var(--tw-accent);
+  box-shadow:0 0 0 4px #5b63d91c,0 0 12px #5b63d955;
+  transform:translateY(-50%);
+}
+.motion-visual .ring-middle::before {
+  left:auto;
+  right:-4px;
+  width:6px;
+  height:6px;
+  background:#343943;
+  box-shadow:0 0 0 4px #34394312,0 0 10px #34394330;
+}
+.motion-visual .ring-inner::before {
+  left:50%;
+  top:-3px;
+  width:5px;
+  height:5px;
+  background:#9299aa;
+  transform:translateX(-50%);
+  box-shadow:0 0 0 3px #9299aa20;
+}
+.stat-card,.intelligence-card,.mini-card,.section-card,.getting-started,
+.module-page-card,.detail-card,.changes-summary-card,.changes-intro-card,.module-notice {
+  animation:card-arrive .72s cubic-bezier(.2,.75,.25,1) both!important;
+  transition:transform .3s cubic-bezier(.2,.75,.25,1),border-color .3s ease,box-shadow .3s ease!important;
+}
+.stat-card:nth-child(2),.intelligence-card:nth-child(2),.module-page-card:nth-child(2),.detail-card:nth-child(2),.changes-summary-card:nth-child(2) {
+  animation-delay:.09s!important;
+}
+.stat-card:nth-child(3),.intelligence-card:nth-child(3),.module-page-card:nth-child(3),.detail-card:nth-child(3),.changes-summary-card:nth-child(3) {
+  animation-delay:.18s!important;
+}
+.stat-card:nth-child(4) { animation-delay:.27s!important; }
+.intelligence-card:nth-child(1),.module-page-card:nth-child(1),.detail-card:nth-child(1),.changes-summary-card:nth-child(1) {
+  animation-delay:0s!important;
+}
+@media (hover:hover) and (pointer:fine) {
+  .stat-card:hover,.mini-card:hover,.section-card:hover,.getting-started:hover,
+  .module-page-card:hover,.detail-card:hover,.changes-summary-card:hover,.changes-intro-card:hover,.module-notice:hover {
+    transform:translateY(-4px)!important;
+    border-color:#c9ccef!important;
+    box-shadow:0 15px 34px #252b4a12!important;
+  }
+  .intelligence-card:hover { transform:translateY(-5px)!important; }
+}
+@media (prefers-reduced-motion:reduce) {
+  /* Signature motion is intentionally retained; card entrances and hover feedback remain visible. */
+  .motion-visual .ring-outer,.motion-visual .ring-middle,.motion-visual .ring-inner,
+  .stat-card,.intelligence-card,.mini-card,.section-card,.getting-started,
+  .module-page-card,.detail-card,.changes-summary-card,.changes-intro-card,.module-notice {
+    animation-duration:.72s!important;
+    animation-iteration-count:1!important;
+  }
+}
