@@ -139,7 +139,7 @@ function meta(html: string, key: string) {
 }
 
 function extractStructuredData(html: string, baseUrl: URL) {
-  const result = { names: [] as string[], descriptions: [] as string[], products: [] as string[], services: [] as string[], features: [] as string[], topics: [] as string[], audiences: [] as string[], socials: [] as string[] };
+  const result = { names: [] as string[], descriptions: [] as string[], products: [] as string[], services: [] as string[], features: [] as string[], topics: [] as string[], audiences: [] as string[], socials: [] as string[], emails: [] as string[], phones: [] as string[], locations: [] as string[], prices: [] as string[] };
   const add = (list: string[], value: unknown) => {
     if (typeof value === "string" && value.trim()) list.push(value.trim().slice(0, 300));
     else if (Array.isArray(value)) for (const item of value) add(list, item);
@@ -164,6 +164,16 @@ function extractStructuredData(html: string, baseUrl: URL) {
           add(result.names, obj.alternateName);
         }
         add(result.descriptions, obj.description);
+        add(result.emails, obj.email);
+        add(result.phones, obj.telephone);
+        const address = obj.address;
+        if (address && typeof address === "object") {
+          const addressObject = address as Record<string, unknown>;
+          for (const key of ["name", "streetAddress", "addressLocality", "addressRegion", "postalCode", "addressCountry"]) add(result.locations, addressObject[key]);
+        } else add(result.locations, address);
+        add(result.locations, obj.areaServed);
+        const priceParts = [obj.price, obj.lowPrice, obj.highPrice].filter((value) => typeof value === "string" || typeof value === "number");
+        if (priceParts.length) result.prices.push(`${priceParts.join("–")} ${typeof obj.priceCurrency === "string" ? obj.priceCurrency : ""}`.trim().slice(0, 180));
         if (/Product|SoftwareApplication|WebApplication/i.test(type)) add(result.products, obj.name);
         if (/Service|ProfessionalService/i.test(type)) add(result.services, obj.name);
         if (/Offer|Feature/i.test(type)) add(result.features, obj.name);
@@ -510,16 +520,16 @@ export async function POST(request: Request) {
     const allTitles = pages.map((page) => page.profile.title).filter((value): value is string => Boolean(value));
     const allParagraphs = pages.flatMap((page) => page.profile.paragraphs);
     const allContentBlocks = pages.flatMap((page) => page.profile.contentBlocks);
-    const contactEmails = [...new Set(pages.flatMap((page) => page.profile.emails))].slice(0, 20);
-    const contactPhones = [...new Set(pages.flatMap((page) => page.profile.phones))].slice(0, 15);
-    const locations = [...new Set(pages.flatMap((page) => page.profile.locations))].slice(0, 12);
-    const pricingDetails = [...new Set(pages.flatMap((page) => page.profile.pricing))].slice(0, 15);
+    const contactEmails = [...new Set([...pages.flatMap((page) => page.profile.emails), ...pages.flatMap((page) => page.profile.structured.emails)])].slice(0, 20);
+    const contactPhones = [...new Set([...pages.flatMap((page) => page.profile.phones), ...pages.flatMap((page) => page.profile.structured.phones)])].slice(0, 15);
+    const locations = [...new Set([...pages.flatMap((page) => page.profile.locations), ...pages.flatMap((page) => page.profile.structured.locations)])].slice(0, 16);
+    const pricingDetails = [...new Set([...pages.flatMap((page) => page.profile.pricing), ...pages.flatMap((page) => page.profile.structured.prices)])].slice(0, 18);
     const technologies = [...new Set(pages.flatMap((page) => page.profile.technologies))].slice(0, 20);
     const integrations = [...new Set(pages.flatMap((page) => page.profile.integrations))].slice(0, 20);
     const discoveryEvidence = pages.flatMap((page) => {
       const fields: [string, string[]][] = [
-        ["Email", page.profile.emails], ["Phone", page.profile.phones], ["Location", page.profile.locations],
-        ["Pricing", page.profile.pricing], ["Technology mention", page.profile.technologies], ["Integration mention", page.profile.integrations],
+        ["Email", [...page.profile.emails, ...page.profile.structured.emails]], ["Phone", [...page.profile.phones, ...page.profile.structured.phones]], ["Location", [...page.profile.locations, ...page.profile.structured.locations]],
+        ["Pricing", [...page.profile.pricing, ...page.profile.structured.prices]], ["Technology mention", page.profile.technologies], ["Integration mention", page.profile.integrations],
         ["Product", page.profile.structured.products], ["Service", page.profile.structured.services], ["Feature", page.profile.structured.features],
       ];
       return fields.flatMap(([type, values]) => values.map((value) => ({
@@ -545,12 +555,11 @@ export async function POST(request: Request) {
     const alternateNames = [...new Set(structuredNames.filter((name) => name !== businessName))].slice(0, 8);
     const identityType = structuredNames.length ? "Structured organisation identity" :
       meta(homepage.html, "og:site_name") || meta(homepage.html, "application-name") ? "Website metadata identity" : "Page-title identity";
-    const summary = homepageProfile.description ||
-      structuredDescriptions[0] ||
-      allDescriptions[0] ||
-      allContentBlocks.slice(0, 3).join(" ").slice(0, 700) ||
-      allHeadings.slice(0, 4).join(" · ") ||
-      allParagraphs[0]?.slice(0, 400) || homepageProfile.title;
+    const summaryCandidate = homepageProfile.description || structuredDescriptions[0] || allDescriptions[0] ||
+      allContentBlocks.find((block) => block.length >= 90 && /\\b(we |our |provides|offers|helps|platform|company|business|organisation|organization|service|product)\\b/i.test(block)) ||
+      allParagraphs.find((paragraph) => paragraph.length >= 90) || allContentBlocks.slice(0, 2).join(" ");
+    const summary = summaryCandidate?.replace(/\\s+/g, " ").trim().slice(0, 700) ||
+      [businessName, ...allHeadings.slice(0, 3)].filter(Boolean).join(" — ") || homepageProfile.title;
     const products = [...new Set([...structuredProducts, ...allHeadings.filter((heading) => /product|platform|software|application|tool|app|catalogue|catalog/i.test(heading)), ...allContentBlocks.filter((block) => /\b(our products|our platform|our software|we built|product includes|available products)\b/i.test(block)).map((block) => block.slice(0, 180))])].filter((value) => value.length > 2).slice(0, 12);
     const services = [...new Set([...structuredServices, ...allHeadings.filter((heading) => /service|consult|support|implementation|maintenance|delivery|solutions/i.test(heading)), ...allContentBlocks.filter((block) => /\b(we offer|our services|services include|we provide|we help|professional services)\b/i.test(block)).map((block) => block.slice(0, 180))])].filter((value) => value.length > 2).slice(0, 12);
     const features = [...new Set([...structuredFeatures, ...allHeadings.filter((heading) => /feature|capabilit|functionality|benefit/i.test(heading)), ...allContentBlocks.filter((block) => /\b(features include|key features|built-in|supports)\b/i.test(block)).map((block) => block.slice(0, 180))])].filter((value) => value.length > 2).slice(0, 12);
@@ -612,7 +621,7 @@ export async function POST(request: Request) {
       profile: data,
       pagesAnalysed: pages.length,
       socialProfilesFound: socials.length,
-      analysisType: "deep-content-multi-page-structured-data-sitemap-and-social-metadata-extraction",
+      analysisType: "deep-content-multi-page-sitemap-jsonld-contact-commercial-social-and-evidence-extraction",
       sitemapPagesDiscovered: sitemapPages.length,
     });
   } catch (error) {
