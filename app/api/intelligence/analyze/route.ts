@@ -214,7 +214,7 @@ function extractSocialMetadata(html: string, baseUrl: URL): Link[] {
 }
 
 function extractPage(html: string, baseUrl: URL): PageProfile {
-  const language = html.match(/<html\\b[^>]*\\blang\\s*=\\s*["']([^"']+)["']/i)?.[1]?.trim().slice(0, 35) || null;
+  const language = html.match(/<html\b[^>]*\blang\s*=\s*["']([^"']+)["']/i)?.[1]?.trim().slice(0, 35) || null;
   const title = clean(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "").slice(0, 200) || null;
   const description = meta(html, "description") || meta(html, "og:description") || meta(html, "twitter:description");
   const headings = [...html.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi)]
@@ -555,17 +555,6 @@ export async function POST(request: Request) {
           || page.profile.description || page.profile.title || "Found in the page HTML or structured metadata.",
       })));
     });
-    const inferenceEvidence = [
-      ...products.map((value) => ({ type: "Product or offering clue", value, source_url: pages.find((page) => page.profile.contentBlocks.some((block) => block.includes(value)) || page.profile.headings.includes(value))?.url || homepage.url.toString(), excerpt: "Inferred from public page headings or descriptive content; not a confirmed product catalogue entry." })),
-      ...services.map((value) => ({ type: "Service clue", value, source_url: pages.find((page) => page.profile.contentBlocks.some((block) => block.includes(value)) || page.profile.headings.includes(value))?.url || homepage.url.toString(), excerpt: "Inferred from public page headings or descriptive content; confirm against the linked source." })),
-      ...features.map((value) => ({ type: "Feature clue", value, source_url: pages.find((page) => page.profile.contentBlocks.some((block) => block.includes(value)) || page.profile.headings.includes(value))?.url || homepage.url.toString(), excerpt: "Inferred from public page headings or descriptive content; not independently tested." })),
-      ...problemBlocks.map((value) => ({ type: "Claimed customer problem", value, source_url: pages.find((page) => page.profile.contentBlocks.includes(value))?.url || homepage.url.toString(), excerpt: value })),
-      ...valueBlocks.map((value) => ({ type: "Value proposition claim", value, source_url: pages.find((page) => page.profile.contentBlocks.includes(value))?.url || homepage.url.toString(), excerpt: value })),
-      ...competitorBlocks.map((value) => ({ type: "Competitor reference", value, source_url: pages.find((page) => page.profile.contentBlocks.includes(value))?.url || homepage.url.toString(), excerpt: value })),
-    ];
-    const discoveryEvidence = [...baseDiscoveryEvidence, ...inferenceEvidence]
-      .filter((item, index, list) => list.findIndex((other) => other.type === item.type && other.value.toLowerCase() === item.value.toLowerCase() && other.source_url === item.source_url) === index)
-      .slice(0, 100);
     const structured = pages.map((page) => page.profile.structured);
     const structuredNames = structured.flatMap((item) => item.names);
     const structuredDescriptions = structured.flatMap((item) => item.descriptions);
@@ -639,6 +628,17 @@ export async function POST(request: Request) {
     const competitorBlocks = [...new Set(allContentBlocks.filter((block) =>
       /\\b(competitors? such as|alternative to|compared with|compared to|unlike [A-Z]|versus|vs\\.?)\\b/i.test(block)
     ))].slice(0, 8);
+    const inferenceEvidence = [
+      ...products.map((value) => ({ type: "Product or offering clue", value, source_url: pages.find((page) => page.profile.contentBlocks.some((block) => block.includes(value)) || page.profile.headings.includes(value))?.url || homepage.url.toString(), excerpt: "Inferred from public page headings or descriptive content; not a confirmed product catalogue entry." })),
+      ...services.map((value) => ({ type: "Service clue", value, source_url: pages.find((page) => page.profile.contentBlocks.some((block) => block.includes(value)) || page.profile.headings.includes(value))?.url || homepage.url.toString(), excerpt: "Inferred from public page headings or descriptive content; confirm against the linked source." })),
+      ...features.map((value) => ({ type: "Feature clue", value, source_url: pages.find((page) => page.profile.contentBlocks.some((block) => block.includes(value)) || page.profile.headings.includes(value))?.url || homepage.url.toString(), excerpt: "Inferred from public page headings or descriptive content; not independently tested." })),
+      ...problemBlocks.map((value) => ({ type: "Claimed customer problem", value, source_url: pages.find((page) => page.profile.contentBlocks.includes(value))?.url || homepage.url.toString(), excerpt: value })),
+      ...valueBlocks.map((value) => ({ type: "Value proposition claim", value, source_url: pages.find((page) => page.profile.contentBlocks.includes(value))?.url || homepage.url.toString(), excerpt: value })),
+      ...competitorBlocks.map((value) => ({ type: "Competitor reference", value, source_url: pages.find((page) => page.profile.contentBlocks.includes(value))?.url || homepage.url.toString(), excerpt: value })),
+    ];
+    const discoveryEvidence = [...baseDiscoveryEvidence, ...inferenceEvidence]
+      .filter((item, index, list) => list.findIndex((other) => other.type === item.type && other.value.toLowerCase() === item.value.toLowerCase() && other.source_url === item.source_url) === index)
+      .slice(0, 100);
     const keyTopics = [...new Set([...allTitles, ...allHeadings, ...structuredTopics])]
       .filter((item) => item.length > 2).slice(0, 18);
     const importantPageMap = new Map<string, { type: string; label: string; url: string }>();
@@ -654,7 +654,7 @@ export async function POST(request: Request) {
     const languageCodes = [...new Set(pages.map((page) => page.profile.language).filter((value): value is string => Boolean(value)))];
     const primaryLanguage = homepageProfile.language || languageCodes[0] || "Not declared";
     const homepageTextLength = homepageProfile.contentBlocks.join(" ").length;
-    const scriptCount = [...homepage.html.matchAll(/<script\\b/gi)].length;
+    const scriptCount = [...homepage.html.matchAll(/<script\b/gi)].length;
     const renderingNote = homepageTextLength < 180 && scriptCount > 4
       ? "The homepage appears to rely heavily on JavaScript. TapeWatch reads server-delivered HTML and may miss content rendered only in a browser."
       : "Readable server-delivered HTML content was found. Content that requires browser-side interaction may still be missing.";
