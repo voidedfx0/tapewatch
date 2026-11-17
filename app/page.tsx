@@ -40,7 +40,7 @@ export default function Home() {
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [showChanges, setShowChanges] = useState(false);
   const [activeSection, setActiveSection] = useState("");
-  const [detailTab, setDetailTab] = useState<"overview" | "changes" | "checks" | "settings">("overview");
+  const [detailTab, setDetailTab] = useState<"overview" | "changes" | "checks" | "timeline" | "settings">("overview");
   const [checks, setChecks] = useState<WebsiteCheck[]>([]);
   const [changes, setChanges] = useState<WebsiteChange[]>([]);
   const [changesLoading, setChangesLoading] = useState(false);
@@ -167,6 +167,11 @@ export default function Home() {
     : null;
 
   const filteredSites = useMemo(() => sites.filter((site) => site.url.toLowerCase().includes(query.toLowerCase())), [sites, query]);
+  const timelineEvents = useMemo(() => [
+    ...checks.map((check) => ({ id: `check-${check.id}`, at: check.checked_at, kind: "check", title: check.status === "reachable" ? "Website check completed" : check.status === "reachable_partial" ? "Partial website capture" : check.status === "http_error" ? "Website returned an HTTP error" : "Website check unavailable", detail: `${check.http_status ? `HTTP ${check.http_status} · ` : ""}${check.page_title || check.status.replaceAll("_", " ")}`, hash: check.content_hash })),
+    ...changes.map((change) => ({ id: `change-${change.id}`, at: change.detected_at, kind: "change", title: "Content fingerprint changed", detail: `${change.previous_title || "Previous version"} → ${change.current_title || "New version"}`, hash: change.current_hash })),
+    ...(verificationResult ? [{ id: `verification-${verificationResult.checkId}`, at: verificationResult.verifiedAt, kind: "verification", title: verificationResult.status === "verified" ? "Live fingerprint matched saved evidence" : verificationResult.status === "mismatch" ? "Live fingerprint differed from saved evidence" : "Live fingerprint comparison unavailable", detail: verificationResult.message, hash: null as string | null }] : []),
+  ].sort((a,b) => new Date(b.at).getTime()-new Date(a.at).getTime()), [checks, changes, verificationResult]);
   const sectionContent: Record<string, { title: string; eyebrow: string; description: string; items: { title: string; description: string; state: string }[] }> = {
     circuits: { title: "Circuit intelligence", eyebrow: "ECOSYSTEM", description: "Explore supported circuit references and the website records associated with them. Contract sources will be added only after they are validated.", items: [{ title: "Circuit directory", description: "A searchable catalogue of supported circuit records.", state: "SOURCE REVIEW PENDING" }, { title: "Ownership activity", description: "Relevant ownership changes from verified on-chain events.", state: "AWAITING EVENTS" }, { title: "Linked websites", description: "Websites associated with each supported circuit.", state: "AWAITING DATA" }] },
     networks: { title: "Network explorer", eyebrow: "ECOSYSTEM", description: "Review network support and connection health. A listed network does not imply that TapeWatch is connected to it.", items: [{ title: "X Layer", description: "Planned first network integration. Read-only connection is not active.", state: "NOT CONNECTED" }, { title: "Network registry", description: "Supported chain identifiers, explorers and verified data sources.", state: "PLANNED" }, { title: "Source health", description: "RPC and indexer availability once integrations are configured.", state: "NOT CONNECTED" }] },
@@ -334,7 +339,7 @@ export default function Home() {
           <a className={`nav-item ${!selectedSite && !showChanges && !activeSection ? "active" : ""}`} href="#overview" onClick={() => openSection("overview")}><Icon name="grid"/> Overview</a>
           <a className="nav-item" href="#websites" onClick={() => { openSection("websites"); document.getElementById("websites")?.scrollIntoView({ behavior: "smooth" }); }}><Icon name="globe"/> Websites <span className="nav-count">{sites.length}</span></a>
           <a className={`nav-item ${showChanges ? "active" : ""}`} href="#changes" onClick={() => openSection("changes")}><Icon name="activity"/> Changes</a>
-          <a className={`nav-item ${activeSection === "timeline" ? "active" : ""}`} href="#timeline" onClick={() => openSection("timeline")}><Icon name="clock"/> Trust Timeline</a>
+          <a className={`nav-item ${activeSection === "timeline" || (selectedSite && detailTab === "timeline") ? "active" : ""}`} href="#timeline" onClick={() => { if (sites.length) { setSelectedSite(sites[0]); setDetailTab("timeline"); setShowChanges(false); setActiveSection(""); } else { openSection("timeline"); } }}><Icon name="clock"/> Trust Timeline</a>
         </nav>
         <div className="workspace-label nav-group-label">ECOSYSTEM</div>
         <nav className="nav-list" aria-label="Ecosystem navigation">
@@ -377,7 +382,7 @@ export default function Home() {
             </div>
             <div className="detail-notice"><Icon name="shield" size={18}/><div><strong>{checks.length ? "Website observations are being recorded" : "Ready for its first observation"}</strong><p>{checks.length ? "TapeWatch has saved on-demand website checks for this entry. These are point-in-time observations, not continuous monitoring or an on-chain verification." : "Run Check now to record reachability, response details, and an initial SHA-256 content fingerprint when a complete response is available."}</p></div></div>
             <div className="detail-tabs" role="tablist" aria-label="Website details sections">
-              {(["overview", "changes", "checks", "settings"] as const).map((tab) => <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? "detail-tab active" : "detail-tab"} onClick={() => setDetailTab(tab)}>{tab === "overview" ? "Overview" : tab === "changes" ? "Change history" : tab === "checks" ? "Checks" : "Settings"}</button>)}<button type="button" className="detail-tab detail-tab-action" onClick={() => { void runWebsiteCheck(); }} disabled={checkingWebsite}>{checkingWebsite ? "Checking…" : "Check now"}</button>
+              {(["overview", "changes", "checks", "timeline", "settings"] as const).map((tab) => <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? "detail-tab active" : "detail-tab"} onClick={() => setDetailTab(tab)}>{tab === "overview" ? "Overview" : tab === "changes" ? "Change history" : tab === "checks" ? "Checks" : tab === "timeline" ? "Trust timeline" : "Settings"}</button>)}<button type="button" className="detail-tab detail-tab-action" onClick={() => { void runWebsiteCheck(); }} disabled={checkingWebsite}>{checkingWebsite ? "Checking…" : "Check now"}</button>
             </div>
             {detailTab === "overview" && <div className="detail-grid">
               <section className="detail-card detail-wide"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="shield" size={17}/></span><h2>Integrity status</h2></div><span className="coming-soon">AWAITING SETUP</span></div><div className="integrity-placeholder"><div className="integrity-ring"><Icon name="shield" size={27}/></div><div><strong>Not yet verified</strong><p>An integrity result will appear after a verification source is configured and the first check completes.</p></div></div></section>
@@ -432,6 +437,15 @@ export default function Home() {
                 {check.error_message && <p className="check-error">{check.error_message}</p>}
                 {check.final_url && <p className="detail-muted">Final address: {check.final_url}</p>}
               </article>)}</div> : <div className="checks-empty"><h3>No website checks yet</h3><p>Select Check now to record the first observation for this website.</p><button className="secondary-button" onClick={runWebsiteCheck} disabled={checkingWebsite}>{checkingWebsite ? "Checking…" : "Run first check"}</button></div>}
+            </section>}
+            {detailTab === "timeline" && <section className="detail-card trust-timeline-card">
+              <div className="detail-card-heading"><div><span className="mini-icon"><Icon name="clock" size={17}/></span><h2>Trust timeline</h2></div><span className="coming-soon">{timelineEvents.length} EVENTS</span></div>
+              <p className="detail-muted timeline-intro">A chronological evidence trail for this website, combining saved checks, detected fingerprint changes and live comparison outcomes.</p>
+              {checksLoading || changesLoading ? <p className="detail-muted">Loading evidence history…</p> : timelineEvents.length ? <div className="trust-timeline-list">{timelineEvents.map((event) => <article className="trust-timeline-event" key={event.id}>
+                <span className={`trust-timeline-marker ${event.kind}`}><Icon name={event.kind === "check" ? "activity" : event.kind === "change" ? "layers" : "shield"} size={14}/></span>
+                <div className="trust-timeline-event-body"><div className="trust-timeline-event-top"><strong>{event.title}</strong><time>{new Date(event.at).toLocaleString()}</time></div><p>{event.detail}</p>{event.hash && <div className="check-hash"><span>SHA-256 EVIDENCE</span><code>{event.hash}</code></div>}</div>
+              </article>)}</div> : <div className="checks-empty"><h3>No evidence events yet</h3><p>Run a website check to create the first timestamped event. Later changes and live comparisons will appear here too.</p><button className="secondary-button" onClick={runWebsiteCheck} disabled={checkingWebsite}>{checkingWebsite ? "Checking…" : "Run first check"}</button></div>}
+              <p className="version-compare-disclaimer">This timeline is built from saved website checks and change records. A live comparison result is shown for this session; it is not a permanent verification certificate. No on-chain events are connected yet.</p>
             </section>}
             {detailTab === "settings" && <section className="detail-card settings-preview"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="settings" size={17}/></span><h2>Monitoring preferences</h2></div><span className="coming-soon">NOT ACTIVE</span></div><div className="info-rows"><div><span>Check frequency</span><strong>Not configured</strong></div><div><span>Change notifications</span><strong>Not configured</strong></div><div><span>Verification method</span><strong>Awaiting source review</strong></div></div><p className="detail-muted settings-footnote">These controls will become available when the monitoring service is implemented. No settings are being applied yet.</p></section>}
           </div>
