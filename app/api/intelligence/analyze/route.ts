@@ -516,6 +516,18 @@ export async function POST(request: Request) {
     const pricingDetails = [...new Set(pages.flatMap((page) => page.profile.pricing))].slice(0, 15);
     const technologies = [...new Set(pages.flatMap((page) => page.profile.technologies))].slice(0, 20);
     const integrations = [...new Set(pages.flatMap((page) => page.profile.integrations))].slice(0, 20);
+    const discoveryEvidence = pages.flatMap((page) => {
+      const fields: [string, string[]][] = [
+        ["Email", page.profile.emails], ["Phone", page.profile.phones], ["Location", page.profile.locations],
+        ["Pricing", page.profile.pricing], ["Technology mention", page.profile.technologies], ["Integration mention", page.profile.integrations],
+        ["Product", page.profile.structured.products], ["Service", page.profile.structured.services], ["Feature", page.profile.structured.features],
+      ];
+      return fields.flatMap(([type, values]) => values.map((value) => ({
+        type, value, source_url: page.url,
+        excerpt: page.profile.contentBlocks.find((block) => block.toLowerCase().includes(value.toLowerCase()))?.slice(0, 280)
+          || page.profile.description || page.profile.title || "Found in the page HTML or structured metadata.",
+      })));
+    }).filter((item, index, list) => list.findIndex((other) => other.type === item.type && other.value.toLowerCase() === item.value.toLowerCase() && other.source_url === item.source_url) === index).slice(0, 100);
     const structured = pages.map((page) => page.profile.structured);
     const structuredNames = structured.flatMap((item) => item.names);
     const structuredDescriptions = structured.flatMap((item) => item.descriptions);
@@ -566,6 +578,7 @@ export async function POST(request: Request) {
       alternate_names: alternateNames,
       field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", social_profiles: "Public links and metadata published by analysed pages", contact_details: "Email and phone-like text found in analysed HTML", locations: "Location phrases found in page text; not independently geocoded", pricing: "Pricing-related headings and text; not independently validated", technologies: "Technology names mentioned in page text, not technical fingerprinting", integrations: "Integration names mentioned in page text, not confirmed active connections" },
       contact_emails: contactEmails, contact_phones: contactPhones, locations, pricing_details: pricingDetails, technologies, integrations,
+      discovery_evidence: discoveryEvidence,
       target_audience: structuredAudiences[0] || null,
       key_topics: keyTopics,
       important_pages: importantPages,
@@ -589,7 +602,7 @@ export async function POST(request: Request) {
       analyzed_at: analyzedAt,
       updated_at: analyzedAt,
     }, { onConflict: "website_id" })
-      .select("id, website_id, business_name, summary, purpose, products, services, features, identity_type, alternate_names, field_evidence, contact_emails, contact_phones, locations, pricing_details, technologies, integrations, target_audience, key_topics, important_pages, source_urls, social_profiles, pages_analyzed, confidence, analyzed_at")
+      .select("id, website_id, business_name, summary, purpose, products, services, features, identity_type, alternate_names, field_evidence, contact_emails, contact_phones, locations, pricing_details, technologies, integrations, discovery_evidence, target_audience, key_topics, important_pages, source_urls, social_profiles, pages_analyzed, confidence, analyzed_at")
       .single();
     if (error) {
       console.error("TapeWatch intelligence profile save failed:", error);
