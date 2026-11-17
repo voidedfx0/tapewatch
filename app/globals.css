@@ -548,17 +548,18 @@ h1 span { color: #777c84; }
   border-style:dotted;
   animation:globe-inner 9s linear infinite;
 }
+/* Plate-like spin: each circle rotates flat around its own centre. */
 @keyframes globe-outer {
-  from { transform:translate(-50%,-50%) rotateX(67deg) rotateZ(0deg); }
-  to { transform:translate(-50%,-50%) rotateX(67deg) rotateZ(360deg); }
+  from { transform:translate(-50%,-50%) rotateZ(0deg); }
+  to { transform:translate(-50%,-50%) rotateZ(360deg); }
 }
 @keyframes globe-middle {
-  from { transform:translate(-50%,-50%) rotateY(69deg) rotateZ(0deg); }
-  to { transform:translate(-50%,-50%) rotateY(69deg) rotateZ(-360deg); }
+  from { transform:translate(-50%,-50%) rotateZ(0deg); }
+  to { transform:translate(-50%,-50%) rotateZ(-360deg); }
 }
 @keyframes globe-inner {
-  from { transform:translate(-50%,-50%) rotateX(58deg) rotateY(55deg) rotateZ(0deg); }
-  to { transform:translate(-50%,-50%) rotateX(58deg) rotateY(55deg) rotateZ(360deg); }
+  from { transform:translate(-50%,-50%) rotateZ(0deg); }
+  to { transform:translate(-50%,-50%) rotateZ(360deg); }
 }
 .motion-core.eye-core { animation:eye-hover 4.8s ease-in-out infinite; }
 .watch-eye {
@@ -680,6 +681,7 @@ h1 span { color: #777c84; }
 }
 .motion-visual .ring-middle {
   border-width:1px!important;
+  border-style:dashed!important;
   animation:globe-middle 4s linear infinite!important;
   animation-delay:-2.1s!important;
 }
@@ -693,12 +695,7 @@ h1 span { color: #777c84; }
   display:none!important;
 }
 
-/* Give the orbital rings more visual presence without changing their styling. */
-.motion-visual .ring-outer { width:250px!important;height:250px!important; }
-.motion-visual .ring-middle { width:188px!important;height:188px!important; }
-.motion-visual .ring-inner { width:126px!important;height:126px!important; }
-@media (max-width:700px) {
-  .motion-visual .ring-outer { width:190px!important;height:190px!important; }
-  .motion-visual .ring-middle { width:144px!important;height:144px!important; }
-  .motion-visual .ring-inner { width:98px!important;height:98px!important; }
-}
+/* Restore the original compact ring dimensions. */
+.motion-visual .ring-outer { width:210px!important;height:210px!important; }
+.motion-visual .ring-middle { width:154px!important;height:154px!important; }
+.motion-visual .ring-inner { width:94px!important;height:94px!important; }
