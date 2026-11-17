@@ -636,7 +636,8 @@ export async function POST(request: Request) {
       ...valueBlocks.map((value) => ({ type: "Value proposition claim", value, source_url: pages.find((page) => page.profile.contentBlocks.includes(value))?.url || homepage.url.toString(), excerpt: value })),
       ...competitorBlocks.map((value) => ({ type: "Competitor reference", value, source_url: pages.find((page) => page.profile.contentBlocks.includes(value))?.url || homepage.url.toString(), excerpt: value })),
     ];
-    const discoveryEvidence = [...baseDiscoveryEvidence, ...inferenceEvidence]
+    const reviewEvidence = reviewFlags.map((flag) => ({ type: "Review flag", value: flag.value, source_url: flag.source_url, excerpt: flag.excerpt }));
+    const discoveryEvidence = [...baseDiscoveryEvidence, ...inferenceEvidence, ...reviewEvidence]
       .filter((item, index, list) => list.findIndex((other) => other.type === item.type && other.value.toLowerCase() === item.value.toLowerCase() && other.source_url === item.source_url) === index)
       .slice(0, 100);
     const keyTopics = [...new Set([...allTitles, ...allHeadings, ...structuredTopics])]
@@ -688,6 +689,25 @@ export async function POST(request: Request) {
       distinctStructuredNames.length > 1 ? "Structured data contains multiple organisation names; review for consistency" : "No conflicting organisation names were detected in structured data",
       homepage.url.hostname.toLowerCase().replace(/^www\\./, "") !== siteHost ? "The website redirected to a different hostname" : "The final homepage hostname matches the submitted hostname",
     ];
+    const reviewFlags: { value: string; source_url: string; excerpt: string }[] = [];
+    const addReviewFlag = (value: string, sourceUrl: string, excerpt: string) => {
+      if (!reviewFlags.some((flag) => flag.value === value)) reviewFlags.push({ value, source_url: sourceUrl, excerpt });
+    };
+    if (siteUrl.protocol !== "https:") addReviewFlag("Review recommended: submitted website uses HTTP rather than HTTPS", homepage.url.toString(), "The submitted address uses HTTP. This is a transport-security observation, not a conclusion about the site's legitimacy.");
+    if (!hasPrivacyPage) addReviewFlag("Information gap: no privacy policy page was found", homepage.url.toString(), "No privacy or data-protection page was identified among the pages analysed. It may exist elsewhere on the site.");
+    if (!hasTermsPage) addReviewFlag("Information gap: no terms or legal page was found", homepage.url.toString(), "No terms or legal page was identified among the pages analysed. It may exist elsewhere on the site.");
+    if (!hasContactPage) addReviewFlag("Information gap: no contact or support page was found", homepage.url.toString(), "No contact or support page was identified among the pages analysed.");
+    if (externalEmailDomains.length) {
+      const source = pages.find((page) => page.profile.emails.some((email) => externalEmailDomains.includes(email.split("@")[1]?.toLowerCase() || "")));
+      addReviewFlag("Review recommended: public contact email uses an external domain", source?.url || homepage.url.toString(), "An email domain differs from the website domain. This is common for hosted email providers and is not inherently suspicious.");
+    }
+    if (distinctStructuredNames.length > 1) {
+      const source = pages.find((page) => page.profile.structured.names.length > 1) || pages.find((page) => page.profile.structured.names.length);
+      addReviewFlag("Potential information mismatch: multiple organisation names appear in structured data", source?.url || homepage.url.toString(), distinctStructuredNames.slice(0, 5).join(" · ") + ". These may be legitimate brands, subsidiaries or aliases; review the source context.");
+    }
+    if (homepage.url.hostname.toLowerCase().replace(/^www\\./, "") !== siteHost) {
+      addReviewFlag("Review recommended: homepage redirected to a different hostname", homepage.url.toString(), "The final hostname differs from the submitted hostname. Redirects are often legitimate, but should be recognised.");
+    }
     // Score independent evidence categories rather than simply counting every available field.
     const identityScore =
       (structuredNames.length ? 2 : 0) +
@@ -708,7 +728,7 @@ export async function POST(request: Request) {
       features,
       identity_type: identityType,
       alternate_names: alternateNames,
-      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", identity_signals: identitySignals.join(" · "), trust_checks: trustChecks.join(" || "), trust_check_note: "These are public-site transparency observations, not a security audit or proof of legitimacy. Missing pages and external email domains are not proof of wrongdoing.", identity_confidence_note: "Confidence reflects the amount and variety of public evidence found; it is not proof of legal identity or legitimacy.", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", business_models: businessModels.join(" · "), use_cases: useCases.join(" · "), problems_solved: problemBlocks.join(" || "), value_proposition: valueBlocks.join(" || "), inferred_audiences: inferredAudiences.join(" · "), competitor_mentions: competitorBlocks.join(" || "), social_profiles: "Public links and metadata published by analysed pages", detected_language: primaryLanguage, language_coverage: languageCodes.join(" · ") || "No HTML language declaration found", rendering_coverage: renderingNote, crawl_coverage: coverageNote, analysis_scope: "Up to 12 selected same-site public HTML pages; no full-site crawl, browser rendering, translation or independent fact verification.", structured_data_pages: String(pages.filter((page) => page.profile.structured.names.length || page.profile.structured.products.length || page.profile.structured.services.length).length), contact_details: "Email and phone-like text found in analysed HTML", locations: "Location phrases found in page text; not independently geocoded", pricing: "Pricing-related headings and text; not independently validated", technologies: "Technology names mentioned in page text, not technical fingerprinting", integrations: "Integration names mentioned in page text, not confirmed active connections" },
+      field_evidence: { business_name: structuredNames.length ? "Structured organisation data or site metadata" : "Homepage metadata or title", identity_signals: identitySignals.join(" · "), trust_checks: trustChecks.join(" || "), review_flags: reviewFlags.map((flag) => flag.value).join(" || "), review_scope: "Flags are cautious prompts based only on up to 12 analysed public HTML pages. Absence from this sample does not prove a page or detail does not exist.", trust_check_note: "These are public-site transparency observations, not a security audit or proof of legitimacy. Missing pages and external email domains are not proof of wrongdoing.", identity_confidence_note: "Confidence reflects the amount and variety of public evidence found; it is not proof of legal identity or legitimacy.", products: structuredProducts.length ? "Structured product data and page content" : "Page headings and descriptive content", services: structuredServices.length ? "Structured service data and page content" : "Page headings and descriptive content", features: structuredFeatures.length ? "Structured feature data and page content" : "Page headings and descriptive content", business_models: businessModels.join(" · "), use_cases: useCases.join(" · "), problems_solved: problemBlocks.join(" || "), value_proposition: valueBlocks.join(" || "), inferred_audiences: inferredAudiences.join(" · "), competitor_mentions: competitorBlocks.join(" || "), social_profiles: "Public links and metadata published by analysed pages", detected_language: primaryLanguage, language_coverage: languageCodes.join(" · ") || "No HTML language declaration found", rendering_coverage: renderingNote, crawl_coverage: coverageNote, analysis_scope: "Up to 12 selected same-site public HTML pages; no full-site crawl, browser rendering, translation or independent fact verification.", structured_data_pages: String(pages.filter((page) => page.profile.structured.names.length || page.profile.structured.products.length || page.profile.structured.services.length).length), contact_details: "Email and phone-like text found in analysed HTML", locations: "Location phrases found in page text; not independently geocoded", pricing: "Pricing-related headings and text; not independently validated", technologies: "Technology names mentioned in page text, not technical fingerprinting", integrations: "Integration names mentioned in page text, not confirmed active connections" },
       contact_emails: contactEmails, contact_phones: contactPhones, locations, pricing_details: pricingDetails, technologies, integrations,
       discovery_evidence: discoveryEvidence,
       target_audience: structuredAudiences[0] || inferredAudiences.join(", ") || null,
@@ -744,7 +764,7 @@ export async function POST(request: Request) {
       profile: data,
       pagesAnalysed: pages.length,
       socialProfilesFound: socials.length,
-      analysisType: "deep-content-identity-evidence-confidence-social-profile-discovery-business-analysis",
+      analysisType: "deep-content-identity-evidence-confidence-social-profile-discovery-business-analysis-review-flags",
       sitemapPagesDiscovered: sitemapPages.length,
     });
   } catch (error) {
