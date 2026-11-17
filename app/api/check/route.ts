@@ -4,9 +4,6 @@ import { isIP } from "node:net";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 const MAX_BYTES = 1024 * 1024;
 const TIMEOUT_MS = 12000;
 const MAX_REDIRECTS = 3;
