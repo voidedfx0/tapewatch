@@ -470,7 +470,7 @@ export async function POST(request: Request) {
     const services = [...new Set(allHeadings.filter((heading) =>
       /service|product|solution|platform|tool|feature|offer|consult|pricing|plan|we help|our work/i.test(heading)
     ))].concat(allContentBlocks.filter((block) =>
-      /\\b(we offer|our services|our products|platform provides|product includes|solutions include)\\b/i.test(block)
+      /\b(we offer|our services|our products|platform provides|product includes|solutions include)\b/i.test(block)
     ).map((block) => block.slice(0, 180)), structuredServices).filter((value, index, list) => list.indexOf(value) === index).slice(0, 12);
     const keyTopics = [...new Set([...allTitles, ...allHeadings, ...structuredTopics])]
       .filter((item) => item.length > 2).slice(0, 18);
