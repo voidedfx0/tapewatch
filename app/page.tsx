@@ -218,7 +218,7 @@ export default function Home() {
       const [checksResult, changesResult] = await Promise.all([
         supabase.from("website_checks")
           .select("id, website_id, checked_at, status, http_status, error_message, page_title")
-          .in("website_id", websiteIds).order("checked_at", { ascending: true }).limit(200),
+          .in("website_id", websiteIds).order("checked_at", { ascending: false }).limit(200),
         supabase.from("website_changes")
           .select("id, website_id, detected_at, change_type, previous_title, current_title")
           .in("website_id", websiteIds).order("detected_at", { ascending: false }).limit(100),
@@ -231,7 +231,7 @@ export default function Home() {
       const siteById = new Map(sites.map((site) => [site.id, site.url]));
       const records: AlertRecord[] = [];
       const priorStatus = new Map<string, string>();
-      for (const check of (checksResult.data ?? []) as { id: string; website_id: string; checked_at: string; status: string; http_status: number | null; error_message: string | null; page_title: string | null }[]) {
+      for (const check of [...((checksResult.data ?? []) as { id: string; website_id: string; checked_at: string; status: string; http_status: number | null; error_message: string | null; page_title: string | null }[])].reverse()) {
         const websiteUrl = siteById.get(check.website_id);
         if (!websiteUrl) continue;
         if (check.status === "unreachable" || check.status === "http_error") {
