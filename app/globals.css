@@ -1209,3 +1209,40 @@ h1 span { color: #777c84; }
 @media(max-width:850px){.dashboard-insights-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.dashboard-chart-card,.dashboard-activity-card{padding:15px 13px}.dashboard-chart{gap:5px}.dashboard-chart-bars{gap:3px}}
 @media(prefers-reduced-motion:reduce){.dashboard-bar{animation:none}}
+
+
+/* TapeOut circuit intelligence workspace */
+.circuit-source-banner{display:flex;align-items:center;gap:16px;margin:0 0 16px;padding:19px 20px;border:1px solid #e4e6ee;border-radius:11px;background:linear-gradient(110deg,#fbfbff,#fff 68%);box-shadow:0 6px 24px #1c202606}
+.circuit-source-mark{width:43px;height:43px;flex:0 0 43px;display:grid;place-items:center;border-radius:13px;background:#eff0ff;color:#5964ce;font-size:23px;font-weight:800}
+.circuit-source-banner>div:nth-child(2){min-width:0;flex:1}
+.circuit-source-banner h2{margin:5px 0 5px;color:#282d36;font-size:15px;font-weight:700;letter-spacing:-.3px}
+.circuit-source-banner p{margin:0;color:#858b96;font-size:10px;line-height:1.65}
+.circuit-source-banner>a{flex:0 0 auto;color:#5964ce;font-size:10px;font-weight:750;text-decoration:none}
+.circuit-metrics-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 15px}
+.circuit-metric-card{min-width:0;padding:16px 17px;border:1px solid #e5e7ed;border-radius:10px;background:#fff}
+.circuit-metric-card>span{display:block;color:#858b96;font-size:8px;font-weight:800;letter-spacing:.8px}
+.circuit-metric-card>strong{display:block;overflow:hidden;margin:10px 0 5px;color:#292e38;font-size:25px;font-weight:700;letter-spacing:-.8px;text-overflow:ellipsis;white-space:nowrap}
+.circuit-metric-card>small{display:block;color:#9297a1;font-size:9px;line-height:1.5}
+.circuit-registry-card{margin:0 0 14px;padding:18px}
+.circuit-registry-card .detail-card-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.circuit-registry-card .detail-card-heading>div{display:flex;align-items:center;gap:9px}
+.circuit-registry-card .detail-card-heading h2{margin:0;color:#303640;font-size:14px;font-weight:700}
+.circuit-registry-card .mini-icon{display:grid;place-items:center;width:29px;height:29px;border-radius:8px;background:#f0f1ff;color:#5c66cf;font-size:15px}
+.circuit-directory-intro{margin:10px 0 14px;font-size:10px;line-height:1.6}
+.circuit-empty-state{display:grid;min-height:90px;place-items:center;padding:20px;border:1px dashed #e2e5ed;border-radius:8px;color:#858b96;font-size:10px;text-align:center}
+.circuit-processor-list{display:grid;border-top:1px solid #edf0f3}
+.circuit-processor-row{display:flex;align-items:center;gap:12px;min-width:0;padding:12px 2px;border-bottom:1px solid #edf0f3}
+.circuit-processor-index{display:grid;place-items:center;width:36px;height:36px;flex:0 0 36px;border:1px solid #e4e6ef;border-radius:9px;background:#fafaff;color:#5964ce;font-size:11px;font-weight:800}
+.circuit-processor-address{display:grid;gap:4px;min-width:0;flex:1}
+.circuit-processor-address strong{color:#343943;font-size:10px;font-weight:700}
+.circuit-processor-address code{overflow:hidden;color:#858b96;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.circuit-processor-row>a{flex:0 0 auto;color:#5964ce;font-size:9px;font-weight:750;text-decoration:none}
+.circuit-directory-footnote{margin:12px 0 0;color:#858b96;font-size:9px}
+.circuit-integrity-note{margin:0 0 12px;padding:14px 15px;border:1px solid #e4e7f0;border-radius:9px;background:#fafaff;color:#707785;font-size:9px;line-height:1.8}
+.circuit-integrity-note strong{color:#444c5d}
+.circuit-error{margin-bottom:14px}
+.circuit-status-dot{display:block;width:8px;height:8px;flex:0 0 8px;margin:4px 12px 0 0;border-radius:50%;background:#cf9a54}
+.circuit-status-dot.error{background:#c97878}
+.circuit-workspace .secondary-button{padding:8px 11px;border:1px solid #e3e5ec;border-radius:7px;background:#fff;color:#555dcc;font-size:9px;font-weight:750;cursor:pointer}
+.circuit-workspace .secondary-button:disabled{opacity:.55;cursor:wait}
+@media(max-width:650px){.circuit-source-banner{align-items:flex-start;flex-wrap:wrap;padding:15px}.circuit-source-banner>a{margin-left:59px}.circuit-metrics-grid{grid-template-columns:1fr;gap:8px}.circuit-metric-card{padding:13px 15px}.circuit-metric-card>strong{font-size:21px}.circuit-registry-card{padding:14px}.circuit-processor-row{gap:8px}.circuit-processor-row>a{font-size:8px}}
