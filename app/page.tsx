@@ -727,7 +727,6 @@ export default function Home() {
         <header className="topbar">
           <div className="breadcrumbs">{(selectedSite || showChanges || activeSection) && <button type="button" className="back-button" onClick={() => { openSection("overview"); setDetailTab("overview"); }}>← Back</button>}<span className="breadcrumb-root">Workspace</span> <span>/</span> <strong>{selectedSite ? "Website details" : showChanges ? "Change intelligence" : activeSection ? sectionContent[activeSection]?.title ?? "Workspace" : "Overview"}</strong></div>
           <div className="topbar-right">
-            <AuthPanel />
             <button className={`menu-trigger topbar-menu-trigger ${menuOpen ? "is-open" : ""}`} type="button" aria-expanded={menuOpen} aria-controls="workspace-menu" onClick={() => setMenuOpen((open) => !open)}>
               <span className="menu-trigger-icon"><i/><i/><i/></span><span>Menu</span><span className="menu-chevron">⌄</span>
             </button>
@@ -750,6 +749,8 @@ export default function Home() {
                 <a className={`nav-item ${activeSection === "reports" ? "active" : ""}`} href="#reports" onClick={() => { openSection("reports"); setMenuOpen(false); }}><Icon name="file"/> Reports</a>
                 <a className={`nav-item ${activeSection === "settings" ? "active" : ""}`} href="#settings" onClick={() => { openSection("settings"); setMenuOpen(false); }}><Icon name="settings"/> Settings</a>
               </nav>
+              <div className="nav-popover-divider"/><div className="nav-popover-label">ACCOUNT</div>
+              <div className="nav-account-panel"><AuthPanel /></div>
               <div className="nav-popover-network"><span className="network-dot"/> X Layer <small>Public RPC · read-only</small></div>
             </div>
             <span className="preview-pill"><span/> Workspace session</span>
