@@ -274,15 +274,21 @@ export default function Home() {
     : null;
 
   const filteredSites = useMemo(() => sites.filter((site) => site.url.toLowerCase().includes(query.toLowerCase())), [sites, query]);
-  const dashboardWeekly = useMemo(() => {
+  const [dashboardDays, setDashboardDays] = useState<{ key: string; label: string }[]>([]);
+  useEffect(() => {
     const today = new Date();
-    return Array.from({ length: 7 }, (_, index) => {
+    const days = Array.from({ length: 7 }, (_, index) => {
       const day = new Date(today);
       day.setDate(today.getDate() - (6 - index));
-      const key = day.toLocaleDateString();
-      return { key, label: day.toLocaleDateString(undefined, { weekday: "short" }), checks: dashboardChecks.filter((item) => new Date(item.checked_at).toLocaleDateString() === key).length, changes: dashboardChanges.filter((item) => new Date(item.detected_at).toLocaleDateString() === key).length };
+      return { key: day.toLocaleDateString(), label: day.toLocaleDateString(undefined, { weekday: "short" }) };
     });
-  }, [dashboardChecks, dashboardChanges]);
+    setDashboardDays(days);
+  }, []);
+  const dashboardWeekly = useMemo(() => dashboardDays.map((day) => ({
+    ...day,
+    checks: dashboardChecks.filter((item) => new Date(item.checked_at).toLocaleDateString() === day.key).length,
+    changes: dashboardChanges.filter((item) => new Date(item.detected_at).toLocaleDateString() === day.key).length,
+  })), [dashboardDays, dashboardChecks, dashboardChanges]);
   const dashboardRecentActivity = useMemo(() => [
     ...dashboardChecks.map((item) => ({ id: "dashboard-check-" + item.id, at: item.checked_at, title: item.status === "reachable" ? "Website check completed" : item.status === "reachable_partial" ? "Partial website capture" : item.status === "http_error" ? "Website returned an HTTP error" : "Website check unavailable", detail: item.page_title || item.status.replaceAll("_", " "), kind: "check" as const })),
     ...dashboardChanges.map((item) => ({ id: "dashboard-change-" + item.id, at: item.detected_at, title: "Content fingerprint changed", detail: (item.previous_title || "Previous version") + " → " + (item.current_title || "New version"), kind: "change" as const })),
