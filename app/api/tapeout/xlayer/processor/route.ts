@@ -77,7 +77,8 @@ export async function GET(request: Request) {
         const ownerHex = await rpc<string>(endpoint, "eth_call", [{ to: address, data: OWNER_OF + encoded }, "latest"], 6);
         token = { tokenId, owner: decodeAddress(ownerHex) };
       }
-      return Response.json({ ok: true, processorNumber: number, address, name: decodeString(nameHex), blockNumber: block.toString(), contractCode: { deployed: bytecodeBytes > 0, bytecodeBytes }, token, transfers, contractEvents,
+      const transferLogCount = logs.filter(log => log.topics[0]?.toLowerCase() === TRANSFER_TOPIC && log.topics.length >= 4).length;
+      return Response.json({ ok: true, processorNumber: number, address, name: decodeString(nameHex), blockNumber: block.toString(), contractCode: { deployed: bytecodeBytes > 0, bytecodeBytes }, processorSummary: { registryListed: true, recentLogCount: logs.length, recentTransferCount: transferLogCount, windowFromBlock: fromBlock.toString(), windowToBlock: block.toString() }, token, transfers, contractEvents,
         historyNote: "Contract logs are shown only for blocks " + fromBlock.toString() + "–" + block.toString() + " (latest 100 blocks in one request). Older events may exist. No decoded event names are claimed unless the event signature is known.",
         rpcEndpoint: endpoint }, { headers: { "Cache-Control": "no-store" } });
     } catch (error) { lastError = error instanceof Error ? error.message : "Unknown RPC error"; }
