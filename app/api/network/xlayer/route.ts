@@ -1,7 +1,17 @@
 const RPC_ENDPOINTS = ["https://rpc.xlayer.tech", "https://xlayerrpc.okx.com"] as const;
 const EXPECTED_CHAIN_ID = "0xc4";
+const RECENT_BLOCK_COUNT = 6;
 
 type RpcResponse<T> = { result?: T; error?: { message?: string } };
+type RpcBlock = {
+  number?: string;
+  hash?: string;
+  timestamp?: string;
+  transactions?: unknown[];
+  gasUsed?: string;
+  gasLimit?: string;
+  baseFeePerGas?: string;
+};
 
 async function rpc<T>(endpoint: string, method: string, params: unknown[], id: number): Promise<T> {
   const response = await fetch(endpoint, {
@@ -17,31 +27,59 @@ async function rpc<T>(endpoint: string, method: string, params: unknown[], id: n
   return payload.result;
 }
 
+function toGwei(value?: string) {
+  if (!value) return null;
+  return (Number(BigInt(value)) / 1e9).toFixed(4);
+}
+
 export async function GET() {
   let lastError = "X Layer public RPC is unavailable.";
   for (const endpoint of RPC_ENDPOINTS) {
     try {
-      const [chainId, blockNumber, gasPrice, syncing] = await Promise.all([
+      const [chainId, blockNumberHex, gasPrice, syncing] = await Promise.all([
         rpc<string>(endpoint, "eth_chainId", [], 1),
         rpc<string>(endpoint, "eth_blockNumber", [], 2),
         rpc<string>(endpoint, "eth_gasPrice", [], 3),
         rpc<boolean | Record<string, string>>(endpoint, "eth_syncing", [], 4)
       ]);
       if (chainId.toLowerCase() !== EXPECTED_CHAIN_ID) throw new Error("RPC chain ID mismatch; expected X Layer (196).");
-      const block = await rpc<{ timestamp?: string; transactions?: unknown[] } | null>(
-        endpoint, "eth_getBlockByNumber", [blockNumber, false], 5
-      );
-      if (!block) throw new Error("X Layer RPC returned no latest block.");
-      const gasWei = BigInt(gasPrice);
-      const gasPriceGwei = (Number(gasWei) / 1e9).toFixed(4);
+
+      const latestNumber = BigInt(blockNumberHex);
+      const blockNumbers = Array.from({ length: RECENT_BLOCK_COUNT }, (_, index) => latestNumber - BigInt(index))
+        .filter((number) => number >= 0n);
+      const blocks = await Promise.all(blockNumbers.map((number, index) =>
+        rpc<RpcBlock | null>(endpoint, "eth_getBlockByNumber", ["0x" + number.toString(16), false], 10 + index)
+      ));
+      const validBlocks = blocks.filter((block): block is RpcBlock => Boolean(block));
+      const latestBlock = validBlocks[0];
+      if (!latestBlock) throw new Error("X Layer RPC returned no latest block.");
+
+      const timestamps = validBlocks.map((block) => block.timestamp ? Number(BigInt(block.timestamp)) : 0).filter(Boolean);
+      const intervals = timestamps.slice(0, -1).map((timestamp, index) => Math.abs(timestamp - timestamps[index + 1])).filter((seconds) => seconds > 0);
+      const averageBlockTimeSeconds = intervals.length
+        ? Math.round((intervals.reduce((sum, seconds) => sum + seconds, 0) / intervals.length) * 10) / 10
+        : null;
+
+      const recentBlocks = validBlocks.map((block) => ({
+        number: block.number ? BigInt(block.number).toString() : "",
+        hash: block.hash ?? "",
+        timestamp: block.timestamp ? BigInt(block.timestamp).toString() : "",
+        transactionCount: block.transactions?.length ?? 0,
+        gasUsed: block.gasUsed ? BigInt(block.gasUsed).toString() : "0",
+        gasLimit: block.gasLimit ? BigInt(block.gasLimit).toString() : "0",
+        baseFeeGwei: toGwei(block.baseFeePerGas)
+      }));
+
       return Response.json({
         ok: true,
         network: "X Layer",
         chainId: 196,
-        blockNumber: BigInt(blockNumber).toString(),
-        blockTimestamp: block.timestamp ? BigInt(block.timestamp).toString() : "",
-        transactionCount: block.transactions?.length ?? 0,
-        gasPriceGwei,
+        blockNumber: latestNumber.toString(),
+        blockTimestamp: latestBlock.timestamp ? BigInt(latestBlock.timestamp).toString() : "",
+        transactionCount: latestBlock.transactions?.length ?? 0,
+        gasPriceGwei: toGwei(gasPrice),
+        averageBlockTimeSeconds,
+        recentBlocks,
         syncing,
         rpcEndpoint: endpoint,
         checkedAt: new Date().toISOString()
