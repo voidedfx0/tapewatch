@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     return Response.json({
       ok: false,
       code: "PROVIDER_NOT_CONFIGURED",
-      error: "Wallet transaction data is not connected yet. The OKX Onchain API credentials must be added as private Vercel environment variables."
+      error: "Wallet transaction data is not connected yet. The OKX Onchain API credentials must be added as private Cloudflare Worker secrets."
     }, { status: 503 });
   }
 
