@@ -8,6 +8,7 @@ type WebsiteCheck = { id: string; checked_at: string; status: string; http_statu
 type DashboardCheck = { id: string; website_id: string; checked_at: string; status: string; http_status: number | null; page_title: string | null };
 type DashboardChange = { id: string; website_id: string; detected_at: string; previous_title: string | null; current_title: string | null };
 type WebsiteChange = { id: string; detected_at: string; change_type: string; previous_check_id: string | null; current_check_id: string; previous_hash: string | null; current_hash: string | null; previous_title: string | null; current_title: string | null };
+type ChangeFeedRecord = WebsiteChange & { website_id: string };
 type MonitoringSetting = { id: string; website_id: string; user_id: string; enabled: boolean; frequency: "daily"; last_run_at: string | null; next_run_at: string | null };
 type IntelligenceProfile = { id: string; website_id: string; business_name: string | null; summary: string | null; purpose: string | null; products: string[]; services: string[]; features: string[]; identity_type: string | null; alternate_names: string[]; field_evidence: Record<string, string> | null; contact_emails: string[]; contact_phones: string[]; locations: string[]; pricing_details: string[]; technologies: string[]; integrations: string[]; discovery_evidence: { type: string; value: string; source_url: string; excerpt: string }[]; target_audience: string | null; key_topics: string[]; important_pages: { type: string; label: string; url: string }[]; source_urls: string[]; social_profiles: { platform: string; url: string; evidence?: string }[]; pages_analyzed: { url: string; title: string | null; description: string | null }[]; confidence: string | null; analyzed_at: string | null };
 
@@ -46,6 +47,9 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [showChanges, setShowChanges] = useState(false);
+  const [changeFeed, setChangeFeed] = useState<ChangeFeedRecord[]>([]);
+  const [changeFeedLoading, setChangeFeedLoading] = useState(false);
+  const [changeFeedError, setChangeFeedError] = useState("");
   const [activeSection, setActiveSection] = useState("");
   const [detailTab, setDetailTab] = useState<"overview" | "intelligence" | "changes" | "checks" | "timeline" | "settings">("overview");
   const [intelligenceProfile, setIntelligenceProfile] = useState<IntelligenceProfile | null>(null);
@@ -145,6 +149,44 @@ export default function Home() {
     void loadDashboardActivity();
     return () => { active = false; };
   }, [sites]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadChangeFeed() {
+      if (!showChanges) return;
+      if (!supabase) {
+        setChangeFeed([]);
+        setChangeFeedError("The database connection is not configured.");
+        return;
+      }
+      if (sites.length === 0) {
+        setChangeFeed([]);
+        setChangeFeedError("");
+        setChangeFeedLoading(false);
+        return;
+      }
+      setChangeFeedLoading(true);
+      setChangeFeedError("");
+      const { data, error } = await supabase
+        .from("website_changes")
+        .select("id, website_id, detected_at, change_type, previous_check_id, current_check_id, previous_hash, current_hash, previous_title, current_title")
+        .in("website_id", sites.map((site) => site.id))
+        .order("detected_at", { ascending: false })
+        .limit(100);
+      if (active) {
+        if (error) {
+          console.error("TapeWatch change intelligence feed failed:", error);
+          setChangeFeedError("Could not load change records. Please try again.");
+          setChangeFeed([]);
+        } else {
+          setChangeFeed((data ?? []) as ChangeFeedRecord[]);
+        }
+        setChangeFeedLoading(false);
+      }
+    }
+    void loadChangeFeed();
+    return () => { active = false; };
+  }, [showChanges, sites]);
 
   useEffect(() => {
     let active = true;
@@ -687,25 +729,34 @@ export default function Home() {
         ) : activeSection && sectionContent[activeSection] ? <div className="content module-workspace" id={activeSection}><div className="workspace-title-row"><div><div className="eyebrow">{sectionContent[activeSection].eyebrow}</div><h1>{sectionContent[activeSection].title}<span>.</span></h1><p className="intro">{sectionContent[activeSection].description}</p></div><span className="preview-pill"><span/> PREVIEW</span></div><div className="module-notice"><Icon name="shield" size={18}/><div><strong>Data sources are not connected</strong><p>This section is a frontend foundation. It will display real records only after the relevant monitoring or network integration is implemented and validated.</p></div></div><div className="module-page-grid">{sectionContent[activeSection].items.map((item) => <article className="module-page-card" key={item.title}><div className="module-page-card-top"><span className="mini-icon"><Icon name={activeSection === "settings" ? "settings" : activeSection === "timeline" ? "clock" : activeSection === "reports" ? "file" : "shield"} size={17}/></span><span className="coming-soon">{item.state}</span></div><h2>{item.title}</h2><p>{item.description}</p></article>)}</div><div className="module-evidence-note"><strong>Evidence-first design.</strong> No live activity, verification result or network status is being fabricated in this preview.</div></div> : showChanges ? <div className="content changes-workspace" id="changes">
           <div className="workspace-title-row">
             <div><div className="eyebrow">WEBSITE INTELLIGENCE</div><h1>Change intelligence<span>.</span></h1><p className="intro">Investigate what changed across your monitored websites, with a clear trail back to the evidence.</p></div>
-            <span className="preview-pill"><span/> ENGINE NOT CONNECTED</span>
+            <span className="preview-pill"><span/> SAVED RECORDS</span>
           </div>
           <section className="changes-intro-card">
             <div className="changes-intro-icon"><Icon name="activity" size={22}/></div>
-            <div><span className="changes-kicker">THE CHANGE WORKFLOW</span><h2>From a detected difference to an explainable record.</h2><p>When monitoring is connected, this workspace will group observations into reviewable changes. Each record will include the affected files, observation time, previous and current hashes, and any available verification evidence.</p></div>
+            <div><span className="changes-kicker">THE CHANGE WORKFLOW</span><h2>From a detected difference to an explainable record.</h2><p>Review saved website-change observations, their detection times, previous and current page titles, and recorded SHA-256 fingerprints. These records show detected differences; they are not automatically security findings or verification certificates.</p></div>
           </section>
           <div className="changes-summary-grid">
-            <article className="changes-summary-card"><span>CHANGES DETECTED</span><strong>—</strong><p>No monitoring data collected</p></article>
-            <article className="changes-summary-card"><span>AWAITING REVIEW</span><strong>—</strong><p>Review queue not active</p></article>
-            <article className="changes-summary-card"><span>VERIFIED RECORDS</span><strong>—</strong><p>Verification source not connected</p></article>
+            <article className="changes-summary-card"><span>CHANGES DETECTED</span><strong>{changeFeedLoading ? "…" : changeFeed.length}</strong><p>Saved change observations</p></article>
+            <article className="changes-summary-card"><span>WEBSITES AFFECTED</span><strong>{changeFeedLoading ? "…" : new Set(changeFeed.map((record) => record.website_id)).size}</strong><p>Across your watchlist</p></article>
+            <article className="changes-summary-card"><span>LATEST DETECTION</span><strong>{changeFeed.length && !changeFeedLoading ? new Date(changeFeed[0].detected_at).toLocaleDateString() : "—"}</strong><p>Most recent saved record</p></article>
           </div>
           <section className="section-card changes-records-card">
-            <div className="section-heading"><div><h2>Change records</h2><p>Historical differences will appear here after the first real observation.</p></div><span className="coming-soon">NO DATA SOURCE</span></div>
-            <div className="changes-empty">
+            <div className="section-heading"><div><h2>Change records</h2><p>Latest 100 saved observations across your monitored websites.</p></div><span className="coming-soon">{changeFeedLoading ? "LOADING" : changeFeed.length ? "DATABASE RECORDS" : "NO RECORDS"}</span></div>
+            {changeFeedLoading ? <div className="changes-feed-state">Loading saved change records…</div> : changeFeedError ? <div className="changes-feed-state"><p>{changeFeedError}</p><button className="secondary-button" onClick={() => setShowChanges(false) || setTimeout(() => setShowChanges(true), 0)}>Retry</button></div> : changeFeed.length === 0 ? <div className="changes-empty">
               <div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="activity" size={28}/></div></div>
-              <h3>No change records yet</h3>
-              <p>TapeWatch has not monitored a website or captured a baseline. Once a real monitoring source is connected, detected differences will appear here for investigation.</p>
+              <h3>No saved change records yet</h3>
+              <p>When a website check detects a difference from its previous saved fingerprint, TapeWatch will add the observation here. Add a website and run checks to begin building its history.</p>
               <button className="secondary-button" onClick={() => { setShowChanges(false); setShowAdd(true); setNotice(""); }}><Icon name="plus" size={15}/> Add a website</button>
-            </div>
+            </div> : <div className="changes-feed-list">{changeFeed.map((record) => {
+              const site = sites.find((item) => item.id === record.website_id);
+              return <article className="changes-feed-item" key={record.id}>
+                <div className="changes-feed-top"><span className="changes-feed-type">{record.change_type.replace(/[_-]+/g, " ")}</span><time>{new Date(record.detected_at).toLocaleString()}</time></div>
+                <div className="changes-feed-site">{site?.url ?? "Website record"}</div>
+                <div className="changes-feed-titles"><div><span>PREVIOUS TITLE</span><strong>{record.previous_title || "Not recorded"}</strong></div><div><span>CURRENT TITLE</span><strong>{record.current_title || "Not recorded"}</strong></div></div>
+                <div className="changes-feed-hashes"><span>Previous SHA-256: <code>{record.previous_hash ? record.previous_hash.slice(0, 16) + "…" : "Not recorded"}</code></span><span>Current SHA-256: <code>{record.current_hash ? record.current_hash.slice(0, 16) + "…" : "Not recorded"}</code></span></div>
+                <div className="changes-feed-actions"><span>Observation only · not independently verified</span>{site && <button className="text-button" onClick={() => { setSelectedSite(site); setDetailTab("changes"); setShowChanges(false); setActiveSection(""); }}>Open website history <Icon name="arrow" size={13}/></button>}</div>
+              </article>;
+            })}</div>}
           </section>
           <section className="changes-evidence-note"><Icon name="shield" size={17}/><p><strong>Evidence before conclusions.</strong> A detected difference is an observation, not automatically a security issue. Verification status will only be shown when the relevant hashes and source records have actually been checked.</p></section>
         </div> : <div className="content">
