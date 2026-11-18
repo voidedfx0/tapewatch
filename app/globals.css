@@ -1584,6 +1584,10 @@ body{font-family:var(--font-space-grotesk), "Segoe UI Variable", "Inter", system
 .heading-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 
+/* Account access inside the workspace menu */
+.nav-account-panel{padding:2px 3px 5px}
+.nav-account-panel .account-trigger{display:flex;width:100%;max-width:none;justify-content:flex-start;min-height:38px;padding:0 10px;border-color:#e5e8ec;border-radius:9px;background:#f7f8fa;color:#343941;font-size:11px}
+.nav-account-panel .account-trigger:hover{background:#eef1f4;border-color:#cbd2da}
 /* Personal account access */
 .account-trigger{display:inline-flex;align-items:center;gap:8px;max-width:230px;padding:9px 12px;border:1px solid var(--border,rgba(255,255,255,.14));border-radius:9px;background:rgba(255,255,255,.035);color:var(--text,#f4f5f8);font:inherit;font-size:10px;font-weight:700;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .account-trigger:hover{border-color:#60758b;background:rgba(255,255,255,.07)}
