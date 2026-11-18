@@ -1335,3 +1335,12 @@ h1 span { color: #777c84; }
  .circuit-metrics-grid { grid-template-columns:1fr; }
 }
 @media(prefers-reduced-motion:reduce) { .topbar-menu-trigger .menu-chevron { transition:none; } }
+
+
+/* Topbar brand mark — reuses the original sidebar identity */
+.topbar-brand { display:inline-flex; align-items:center; gap:11px; text-decoration:none; color:var(--text); min-width:0; }
+.topbar-brand .brand-mark { width:34px; height:34px; border-radius:10px; flex:0 0 34px; box-shadow:0 3px 12px rgba(0,0,0,.12); transition:transform .28s ease, box-shadow .28s ease; }
+.topbar-brand:hover .brand-mark { transform:rotate(0deg) scale(1.06); box-shadow:0 5px 18px rgba(0,0,0,.18); }
+.topbar-brand-name { font-size:16px; font-weight:750; letter-spacing:-.55px; color:var(--text); }
+.topbar-brand-name span { font-weight:450; opacity:.72; }
+@media(prefers-reduced-motion:reduce) { .topbar-brand .brand-mark { transition:none; } }
