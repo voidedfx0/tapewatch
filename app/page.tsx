@@ -7,6 +7,7 @@ import NetworkWorkspace from "./components/NetworkWorkspace";
 import AlertsWorkspace from "./components/AlertsWorkspace";
 import ReportsWorkspace from "./components/ReportsWorkspace";
 import SettingsWorkspace from "./components/SettingsWorkspace";
+import AuthPanel from "./components/AuthPanel";
 
 type Site = { id: string; url: string; status: "Setup draft" };
 type WebsiteCheck = { id: string; checked_at: string; status: string; http_status: number | null; final_url: string | null; content_hash: string | null; page_title: string | null; error_message: string | null };
@@ -726,6 +727,7 @@ export default function Home() {
         <header className="topbar">
           <div className="breadcrumbs">{(selectedSite || showChanges || activeSection) && <button type="button" className="back-button" onClick={() => { openSection("overview"); setDetailTab("overview"); }}>← Back</button>}<span className="breadcrumb-root">Workspace</span> <span>/</span> <strong>{selectedSite ? "Website details" : showChanges ? "Change intelligence" : activeSection ? sectionContent[activeSection]?.title ?? "Workspace" : "Overview"}</strong></div>
           <div className="topbar-right">
+            <AuthPanel />
             <button className={`menu-trigger topbar-menu-trigger ${menuOpen ? "is-open" : ""}`} type="button" aria-expanded={menuOpen} aria-controls="workspace-menu" onClick={() => setMenuOpen((open) => !open)}>
               <span className="menu-trigger-icon"><i/><i/><i/></span><span>Menu</span><span className="menu-chevron">⌄</span>
             </button>
