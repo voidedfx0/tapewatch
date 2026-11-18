@@ -1,7 +1,7 @@
 const RPC_ENDPOINTS = ["https://rpc.xlayer.tech", "https://xlayerrpc.okx.com"] as const;
 const FACTORY = "0x1f09daefa827f02cbb40967cc91b259763760761";
 const CHAIN_ID = "0xc4";
-const CPU_COUNT = "0x4c9c8ce5";
+const CPU_COUNT = "0xa94da8a7";
 const CPU_AT = "0x4bc7cbbd";
 
 async function rpc<T>(endpoint: string, method: string, params: unknown[], id: number): Promise<T> {
