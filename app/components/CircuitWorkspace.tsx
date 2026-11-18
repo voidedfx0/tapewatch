@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Processor = { processorNumber: number; address: string };
 type CircuitSnapshot = {
@@ -9,8 +9,10 @@ type CircuitSnapshot = {
   chainId: number;
   blockNumber?: string;
   processorCount?: string;
+  offset?: number;
+  limit?: number;
   processors?: Processor[];
-  truncated?: boolean;
+  hasMore?: boolean;
   factory?: string;
   rpcEndpoint?: string;
   checkedAt?: string;
@@ -19,28 +21,51 @@ type CircuitSnapshot = {
 };
 
 const EXPLORER = "https://www.okx.com/web3/explorer/xlayer";
+const PAGE_SIZE = 25;
 
 export default function CircuitWorkspace() {
   const [snapshot, setSnapshot] = useState<CircuitSnapshot | null>(null);
+  const [processors, setProcessors] = useState<Processor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [hasMore, setHasMore] = useState(false);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
+  const readPage = useCallback(async (offset: number, append: boolean) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/tapeout/xlayer", { cache: "no-store" });
+      const response = await fetch(`/api/tapeout/xlayer?offset=${offset}&limit=${PAGE_SIZE}`, { cache: "no-store" });
       const data = (await response.json()) as CircuitSnapshot;
+      if (!response.ok || !data.ok) throw new Error(data.error || "The read-only network check could not be completed.");
       setSnapshot(data);
-      if (!response.ok || !data.ok) setError(data.error || "The read-only network check could not be completed.");
-    } catch {
-      setError("TapeWatch could not reach its circuit data endpoint. Please try again.");
+      setProcessors((current) => append ? [...current, ...(data.processors ?? [])] : (data.processors ?? []));
+      setHasMore(Boolean(data.hasMore));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "TapeWatch could not reach its circuit data endpoint. Please try again.");
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, []);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  const refresh = useCallback(() => {
+    setSearch("");
+    void readPage(0, false);
+  }, [readPage]);
+
+  useEffect(() => { void readPage(0, false); }, [readPage]);
+
+  const filteredProcessors = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return processors;
+    return processors.filter((processor) =>
+      processor.address.toLowerCase().includes(term) ||
+      String(processor.processorNumber).includes(term)
+    );
+  }, [processors, search]);
 
   return (
     <div className="content module-workspace circuit-workspace" id="circuits">
@@ -86,14 +111,20 @@ export default function CircuitWorkspace() {
       <section className="detail-card circuit-registry-card">
         <div className="detail-card-heading">
           <div><span className="mini-icon">⌘</span><h2>Processor directory</h2></div>
-          <button className="secondary-button" type="button" onClick={() => void refresh()} disabled={loading}>{loading ? "Reading…" : "Refresh registry"}</button>
+          <button className="secondary-button" type="button" onClick={refresh} disabled={loading || loadingMore}>{loading ? "Reading…" : "Refresh registry"}</button>
         </div>
-        <p className="detail-muted circuit-directory-intro">Processor contracts are listed by their factory index. A processor contract can contain many individual circuit NFTs; this list is not a count of individual circuits.</p>
+        <p className="detail-muted circuit-directory-intro">Browse the factory's processor contracts in pages of 25. Search filters addresses and indexes currently loaded in the directory. Processor contracts are not individual circuit NFTs.</p>
+        <label className="circuit-search">
+          <span>⌕</span>
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search loaded processor address or number…" aria-label="Search loaded processors"/>
+          {search && <button type="button" onClick={() => setSearch("")}>Clear</button>}
+        </label>
         {loading && <div className="circuit-empty-state">Reading the X Layer factory and latest block…</div>}
-        {!loading && snapshot?.ok && snapshot.processors?.length === 0 && <div className="circuit-empty-state">The factory returned no processor contracts at this block.</div>}
-        {!loading && snapshot?.ok && !!snapshot.processors?.length && (
+        {!loading && processors.length === 0 && !error && <div className="circuit-empty-state">The factory returned no processor contracts at this block.</div>}
+        {!loading && processors.length > 0 && filteredProcessors.length === 0 && <div className="circuit-empty-state">No loaded processor matches that search. Load more pages to expand the searchable directory.</div>}
+        {!loading && !!filteredProcessors.length && (
           <div className="circuit-processor-list">
-            {snapshot.processors.map((processor) => (
+            {filteredProcessors.map((processor) => (
               <div className="circuit-processor-row" key={processor.processorNumber}>
                 <div className="circuit-processor-index">#{processor.processorNumber}</div>
                 <div className="circuit-processor-address"><strong>Processor {processor.processorNumber}</strong><code>{processor.address}</code></div>
@@ -102,7 +133,10 @@ export default function CircuitWorkspace() {
             ))}
           </div>
         )}
-        {!loading && snapshot?.ok && snapshot.truncated && <p className="circuit-directory-footnote">Showing the first {snapshot.processors?.length ?? 0} processors. The factory reports {snapshot.processorCount} in total.</p>}
+        <div className="circuit-pagination">
+          <span>{processors.length.toLocaleString()} of {snapshot?.processorCount ?? "—"} processors loaded</span>
+          {hasMore && <button className="secondary-button" type="button" onClick={() => void readPage(processors.length, true)} disabled={loadingMore || loading}>{loadingMore ? "Loading next page…" : "Load next 25"}</button>}
+        </div>
       </section>
 
       <div className="circuit-integrity-note">
