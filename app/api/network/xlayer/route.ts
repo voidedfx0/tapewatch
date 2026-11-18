@@ -66,7 +66,7 @@ export async function GET() {
 
       const timestamps = validBlocks.map((block) => Number(BigInt(block.timestamp!)));
       const intervals = timestamps.slice(0, -1)
-        .map((timestamp, index) => timestamps[index + 1] - timestamp)
+        .map((timestamp, index) => timestamp - timestamps[index + 1])
         .filter((seconds) => seconds > 0);
       const averageBlockTimeSeconds = intervals.length
         ? Math.round((intervals.reduce((sum, seconds) => sum + seconds, 0) / intervals.length) * 10) / 10
