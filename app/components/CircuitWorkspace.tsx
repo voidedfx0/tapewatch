@@ -51,7 +51,7 @@ export default function CircuitWorkspace() {
     try {
       const response = await fetch("/api/xlayer/wallet?address=" + encodeURIComponent(address), { cache: "no-store" });
       const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.error || "Wallet data could not be loaded.");
+      if (!response.ok || !data.ok) { const code = data.providerCode ? ` (OKX code ${data.providerCode})` : ""; throw new Error((data.error || "Wallet data could not be loaded.") + code); }
       setWalletData(data);
     } catch (caught) {
       setWalletError(caught instanceof Error ? caught.message : "Wallet data could not be loaded.");
