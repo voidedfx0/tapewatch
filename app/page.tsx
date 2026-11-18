@@ -77,6 +77,10 @@ export default function Home() {
   const [compareNewerId, setCompareNewerId] = useState("");
   const [verifyingCheckId, setVerifyingCheckId] = useState("");
   const [verificationResult, setVerificationResult] = useState<{ checkId: string; status: "verified" | "mismatch" | "unavailable"; message: string; verifiedAt: string } | null>(null);
+  const [xLayerEvents, setXLayerEvents] = useState<{ blockNumber: string; at: string | null; transactionHash: string; logIndex: number; topic0: string; topicsCount: number; dataBytes: number }[]>([]);
+  const [xLayerEventsLoading, setXLayerEventsLoading] = useState(false);
+  const [xLayerEventsError, setXLayerEventsError] = useState("");
+
   const [monitoringSetting, setMonitoringSetting] = useState<MonitoringSetting | null>(null);
   const [monitoredSiteIds, setMonitoredSiteIds] = useState<string[]>([]);
   const [monitoringLoading, setMonitoringLoading] = useState(false);
@@ -405,14 +409,59 @@ export default function Home() {
     ...dashboardChecks.map((item) => ({ id: "dashboard-check-" + item.id, at: item.checked_at, title: item.status === "reachable" ? "Website check completed" : item.status === "reachable_partial" ? "Partial website capture" : item.status === "http_error" ? "Website returned an HTTP error" : "Website check unavailable", detail: item.page_title || item.status.replaceAll("_", " "), kind: "check" as const })),
     ...dashboardChanges.map((item) => ({ id: "dashboard-change-" + item.id, at: item.detected_at, title: "Content fingerprint changed", detail: (item.previous_title || "Previous version") + " → " + (item.current_title || "New version"), kind: "change" as const })),
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, 5), [dashboardChecks, dashboardChanges]);
+  useEffect(() => {
+    let active = true;
+    async function loadXLayerActivity() {
+      if (!selectedSite || detailTab !== "timeline") return;
+      setXLayerEventsLoading(true);
+      setXLayerEventsError("");
+      try {
+        const response = await fetch("/api/tapeout/xlayer/activity", { cache: "no-store" });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.error || "X Layer activity is unavailable.");
+        if (active) setXLayerEvents((payload.events ?? []) as typeof xLayerEvents);
+      } catch (error) {
+        if (active) {
+          setXLayerEvents([]);
+          setXLayerEventsError(error instanceof Error ? error.message : "X Layer activity is unavailable.");
+        }
+      } finally {
+        if (active) setXLayerEventsLoading(false);
+      }
+    }
+    void loadXLayerActivity();
+    return () => { active = false; };
+  }, [selectedSite?.id, detailTab]);
+
   const timelineEvents = useMemo(() => [
-    ...checks.map((check) => ({ id: "check-" + check.id, at: check.checked_at, kind: "check", category: "OBSERVATION", title: check.status === "reachable" ? "Website check completed" : check.status === "reachable_partial" ? "Partial website capture" : check.status === "http_error" ? "Website returned an HTTP error" : "Website check unavailable", detail: (check.http_status ? "HTTP " + check.http_status + " · " : "") + (check.page_title || check.status.replaceAll("_", " ")), hash: check.content_hash, checkId: check.id, status: check.status, httpStatus: check.http_status, finalUrl: check.final_url, errorMessage: check.error_message, previousHash: null as string | null, currentHash: null as string | null, previousCheckId: null as string | null, currentCheckId: null as string | null })),
-    ...changes.map((change) => ({ id: "change-" + change.id, at: change.detected_at, kind: "change", category: "DETECTED CHANGE", title: "Content fingerprint changed", detail: (change.previous_title || "Previous version") + " → " + (change.current_title || "New version"), hash: change.current_hash, checkId: null as string | null, status: change.change_type, httpStatus: null as number | null, finalUrl: null as string | null, errorMessage: null as string | null, previousHash: change.previous_hash, currentHash: change.current_hash, previousCheckId: change.previous_check_id, currentCheckId: change.current_check_id })),
-    ...(verificationResult ? [{ id: "verification-" + verificationResult.checkId, at: verificationResult.verifiedAt, kind: "verification", category: "LIVE COMPARISON · SESSION ONLY", title: verificationResult.status === "verified" ? "Live fingerprint matched saved evidence" : verificationResult.status === "mismatch" ? "Live fingerprint differed from saved evidence" : "Live fingerprint comparison unavailable", detail: verificationResult.message, hash: null as string | null, checkId: verificationResult.checkId, status: verificationResult.status, httpStatus: null as number | null, finalUrl: null as string | null, errorMessage: null as string | null, previousHash: null as string | null, currentHash: null as string | null, previousCheckId: null as string | null, currentCheckId: null as string | null }] : []),
-  ].sort((a,b) => new Date(b.at).getTime()-new Date(a.at).getTime()), [checks, changes, verificationResult]);
+    ...checks.map((check) => ({ id: "check-" + check.id, at: check.checked_at, kind: "check", category: "OBSERVATION", title: check.status === "reachable" ? "Website check completed" : check.status === "reachable_partial" ? "Partial website capture" : check.status === "http_error" ? "Website returned an HTTP error" : "Website check unavailable", detail: (check.http_status ? "HTTP " + check.http_status + " · " : "") + (check.page_title || check.status.replaceAll("_", " ")), hash: check.content_hash, checkId: check.id, status: check.status, httpStatus: check.http_status, finalUrl: check.final_url, errorMessage: check.error_message, previousHash: null as string | null, currentHash: null as string | null, previousCheckId: null as string | null, currentCheckId: null as string | null, transactionHash: null as string | null, blockNumber: null as string | null })),
+    ...changes.map((change) => ({ id: "change-" + change.id, at: change.detected_at, kind: "change", category: "DETECTED CHANGE", title: "Content fingerprint changed", detail: (change.previous_title || "Previous version") + " → " + (change.current_title || "New version"), hash: change.current_hash, checkId: null as string | null, status: change.change_type, httpStatus: null as number | null, finalUrl: null as string | null, errorMessage: null as string | null, previousHash: change.previous_hash, currentHash: change.current_hash, previousCheckId: change.previous_check_id, currentCheckId: change.current_check_id, transactionHash: null as string | null, blockNumber: null as string | null })),
+    ...(verificationResult ? [{ id: "verification-" + verificationResult.checkId, at: verificationResult.verifiedAt, kind: "verification", category: "LIVE COMPARISON · SESSION ONLY", title: verificationResult.status === "verified" ? "Live fingerprint matched saved evidence" : verificationResult.status === "mismatch" ? "Live fingerprint differed from saved evidence" : "Live fingerprint comparison unavailable", detail: verificationResult.message, hash: null as string | null, checkId: verificationResult.checkId, status: verificationResult.status, httpStatus: null as number | null, finalUrl: null as string | null, errorMessage: null as string | null, previousHash: null as string | null, currentHash: null as string | null, previousCheckId: null as string | null, currentCheckId: null as string | null, transactionHash: null as string | null, blockNumber: null as string | null }] : []),
+
+    ...xLayerEvents.filter((event) => event.at).map((event) => ({
+      id: "xlayer-" + event.transactionHash + "-" + event.logIndex,
+      at: event.at as string,
+      kind: "onchain",
+      category: "X LAYER · NETWORK-WIDE",
+      title: "TapeOut factory emitted an on-chain log",
+      detail: "Block " + event.blockNumber + " · " + event.topic0 + " · " + event.topicsCount + " topics · " + event.dataBytes + " data bytes",
+      hash: null as string | null,
+      checkId: null as string | null,
+      status: "raw on-chain log",
+      httpStatus: null as number | null,
+      finalUrl: null as string | null,
+      errorMessage: null as string | null,
+      previousHash: null as string | null,
+      currentHash: null as string | null,
+      previousCheckId: null as string | null,
+      currentCheckId: null as string | null,
+      transactionHash: event.transactionHash,
+      blockNumber: event.blockNumber,
+    })),
+  ].sort((a,b) => new Date(b.at).getTime()-new Date(a.at).getTime()), [checks, changes, verificationResult, xLayerEvents]);
   const sectionContent: Record<string, { title: string; eyebrow: string; description: string; items: { title: string; description: string; state: string }[] }> = {
     circuits: { title: "Circuit intelligence", eyebrow: "ECOSYSTEM", description: "Explore supported circuit references and the website records associated with them. Contract sources will be added only after they are validated.", items: [{ title: "Circuit directory", description: "A searchable catalogue of supported circuit records.", state: "SOURCE REVIEW PENDING" }, { title: "Ownership activity", description: "Relevant ownership changes from verified on-chain events.", state: "AWAITING EVENTS" }, { title: "Linked websites", description: "Websites associated with each supported circuit.", state: "AWAITING DATA" }] },
-    timeline: { title: "Trust timeline", eyebrow: "EVIDENCE HISTORY", description: "A per-website chronological record of saved checks, detected changes and live comparison outcomes. X Layer contract activity is inspected separately in Circuits.", items: [{ title: "Website observations", description: "Timestamped snapshots and detected differences.", state: "AWAITING MONITORING" }, { title: "Verification events", description: "Hash comparisons and source-backed verification outcomes.", state: "AWAITING VERIFICATION" }, { title: "On-chain activity", description: "Relevant circuit and ownership events from supported networks.", state: "AWAITING EVENTS" }] },
+    timeline: { title: "Trust timeline", eyebrow: "EVIDENCE HISTORY", description: "A chronological evidence trail combining website observations with separately labeled, network-wide X Layer factory logs.", items: [{ title: "Website observations", description: "Timestamped snapshots and detected differences.", state: "AWAITING MONITORING" }, { title: "Verification events", description: "Hash comparisons and source-backed verification outcomes.", state: "AWAITING VERIFICATION" }, { title: "On-chain activity", description: "Relevant circuit and ownership events from supported networks.", state: "AWAITING EVENTS" }] },
     alerts: { title: "Alerts centre", eyebrow: "MONITORING MANAGEMENT", description: "Configure and review notifications for meaningful changes after monitoring sources are connected.", items: [{ title: "Website availability", description: "Potential downtime and recovery notifications.", state: "NOT ACTIVE" }, { title: "Website changes", description: "Notifications when monitored content or files differ.", state: "NOT ACTIVE" }, { title: "Verification issues", description: "Alerts for failed or inconclusive evidence checks.", state: "NOT ACTIVE" }] },
     reports: { title: "Transparency reports", eyebrow: "SHAREABLE EVIDENCE", description: "Create clear, shareable summaries of a website's monitoring history and available integrity evidence.", items: [{ title: "Website integrity report", description: "A summary of observations, checks and known limitations.", state: "PLANNED" }, { title: "Public verification page", description: "A public-facing page for inspecting supported evidence.", state: "PLANNED" }, { title: "Export history", description: "Downloadable records with timestamps and source references.", state: "PLANNED" }] },
     settings: { title: "Workspace settings", eyebrow: "PREFERENCES", description: "Manage workspace preferences, monitoring defaults and future integrations.", items: [{ title: "Workspace profile", description: "Workspace name and account preferences.", state: "BASIC PREVIEW" }, { title: "Monitoring defaults", description: "Default check intervals and notification preferences.", state: "NOT ACTIVE" }, { title: "Connected services", description: "Manage approved network and data-source connections.", state: "NOT CONNECTED" }] }
@@ -815,18 +864,21 @@ export default function Home() {
             </section>}
             {detailTab === "timeline" && <section className="detail-card trust-timeline-card">
               <div className="detail-card-heading"><div><span className="mini-icon"><Icon name="clock" size={17}/></span><h2>Trust timeline</h2></div><span className="coming-soon">{timelineEvents.length} EVENTS</span></div>
-              <p className="detail-muted timeline-intro">A chronological evidence trail for this website, combining saved checks, detected fingerprint changes and live comparison outcomes.</p>
+              <p className="detail-muted timeline-intro">A chronological evidence trail combining this website’s saved checks with clearly separated, network-wide X Layer factory logs. Chain events are not attributed to this website.</p>
+              {xLayerEventsLoading && <p className="detail-muted">Loading recent X Layer factory logs…</p>}
+              {xLayerEventsError && <p className="check-error">X Layer activity could not be loaded: {xLayerEventsError}</p>}
               {checksLoading || changesLoading ? <p className="detail-muted">Loading evidence history…</p> : timelineEvents.length ? <div className="trust-timeline-list">{timelineEvents.map((event) => <article className="trust-timeline-event" key={event.id}>
-                <span className={`trust-timeline-marker ${event.kind}`}><Icon name={event.kind === "check" ? "activity" : event.kind === "change" ? "layers" : "shield"} size={14}/></span>
+                <span className={`trust-timeline-marker ${event.kind}`}><Icon name={event.kind === "check" ? "activity" : event.kind === "change" ? "layers" : event.kind === "onchain" ? "globe" : "shield"} size={14}/></span>
                 <div className="trust-timeline-event-body"><div className="trust-timeline-event-top"><div className="trust-timeline-event-heading"><span className={`timeline-category ${event.kind}`}>{event.category}</span><strong>{event.title}</strong></div><time>{new Date(event.at).toLocaleString()}</time></div><p>{event.detail}</p>{event.hash && <div className="check-hash"><span>SHA-256 EVIDENCE</span><code>{event.hash}</code></div>}
                   <details className="timeline-event-details"><summary>Inspect event evidence</summary>
                     {event.kind === "check" && <div className="timeline-evidence-grid"><div><span>Saved check ID</span><code>{event.checkId}</code></div><div><span>Recorded status</span><strong>{event.status?.replaceAll("_", " ")}</strong></div><div><span>HTTP response</span><strong>{event.httpStatus ? "HTTP " + event.httpStatus : "Not available"}</strong></div><div><span>Final address</span><strong>{event.finalUrl || "Not recorded"}</strong></div>{event.errorMessage && <div className="timeline-evidence-full"><span>Recorded note</span><strong>{event.errorMessage}</strong></div>}</div>}
                     {event.kind === "change" && <div className="timeline-evidence-grid"><div><span>Previous check ID</span><code>{event.previousCheckId || "Not linked"}</code></div><div><span>Current check ID</span><code>{event.currentCheckId || "Not linked"}</code></div><div><span>Previous SHA-256</span><code>{event.previousHash || "Unavailable"}</code></div><div><span>Current SHA-256</span><code>{event.currentHash || "Unavailable"}</code></div></div>}
                     {event.kind === "verification" && <div className="timeline-evidence-grid"><div><span>Compared saved check</span><code>{event.checkId}</code></div><div><span>Outcome</span><strong>{event.status}</strong></div><p className="timeline-evidence-full">This live comparison is a session result, not a permanent verification certificate.</p></div>}
+                    {event.kind === "onchain" && <div className="timeline-evidence-grid"><div><span>Network</span><strong>X Layer · Chain 196</strong></div><div><span>Block</span><code>{event.blockNumber}</code></div><div><span>Transaction</span><code>{event.transactionHash}</code></div><div><span>Event signature</span><code>{event.detail.split(" · ")[1]}</code></div><div className="timeline-evidence-full"><a href={"https://www.okx.com/web3/explorer/xlayer/tx/" + event.transactionHash} target="_blank" rel="noreferrer">Open transaction on X Layer Explorer ↗</a></div><p className="timeline-evidence-full">Raw factory log only. It is not linked to the selected website, and unknown event signatures are not decoded.</p></div>}
                   </details>
                 </div>
               </article>)}</div> : <div className="checks-empty"><h3>No evidence events yet</h3><p>Run a website check to create the first timestamped event. Later changes and live comparisons will appear here too.</p><button className="secondary-button" onClick={runWebsiteCheck} disabled={checkingWebsite}>{checkingWebsite ? "Checking…" : "Run first check"}</button></div>}
-              <p className="version-compare-disclaimer">This timeline is built from saved website checks and change records. A live comparison result is shown for this session; it is not a permanent verification certificate. No on-chain events are connected yet.</p>
+              <p className="version-compare-disclaimer">Website evidence remains scoped to the selected site. X Layer entries are raw, network-wide TapeOut factory logs from a bounded recent block window; they are not ownership claims or site-linked events.</p>
             </section>}
             {detailTab === "settings" && <section className="detail-card settings-preview"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="settings" size={17}/></span><h2>Monitoring preferences</h2></div><span className={monitoringSetting?.enabled ? "status-pill status-active" : "coming-soon"}>{monitoringSetting?.enabled ? "DAILY MONITORING ON" : "PAUSED"}</span></div><div className="monitoring-control-row"><div><strong>Automatic daily checks</strong><p className="detail-muted">Capture a website fingerprint once per day and record detected content changes.</p></div><button type="button" className={monitoringSetting?.enabled ? "secondary-button" : "primary-button"} onClick={() => void toggleDailyMonitoring(!monitoringSetting?.enabled)} disabled={monitoringLoading || savingMonitoring}>{monitoringLoading ? "Loading…" : savingMonitoring ? "Saving…" : monitoringSetting?.enabled ? "Pause monitoring" : "Enable daily checks"}</button></div><div className="info-rows"><div><span>Check frequency</span><strong>Daily</strong></div><div><span>Last scheduled check</span><strong>{monitoringSetting?.last_run_at ? new Date(monitoringSetting.last_run_at).toLocaleString() : "Not run yet"}</strong></div><div><span>Next scheduled check</span><strong>{monitoringSetting?.enabled && monitoringSetting.next_run_at ? new Date(monitoringSetting.next_run_at).toLocaleString() : "Not scheduled"}</strong></div></div><p className="detail-muted settings-footnote">Scheduled checks run through the secure server scheduler. Pausing monitoring preserves existing evidence history. Change notifications are not active yet.</p></section>}
           </div>
