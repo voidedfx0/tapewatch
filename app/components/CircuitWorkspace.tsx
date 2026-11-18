@@ -49,7 +49,7 @@ export default function CircuitWorkspace() {
     finally { setDetailLoading(false); }
   };
   const readTokenHistory = async () => {
-    if (!selectedProcessor || !/^\\d+$/.test(tokenId) || BigInt(tokenId) < BigInt(1)) { setDetailError("Enter a valid token ID greater than zero."); return; }
+    if (!selectedProcessor || !/^\d+$/.test(tokenId) || BigInt(tokenId) < BigInt(1)) { setDetailError("Enter a valid token ID greater than zero."); return; }
     await inspectProcessor(selectedProcessor, tokenId);
   };
 
