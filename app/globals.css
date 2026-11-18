@@ -1348,3 +1348,14 @@ h1 span { color: #777c84; }
 /* Keep the topbar brand mark compact so it never competes with navigation. */
 .topbar-brand { gap:0; flex:0 0 auto; }
 .topbar-brand .brand-mark { width:32px; height:32px; flex-basis:32px; }
+
+/* Small wordmark beside the original icon */
+.topbar-brand { gap:8px; flex:0 0 auto; }
+.topbar-brand .brand-mark { width:30px; height:30px; flex-basis:30px; }
+.topbar-brand-name { display:inline-block; white-space:nowrap; font-size:12px; line-height:1; letter-spacing:-.25px; font-weight:720; }
+.topbar-brand-name span { font-weight:450; opacity:.72; }
+@media(max-width:420px) {
+ .topbar-brand { gap:6px; }
+ .topbar-brand .brand-mark { width:27px; height:27px; flex-basis:27px; }
+ .topbar-brand-name { font-size:10px; letter-spacing:-.2px; }
+}
