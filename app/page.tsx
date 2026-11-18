@@ -576,6 +576,7 @@ export default function Home() {
         <div className="workspace-label nav-group-label">ECOSYSTEM</div>
         <nav className="nav-list" aria-label="Ecosystem navigation">
           <a className={`nav-item ${activeSection === "circuits" ? "active" : ""}`} href="#circuits" onClick={() => openSection("circuits")}><Icon name="layers"/> Circuits</a>
+          <a className="nav-item" href="#wallet-intelligence" onClick={(event) => { event.preventDefault(); openSection("circuits"); window.setTimeout(() => document.getElementById("wallet-intelligence")?.scrollIntoView({ behavior: "smooth", block: "start" }), 180); }}><Icon name="search"/> Wallet Intelligence</a>
           <a className={`nav-item ${activeSection === "networks" ? "active" : ""}`} href="#networks" onClick={() => openSection("networks")}><Icon name="globe"/> Networks</a>
         </nav>
         <div className="workspace-label nav-group-label">MANAGEMENT</div>
