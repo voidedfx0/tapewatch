@@ -59,7 +59,7 @@ export async function GET(request: Request) {
       const blockNumber = decodeUint(blockHex);
       const start = BigInt(offset);
       const end = start + BigInt(limit) > processorCount ? processorCount : start + BigInt(limit);
-      const visibleCount = Number(end > start ? end - start : 0n);
+      const visibleCount = Number(end > start ? end - start : BigInt(0));
 
       const processors = await Promise.all(
         Array.from({ length: visibleCount }, async (_, pageIndex) => {
