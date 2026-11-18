@@ -1582,3 +1582,34 @@ body{font-family:var(--font-space-grotesk), "Segoe UI Variable", "Inter", system
 
 
 .heading-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+
+/* Personal account access */
+.account-trigger{display:inline-flex;align-items:center;gap:8px;max-width:230px;padding:9px 12px;border:1px solid var(--border,rgba(255,255,255,.14));border-radius:9px;background:rgba(255,255,255,.035);color:var(--text,#f4f5f8);font:inherit;font-size:10px;font-weight:700;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-trigger:hover{border-color:#60758b;background:rgba(255,255,255,.07)}
+.account-trigger-dot{width:7px;height:7px;flex:0 0 auto;border-radius:50%;background:#6ec59b;box-shadow:0 0 0 3px rgba(110,197,155,.12)}
+.auth-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:18px;background:rgba(3,8,14,.78);backdrop-filter:blur(8px)}
+.auth-dialog{position:relative;width:min(100%,430px);max-height:min(90vh,720px);overflow:auto;padding:30px;border:1px solid rgba(255,255,255,.14);border-radius:18px;background:#111b27;color:#f4f5f8;box-shadow:0 24px 90px rgba(0,0,0,.55)}
+.auth-close{position:absolute;top:13px;right:15px;width:30px;height:30px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:transparent;color:#cbd6e2;font-size:21px;cursor:pointer}
+.auth-dialog h2{margin:10px 0 8px;font-size:25px;letter-spacing:-.7px}
+.auth-description{margin:0 0 22px;color:#9ca9b8;font-size:12px;line-height:1.65}
+.auth-google,.auth-primary,.auth-secondary{display:flex;width:100%;min-height:43px;align-items:center;justify-content:center;gap:10px;border-radius:9px;font:inherit;font-size:12px;font-weight:750;cursor:pointer}
+.auth-google{border:1px solid rgba(255,255,255,.17);background:#f7f8fa;color:#202a35}
+.google-mark{font-size:17px;font-weight:900;color:#4285f4}
+.auth-divider{display:flex;align-items:center;gap:12px;margin:19px 0;color:#8391a2;font-size:8px;font-weight:800;letter-spacing:.13em}
+.auth-divider:before,.auth-divider:after{content:"";height:1px;flex:1;background:rgba(255,255,255,.12)}
+.auth-form{display:grid;gap:8px}
+.auth-form label{margin-top:5px;color:#b9c4d0;font-size:10px;font-weight:750}
+.auth-form input{width:100%;min-height:42px;padding:10px 12px;border:1px solid rgba(255,255,255,.15);border-radius:8px;outline:none;background:#0b131d;color:#f4f5f8;font:inherit;font-size:12px}
+.auth-form input:focus{border-color:#7895b2}
+.auth-primary{margin-top:9px;border:1px solid #7c9ab6;background:#c8d8e7;color:#122131}
+.auth-secondary{margin-top:14px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:#e5ebf2}
+.auth-google:disabled,.auth-primary:disabled,.auth-secondary:disabled{opacity:.6;cursor:wait}
+.auth-links{display:flex;justify-content:space-between;gap:12px;margin-top:15px}
+.auth-links button{padding:3px 0;border:0;background:transparent;color:#9fc2e2;font:inherit;font-size:10px;cursor:pointer}
+.auth-message{margin:15px 0 0;padding:11px 12px;border:1px solid rgba(110,197,155,.25);border-radius:8px;color:#d6e9df;font-size:10px;line-height:1.55;overflow-wrap:anywhere}
+.auth-current-account{display:grid;gap:6px;padding:13px;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:rgba(255,255,255,.035)}
+.auth-current-account strong{font-size:12px;overflow-wrap:anywhere}
+.auth-current-account span{color:#77c99e;font-size:9px}
+.auth-footnote{margin:19px 0 0;color:#8290a0;font-size:9px;line-height:1.6}
+@media(max-width:560px){.account-trigger{max-width:155px;padding:8px;font-size:9px}.auth-dialog{padding:25px 20px}.topbar-right{gap:7px}}
