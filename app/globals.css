@@ -1395,3 +1395,15 @@ h1 span { color: #777c84; }
 .circuit-contract-links{display:flex;justify-content:flex-end;margin-top:10px}
 .circuit-contract-links a{color:#555dcc;font-size:10px;font-weight:750;text-decoration:none}
 @media(max-width:760px){.circuit-detail-facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Bounded raw contract activity feed */
+.circuit-activity-panel{margin-top:16px;padding:15px;border:1px solid #e8eaed;border-radius:9px;background:#fff}
+.circuit-activity-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.circuit-activity-heading strong{font-size:12px}.circuit-activity-heading p{margin:5px 0 0;color:#858a92;font-size:10px;line-height:1.5}
+.circuit-activity-heading>span{flex:0 0 auto;color:#858a92;font-size:9px}
+.circuit-activity-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #eceef0}
+.circuit-activity-row>div{display:grid;gap:5px;min-width:0}
+.circuit-activity-row strong{font-size:10px}.circuit-activity-row small{color:#92969d;font-size:9px}
+.circuit-activity-row code{overflow:hidden;color:#737780;font-size:9px;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.circuit-activity-row a{flex:0 0 auto;color:#4d55c5;font-size:9px;font-weight:700}
+@media(max-width:520px){.circuit-activity-panel{padding:12px}.circuit-activity-row{align-items:flex-start;flex-direction:column;gap:7px}.circuit-activity-row a{align-self:flex-end}}

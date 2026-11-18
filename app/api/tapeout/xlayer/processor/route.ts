@@ -31,12 +31,10 @@ function decodeString(value: string): string {
     return new TextDecoder().decode(Uint8Array.from(hex.match(/.{2}/g) ?? [], byte => parseInt(byte, 16)));
   } catch { return ""; }
 }
-type TransferLog = { topics: string[]; blockNumber: string; transactionHash: string; logIndex: string };
-async function readTransferLogs(endpoint: string, address: string, fromBlock: bigint, toBlock: bigint, tokenId: string | null) {
-  const topics: (string | null)[] = [TRANSFER_TOPIC, null, null];
-  if (tokenId !== null) topics.push("0x" + BigInt(tokenId).toString(16).padStart(64, "0"));
-  return rpc<TransferLog[]>(endpoint, "eth_getLogs", [{
-    address, fromBlock: "0x" + fromBlock.toString(16), toBlock: "0x" + toBlock.toString(16), topics
+type ContractLog = { topics: string[]; data: string; blockNumber: string; transactionHash: string; logIndex: string };
+async function readContractLogs(endpoint: string, address: string, fromBlock: bigint, toBlock: bigint) {
+  return rpc<ContractLog[]>(endpoint, "eth_getLogs", [{
+    address, fromBlock: "0x" + fromBlock.toString(16), toBlock: "0x" + toBlock.toString(16)
   }], 5);
 }
 
@@ -61,19 +59,26 @@ export async function GET(request: Request) {
       const bytecode = await rpc<string>(endpoint, "eth_getCode", [address, "latest"], 7);
       const bytecodeBytes = bytecode === "0x" ? 0 : Math.max(0, (bytecode.length - 2) / 2);
       const fromBlock = block > HISTORY_BLOCKS ? block - HISTORY_BLOCKS : BigInt(0);
-      const logs = await readTransferLogs(endpoint, address, fromBlock, block, tokenId);
-      const transfers = logs.filter(log => log.topics.length >= 4).slice(-30).reverse().map(log => ({
-        from: decodeAddress(log.topics[1]), to: decodeAddress(log.topics[2]), tokenId: BigInt(log.topics[3]).toString(),
-        blockNumber: BigInt(log.blockNumber).toString(), transactionHash: log.transactionHash, logIndex: Number(BigInt(log.logIndex))
+      const logs = await readContractLogs(endpoint, address, fromBlock, block);
+      const contractEvents = logs.slice(-20).reverse().map(log => ({
+        blockNumber: BigInt(log.blockNumber).toString(), transactionHash: log.transactionHash,
+        logIndex: Number(BigInt(log.logIndex)), topic0: log.topics[0] ?? "No event signature",
+        topicsCount: log.topics.length, dataBytes: Math.max(0, (log.data.length - 2) / 2)
       }));
+      const transfers = logs.filter(log => log.topics[0]?.toLowerCase() === TRANSFER_TOPIC && log.topics.length >= 4)
+        .filter(log => tokenId === null || BigInt(log.topics[3]).toString() === tokenId)
+        .slice(-30).reverse().map(log => ({
+          from: decodeAddress(log.topics[1]), to: decodeAddress(log.topics[2]), tokenId: BigInt(log.topics[3]).toString(),
+          blockNumber: BigInt(log.blockNumber).toString(), transactionHash: log.transactionHash, logIndex: Number(BigInt(log.logIndex))
+        }));
       let token: { tokenId: string; owner: string } | null = null;
       if (tokenId !== null) {
         const encoded = BigInt(tokenId).toString(16).padStart(64, "0");
         const ownerHex = await rpc<string>(endpoint, "eth_call", [{ to: address, data: OWNER_OF + encoded }, "latest"], 6);
         token = { tokenId, owner: decodeAddress(ownerHex) };
       }
-      return Response.json({ ok: true, processorNumber: number, address, name: decodeString(nameHex), blockNumber: block.toString(), contractCode: { deployed: bytecodeBytes > 0, bytecodeBytes }, token, transfers,
-        historyNote: "Transfer events are shown only for blocks " + fromBlock.toString() + "–" + block.toString() + " (latest 100 blocks in a single request). Older events may exist. This is recent ERC-721 transfer activity, not a complete audited ownership record.",
+      return Response.json({ ok: true, processorNumber: number, address, name: decodeString(nameHex), blockNumber: block.toString(), contractCode: { deployed: bytecodeBytes > 0, bytecodeBytes }, token, transfers, contractEvents,
+        historyNote: "Contract logs are shown only for blocks " + fromBlock.toString() + "–" + block.toString() + " (latest 100 blocks in one request). Older events may exist. No decoded event names are claimed unless the event signature is known.",
         rpcEndpoint: endpoint }, { headers: { "Cache-Control": "no-store" } });
     } catch (error) { lastError = error instanceof Error ? error.message : "Unknown RPC error"; }
   }
