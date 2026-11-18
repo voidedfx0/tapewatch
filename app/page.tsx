@@ -181,6 +181,7 @@ export default function Home() {
 
   useEffect(() => {
     let active = true;
+    let refreshTimer: ReturnType<typeof setInterval> | undefined;
     async function loadDashboardActivity() {
       if (!supabase || sites.length === 0) {
         setDashboardChecks([]);
@@ -188,7 +189,6 @@ export default function Home() {
         setDashboardActivityLoading(false);
         return;
       }
-      setDashboardActivityLoading(true);
       const websiteIds = sites.map((site) => site.id);
       const [checksResult, changesResult] = await Promise.all([
         supabase.from("website_checks").select("id, website_id, checked_at, status, http_status, page_title").in("website_id", websiteIds).order("checked_at", { ascending: false }).limit(40),
@@ -197,13 +197,18 @@ export default function Home() {
       if (active) {
         if (checksResult.error) console.error("TapeWatch dashboard checks failed:", checksResult.error);
         if (changesResult.error) console.error("TapeWatch dashboard changes failed:", changesResult.error);
-        setDashboardChecks((checksResult.data ?? []) as DashboardCheck[]);
-        setDashboardChanges((changesResult.data ?? []) as DashboardChange[]);
+        if (!checksResult.error) setDashboardChecks((checksResult.data ?? []) as DashboardCheck[]);
+        if (!changesResult.error) setDashboardChanges((changesResult.data ?? []) as DashboardChange[]);
         setDashboardActivityLoading(false);
       }
     }
+    setDashboardActivityLoading(true);
     void loadDashboardActivity();
-    return () => { active = false; };
+    refreshTimer = setInterval(() => { void loadDashboardActivity(); }, 30000);
+    return () => {
+      active = false;
+      if (refreshTimer) clearInterval(refreshTimer);
+    };
   }, [sites]);
 
   useEffect(() => {
@@ -545,7 +550,11 @@ export default function Home() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "The website check failed.");
       setChecks((current) => [result.check as WebsiteCheck, ...current]);
-      if (result.change) setChanges((current) => [result.change as WebsiteChange, ...current]);
+      setDashboardChecks((current) => [{ id: result.check.id, website_id: selectedSite.id, checked_at: result.check.checked_at, status: result.check.status, http_status: result.check.http_status, page_title: result.check.page_title }, ...current.filter((item) => item.id !== result.check.id)].slice(0, 40));
+      if (result.change) {
+        setChanges((current) => [result.change as WebsiteChange, ...current]);
+        setDashboardChanges((current) => [{ id: result.change.id, website_id: selectedSite.id, detected_at: result.change.detected_at, previous_title: result.change.previous_title, current_title: result.change.current_title }, ...current.filter((item) => item.id !== result.change.id)].slice(0, 20));
+      }
       setDetailTab("checks");
       setNotice(result.change
         ? "Website check complete. A content change was detected and saved to Change history."
@@ -584,7 +593,11 @@ export default function Home() {
       if (!response.ok) throw new Error(result.error || "The live evidence check failed.");
       const liveCheck = result.check as WebsiteCheck;
       setChecks((current) => [liveCheck, ...current]);
-      if (result.change) setChanges((current) => [result.change as WebsiteChange, ...current]);
+      setDashboardChecks((current) => [{ id: liveCheck.id, website_id: selectedSite.id, checked_at: liveCheck.checked_at, status: liveCheck.status, http_status: liveCheck.http_status, page_title: liveCheck.page_title }, ...current.filter((item) => item.id !== liveCheck.id)].slice(0, 40));
+      if (result.change) {
+        setChanges((current) => [result.change as WebsiteChange, ...current]);
+        setDashboardChanges((current) => [{ id: result.change.id, website_id: selectedSite.id, detected_at: result.change.detected_at, previous_title: result.change.previous_title, current_title: result.change.current_title }, ...current.filter((item) => item.id !== result.change.id)].slice(0, 20));
+      }
       const verifiedAt = new Date().toISOString();
       const status = !savedCheck.content_hash || !liveCheck.content_hash
         ? "unavailable"
@@ -907,25 +920,27 @@ export default function Home() {
             <div className="intelligence-heading"><div><div className="eyebrow">THE TAPEWATCH LAYERS</div><h2>From observation to evidence.</h2><p>One workspace for website changes, integrity signals, and relevant blockchain activity.</p></div><span className="module-count">03 MODULES</span></div>
             <div className="intelligence-grid">
               <article className="intelligence-card">
-                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="activity" size={19}/></span><span className="module-state">OBSERVATIONS AVAILABLE</span></div>
-                <div className="intelligence-card-body"><h3>Change intelligence</h3><p>Compare website versions, inspect detected differences, and follow the history of each observation.</p></div>
+                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="activity" size={19}/></span><span className="module-state">{dashboardActivityLoading ? "LOADING RECORDS" : dashboardChanges.length ? dashboardChanges.length + " CHANGES RECORDED" : dashboardChecks.length ? "BASELINE CAPTURED" : "AWAITING FIRST CHECK"}</span></div>
+                <div className="intelligence-card-body"><h3>Change intelligence</h3><p>{dashboardChecks.length ? dashboardChecks.length + " saved website observations and " + dashboardChanges.length + " detected changes are available across your watchlist." : "Run a website check to create the first saved observation. Later fingerprint differences will appear here."}</p></div>
                 <div className="intelligence-card-foot"><span>Version history · File changes</span><span className="module-arrow"><Icon name="arrow" size={15}/></span></div>
               </article>
               <article className="intelligence-card">
-                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="layers" size={19}/></span><span className="module-state">REGISTRY LIVE · EVENTS LIMITED</span></div>
-                <div className="intelligence-card-body"><h3>Blockchain transparency</h3><p>Connect supported DeWEB records, circuit references, ownership events, and on-chain integrity evidence.</p></div>
-                <div className="intelligence-card-foot"><span>X Layer · Circuit records</span><span className="module-arrow"><Icon name="arrow" size={15}/></span></div>
+                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="layers" size={19}/></span><span className="module-state">{circuitConnection === "connected" ? "REGISTRY CONNECTED" : circuitConnection === "loading" ? "CONNECTING" : "REGISTRY UNAVAILABLE"}</span></div>
+                <div className="intelligence-card-body"><h3>Blockchain transparency</h3><p>{circuitConnection === "connected" ? circuitCount + " circuit registry records are visible from the X Layer source. Ownership and event history are not connected yet." : "The X Layer registry status is currently unavailable. On-chain ownership and event history are not connected yet."}</p></div>
+                <div className="intelligence-card-foot"><span>X Layer · {circuitCount === null ? "Registry status" : circuitCount + " registry records"}</span><span className="module-arrow"><Icon name="arrow" size={15}/></span></div>
               </article>
               <article className="intelligence-card">
-                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="clock" size={19}/></span><span className="module-state">WEBSITE ACTIVITY</span></div>
-                <div className="intelligence-card-body"><h3>Trust timeline</h3><p>Bring observations, verification checks, and relevant chain events into one chronological record.</p></div>
+                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="clock" size={19}/></span><span className="module-state">{dashboardActivityLoading ? "LOADING TIMELINE" : dashboardRecentActivity.length ? dashboardRecentActivity.length + " RECENT EVENTS" : "AWAITING FIRST CHECK"}</span></div>
+                <div className="intelligence-card-body"><h3>Trust timeline</h3><p>{dashboardRecentActivity.length ? "A chronological record of " + dashboardChecks.length + " observations and " + dashboardChanges.length + " detected changes across your websites." : "Website observations and detected changes will appear here after the first saved check."}</p></div>
                 <div className="intelligence-card-foot"><span>Evidence trail · Event history</span><span className="module-arrow"><Icon name="arrow" size={15}/></span></div>
               </article>
             </div>
           </section>
           <div className="lower-grid">
-            <section className="mini-card" id="circuits"><div className="mini-heading"><div><span className="mini-icon"><Icon name="layers" size={17}/></span><h2>Circuit intelligence</h2></div><span className="coming-soon">NOT CONNECTED</span></div><p>TapeWatch will show circuit records and related ownership activity after the correct contracts, event sources, and network support are verified.</p><div className="mini-foot"><span><Icon name="clock" size={14}/> No chain events loaded</span><span>Evidence first <Icon name="arrow" size={13}/></span></div></section>
-            <section className="mini-card" id="activity"><div className="mini-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Trust timeline</h2></div><span className="coming-soon">AWAITING DATA</span></div><div className="activity-empty"><span className="activity-line"/><p>Website observations and verified events will appear here once their sources are connected.</p></div></section>
+            <section className="mini-card" id="circuits"><div className="mini-heading"><div><span className="mini-icon"><Icon name="layers" size={17}/></span><h2>Circuit intelligence</h2></div><span className="coming-soon">{circuitConnection === "connected" ? circuitCount + " RECORDS" : circuitConnection === "loading" ? "CONNECTING" : "UNAVAILABLE"}</span></div><p>{circuitConnection === "connected" ? "The X Layer circuit registry is connected and currently exposes " + circuitCount + " processor records. Ownership activity and event history are not connected yet." : "The X Layer circuit registry could not be loaded. Ownership activity and event history remain unavailable until a supported event source is connected."}</p><div className="mini-foot"><span><Icon name="clock" size={14}/> {circuitConnection === "connected" ? "Registry source live" : "Registry status unavailable"}</span><span>Read-only source <Icon name="arrow" size={13}/></span></div></section>
+            <section className="mini-card" id="activity"><div className="mini-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Trust timeline</h2></div><span className="coming-soon">{dashboardActivityLoading ? "LOADING" : dashboardRecentActivity.length ? dashboardRecentActivity.length + " EVENTS" : "NO EVENTS"}</span></div>
+              {dashboardActivityLoading ? <div className="activity-empty"><span className="activity-line"/><p>Loading saved website activity…</p></div> : dashboardRecentActivity.length ? <div className="activity-feed">{dashboardRecentActivity.slice(0,5).map((event) => <article className="activity-feed-item" key={event.id}><span className="activity-line"/><div><strong>{event.title}</strong><p>{event.detail}</p><time>{new Date(event.at).toLocaleString()}</time></div></article>)}</div> : <div className="activity-empty"><span className="activity-line"/><p>No website checks have been saved yet. Run a check on a saved website to create the first timeline event. Chain events are not connected.</p></div>}
+            </section>
           </div>
           <footer className="footer"><span>© 2026 TapeWatch</span><span>Built for transparency <i>·</i> Read-only by design</span></footer>
         </div>}
