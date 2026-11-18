@@ -77,6 +77,7 @@ export default function AuthPanel() {
         if (error) throw error;
         setMessage("You are signed in.");
         setOpen(false);
+        window.location.reload();
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Authentication could not be completed.");
@@ -106,7 +107,10 @@ export default function AuthPanel() {
     const { error } = await supabase.auth.signOut();
     setBusy(false);
     if (error) setMessage(error.message);
-    else setMessage("Signed out. A new temporary workspace will be created if you continue without signing in.");
+    else {
+      setMessage("Signed out. A new temporary workspace will be created if you continue without signing in.");
+      window.location.reload();
+    }
   }
 
   if (!supabase) return null;
