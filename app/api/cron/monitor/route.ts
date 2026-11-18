@@ -52,56 +52,55 @@ async function capture(rawUrl: string) {
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    let response: Response;
     try {
-      response = await fetch(url, {
+      const response = await fetch(url, {
         method: "GET",
         redirect: "manual",
         signal: controller.signal,
         cache: "no-store",
         headers: { "User-Agent": "TapeWatch-Monitor/1.0", "Accept": "text/html,application/xhtml+xml,application/json,text/plain;q=0.9,*/*;q=0.5" },
       });
+      httpStatus = response.status;
+      finalUrl = url.toString();
+      if (response.status >= 300 && response.status < 400) {
+        await response.body?.cancel();
+        throw new Error("The website redirected; scheduled capture requires a direct public URL for now.");
+      }
+
+      if (!response.body) throw new Error("The website returned an empty response.");
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      let truncated = false;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const remaining = MAX_BYTES - total;
+        if (value.byteLength > remaining) {
+          if (remaining > 0) chunks.push(value.slice(0, remaining));
+          total += Math.max(remaining, 0);
+          truncated = true;
+          await reader.cancel();
+          break;
+        }
+        chunks.push(value);
+        total += value.byteLength;
+      }
+      const body = new Uint8Array(total);
+      let offset = 0;
+      for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.byteLength; }
+      if (!truncated) contentHash = createHash("sha256").update(body).digest("hex");
+      const contentType = response.headers.get("content-type")?.toLowerCase() || "";
+      if (contentType.includes("text/html")) {
+        const html = new TextDecoder("utf-8").decode(body);
+        const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        pageTitle = match?.[1]?.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200) || null;
+      }
+      status = response.ok ? (truncated ? "reachable_partial" : "reachable") : "http_error";
+      if (truncated) errorMessage = "Response exceeded the 1 MB capture limit; no full-body fingerprint was stored.";
     } finally {
       clearTimeout(timer);
     }
-    httpStatus = response.status;
-    finalUrl = url.toString();
-    if (response.status >= 300 && response.status < 400) {
-      await response.body?.cancel();
-      throw new Error("The website redirected; scheduled capture requires a direct public URL for now.");
-    }
-
-    if (!response.body) throw new Error("The website returned an empty response.");
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    let truncated = false;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const remaining = MAX_BYTES - total;
-      if (value.byteLength > remaining) {
-        if (remaining > 0) chunks.push(value.slice(0, remaining));
-        total += Math.max(remaining, 0);
-        truncated = true;
-        await reader.cancel();
-        break;
-      }
-      chunks.push(value);
-      total += value.byteLength;
-    }
-    const body = new Uint8Array(total);
-    let offset = 0;
-    for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.byteLength; }
-    if (!truncated) contentHash = createHash("sha256").update(body).digest("hex");
-    const contentType = response.headers.get("content-type")?.toLowerCase() || "";
-    if (contentType.includes("text/html")) {
-      const html = new TextDecoder("utf-8").decode(body);
-      const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-      pageTitle = match?.[1]?.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200) || null;
-    }
-    status = response.ok ? (truncated ? "reachable_partial" : "reachable") : "http_error";
-    if (truncated) errorMessage = "Response exceeded the 1 MB capture limit; no full-body fingerprint was stored.";
   } catch (error) {
     errorMessage = error instanceof Error
       ? (error.name === "AbortError" ? "The scheduled website check timed out." : error.message)
@@ -143,7 +142,13 @@ export async function GET(request: Request) {
       .eq("user_id", setting.user_id).maybeSingle();
 
     if (websiteError || !website) {
-      results.push({ websiteId: setting.website_id, status: "website_unavailable" });
+      const skippedAt = new Date().toISOString();
+      const nextRun = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const { error: scheduleError } = await admin.from("website_monitoring_settings")
+        .update({ last_run_at: skippedAt, next_run_at: nextRun, updated_at: skippedAt })
+        .eq("id", setting.id);
+      if (scheduleError) console.error("TapeWatch unavailable website schedule update failed:", scheduleError);
+      results.push({ websiteId: setting.website_id, status: scheduleError ? "schedule_update_failed" : "website_unavailable" });
       continue;
     }
 
@@ -186,5 +191,14 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ processed: results.length, results, ranAt: now.toISOString() });
+  const successful = results.filter((item) => item.status === "reachable" || item.status === "reachable_partial").length;
+  const failed = results.length - successful;
+  return NextResponse.json({
+    ok: failed === 0,
+    processed: results.length,
+    successful,
+    failed,
+    results,
+    ranAt: now.toISOString(),
+  }, { status: failed > 0 ? 500 : 200 });
 }
