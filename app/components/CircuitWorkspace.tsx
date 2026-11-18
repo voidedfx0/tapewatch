@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Processor = { processorNumber: number; address: string };
 type CircuitSnapshot = {
@@ -36,7 +36,9 @@ export default function CircuitWorkspace() {
   const [detail, setDetail] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
+  const detailRequestId = useRef(0);
   const inspectProcessor = async (processor: Processor, selectedToken?: string) => {
+    const requestId = ++detailRequestId.current;
     setSelectedProcessor(processor); setDetail(null); setDetailError(""); setDetailLoading(true);
     try {
       const params = new URLSearchParams({ processorNumber: String(processor.processorNumber), address: processor.address });
@@ -44,12 +46,15 @@ export default function CircuitWorkspace() {
       const response = await fetch("/api/tapeout/xlayer/processor?" + params.toString(), { cache: "no-store" });
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || "Could not read processor details.");
-      setDetail(data);
-    } catch (caught) { setDetailError(caught instanceof Error ? caught.message : "Processor details are unavailable."); }
-    finally { setDetailLoading(false); }
+      if (requestId === detailRequestId.current) setDetail(data);
+    } catch (caught) {
+      if (requestId === detailRequestId.current) setDetailError(caught instanceof Error ? caught.message : "Processor details are unavailable.");
+    } finally {
+      if (requestId === detailRequestId.current) setDetailLoading(false);
+    }
   };
   const readTokenHistory = async () => {
-    if (!selectedProcessor || !/^\d+$/.test(tokenId) || BigInt(tokenId) < BigInt(1)) { setDetailError("Enter a valid token ID greater than zero."); return; }
+    if (!selectedProcessor || !/^\d+$/.test(tokenId) || tokenId.length > 78 || BigInt(tokenId) < BigInt(1) || BigInt(tokenId) >= (BigInt(1) << BigInt(256))) { setDetailError("Enter a valid positive uint256 token ID."); return; }
     await inspectProcessor(selectedProcessor, tokenId);
   };
 
@@ -157,7 +162,7 @@ export default function CircuitWorkspace() {
 
         {selectedProcessor && (
           <section className="circuit-processor-detail" aria-live="polite">
-            <div className="circuit-detail-heading"><div><span className="changes-kicker">PROCESSOR INSPECTOR</span><h3>Processor #{selectedProcessor.processorNumber}</h3></div><button type="button" className="circuit-close-detail" onClick={() => { setSelectedProcessor(null); setDetail(null); setDetailError(""); }}>Close</button></div>
+            <div className="circuit-detail-heading"><div><span className="changes-kicker">PROCESSOR INSPECTOR</span><h3>Processor #{selectedProcessor.processorNumber}</h3></div><button type="button" className="circuit-close-detail" onClick={() => { detailRequestId.current += 1; setSelectedProcessor(null); setDetail(null); setDetailError(""); setDetailLoading(false); }}>Close</button></div>
             <code className="circuit-detail-address">{selectedProcessor.address}</code>
             {detailLoading && <p className="circuit-detail-status">Reading processor contract on X Layer…</p>}
             {detailError && <p className="circuit-detail-error">{detailError}</p>}
