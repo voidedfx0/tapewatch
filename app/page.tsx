@@ -666,7 +666,7 @@ export default function Home() {
 
       <section className="main-panel" id="overview">
         <header className="topbar">
-          <div className="breadcrumbs">Workspace <span>/</span> <strong>{selectedSite ? "Website details" : showChanges ? "Change intelligence" : activeSection ? sectionContent[activeSection]?.title ?? "Workspace" : "Overview"}</strong></div>
+          <div className="breadcrumbs">{(selectedSite || showChanges || activeSection) && <button type="button" className="back-button" onClick={() => { openSection("overview"); setDetailTab("overview"); }}>← Back</button>}<span className="breadcrumb-root">Workspace</span> <span>/</span> <strong>{selectedSite ? "Website details" : showChanges ? "Change intelligence" : activeSection ? sectionContent[activeSection]?.title ?? "Workspace" : "Overview"}</strong></div>
           <div className="topbar-right">
             <button className={`menu-trigger topbar-menu-trigger ${menuOpen ? "is-open" : ""}`} type="button" aria-expanded={menuOpen} aria-controls="workspace-menu" onClick={() => setMenuOpen((open) => !open)}>
               <span className="menu-trigger-icon"><i/><i/><i/></span><span>Menu</span><span className="menu-chevron">⌄</span>
