@@ -58,6 +58,8 @@ export async function GET(request: Request) {
       const registered = decodeAddress(await rpc<string>(endpoint, "eth_call", [{ to: FACTORY, data: CPU_AT + index }, "latest"], 3));
       if (registered.toLowerCase() !== address.toLowerCase()) return Response.json({ ok: false, error: "That address does not match this processor number in the live factory registry." }, { status: 404 });
       const nameHex = await rpc<string>(endpoint, "eth_call", [{ to: address, data: NAME }, "latest"], 4).catch(() => "0x");
+      const bytecode = await rpc<string>(endpoint, "eth_getCode", [address, "latest"], 7);
+      const bytecodeBytes = bytecode === "0x" ? 0 : Math.max(0, (bytecode.length - 2) / 2);
       const fromBlock = block > HISTORY_BLOCKS ? block - HISTORY_BLOCKS : BigInt(0);
       const logs = await readTransferLogs(endpoint, address, fromBlock, block, tokenId);
       const transfers = logs.filter(log => log.topics.length >= 4).slice(-30).reverse().map(log => ({
@@ -70,7 +72,7 @@ export async function GET(request: Request) {
         const ownerHex = await rpc<string>(endpoint, "eth_call", [{ to: address, data: OWNER_OF + encoded }, "latest"], 6);
         token = { tokenId, owner: decodeAddress(ownerHex) };
       }
-      return Response.json({ ok: true, processorNumber: number, address, name: decodeString(nameHex), blockNumber: block.toString(), token, transfers,
+      return Response.json({ ok: true, processorNumber: number, address, name: decodeString(nameHex), blockNumber: block.toString(), contractCode: { deployed: bytecodeBytes > 0, bytecodeBytes }, token, transfers,
         historyNote: "Transfer events are shown only for blocks " + fromBlock.toString() + "–" + block.toString() + " (latest 100 blocks in a single request). Older events may exist. This is recent ERC-721 transfer activity, not a complete audited ownership record.",
         rpcEndpoint: endpoint }, { headers: { "Cache-Control": "no-store" } });
     } catch (error) { lastError = error instanceof Error ? error.message : "Unknown RPC error"; }
