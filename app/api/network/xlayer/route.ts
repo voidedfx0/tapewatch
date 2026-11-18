@@ -50,12 +50,24 @@ export async function GET() {
       const blocks = await Promise.all(blockNumbers.map((number, index) =>
         rpc<RpcBlock | null>(endpoint, "eth_getBlockByNumber", ["0x" + number.toString(16), false], 10 + index)
       ));
-      const validBlocks = blocks.filter((block): block is RpcBlock => Boolean(block));
+      if (blocks.some((block) => !block)) throw new Error("X Layer RPC returned an incomplete recent-block range.");
+      const validBlocks = blocks as RpcBlock[];
+      for (let index = 0; index < validBlocks.length; index += 1) {
+        const block = validBlocks[index];
+        if (!block.number || BigInt(block.number) !== blockNumbers[index]) {
+          throw new Error("X Layer RPC returned a block at an unexpected height.");
+        }
+        if (!block.timestamp || !block.hash || !/^0x[0-9a-f]{64}$/i.test(block.hash)) {
+          throw new Error("X Layer RPC returned an incomplete block header.");
+        }
+      }
       const latestBlock = validBlocks[0];
       if (!latestBlock) throw new Error("X Layer RPC returned no latest block.");
 
-      const timestamps = validBlocks.map((block) => block.timestamp ? Number(BigInt(block.timestamp)) : 0).filter(Boolean);
-      const intervals = timestamps.slice(0, -1).map((timestamp, index) => Math.abs(timestamp - timestamps[index + 1])).filter((seconds) => seconds > 0);
+      const timestamps = validBlocks.map((block) => Number(BigInt(block.timestamp!)));
+      const intervals = timestamps.slice(0, -1)
+        .map((timestamp, index) => timestamps[index + 1] - timestamp)
+        .filter((seconds) => seconds > 0);
       const averageBlockTimeSeconds = intervals.length
         ? Math.round((intervals.reduce((sum, seconds) => sum + seconds, 0) / intervals.length) * 10) / 10
         : null;
