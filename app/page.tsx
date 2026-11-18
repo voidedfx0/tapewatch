@@ -563,7 +563,7 @@ export default function Home() {
     <main className="app-shell">
       <section className="main-panel" id="overview">
         <header className="topbar">
-          <div className="breadcrumbs">Workspace <span>/</span> <strong>{selectedSite ? "Website details" : showChanges ? "Change intelligence" : activeSection ? sectionContent[activeSection]?.title ?? "Workspace" : "Overview"}</strong></div>
+          <a className="topbar-brand" href="#overview" onClick={() => openSection("overview")} aria-label="TapeWatch home"><span className="brand-mark"><span /></span><span className="topbar-brand-name">Tape<span>Watch</span></span></a>
           <div className="topbar-right">
             <button className={`menu-trigger topbar-menu-trigger ${menuOpen ? "is-open" : ""}`} type="button" aria-expanded={menuOpen} aria-controls="workspace-menu" onClick={() => setMenuOpen((open) => !open)}>
               <span className="menu-trigger-icon"><i/><i/><i/></span><span>Menu</span><span className="menu-chevron">⌄</span>
