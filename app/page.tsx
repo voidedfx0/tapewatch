@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import CircuitWorkspace from "./components/CircuitWorkspace";
 import NetworkWorkspace from "./components/NetworkWorkspace";
+import AlertsWorkspace from "./components/AlertsWorkspace";
 
 type Site = { id: string; url: string; status: "Setup draft" };
 type WebsiteCheck = { id: string; checked_at: string; status: string; http_status: number | null; final_url: string | null; content_hash: string | null; page_title: string | null; error_message: string | null };
