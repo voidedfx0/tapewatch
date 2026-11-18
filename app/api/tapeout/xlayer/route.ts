@@ -7,7 +7,7 @@ const X_LAYER_CHAIN_ID = "0xc4";
 const TAPEOUT_FACTORY = "0x1f09daefa827f02cbb40967cc91b259763760761";
 const CPU_COUNT_SELECTOR = "0xa94da8a7";
 const CPU_AT_SELECTOR = "0x4bc7cbbd";
-const MAX_PROCESSORS_TO_RETURN = 12;
+const MAX_PAGE_SIZE = 25;
 
 type RpcResult<T> = { jsonrpc: "2.0"; id: number; result?: T; error?: { message?: string } };
 
@@ -36,7 +36,13 @@ function decodeAddress(value: string): string {
   return `0x${value.slice(-40)}`;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const requestedOffset = Number(url.searchParams.get("offset") ?? "0");
+  const requestedLimit = Number(url.searchParams.get("limit") ?? "25");
+  const offset = Number.isSafeInteger(requestedOffset) && requestedOffset >= 0 ? requestedOffset : 0;
+  const limit = Number.isSafeInteger(requestedLimit) ? Math.min(MAX_PAGE_SIZE, Math.max(1, requestedLimit)) : MAX_PAGE_SIZE;
+
   let lastError = "No X Layer RPC endpoint responded.";
   for (const endpoint of X_LAYER_RPC_ENDPOINTS) {
     try {
@@ -51,18 +57,21 @@ export async function GET() {
       ]);
       const processorCount = decodeUint(countHex);
       const blockNumber = decodeUint(blockHex);
-      const visibleCount = Number(processorCount > BigInt(MAX_PROCESSORS_TO_RETURN) ? BigInt(MAX_PROCESSORS_TO_RETURN) : processorCount);
+      const start = BigInt(offset);
+      const end = start + BigInt(limit) > processorCount ? processorCount : start + BigInt(limit);
+      const visibleCount = Number(end > start ? end - start : 0n);
 
       const processors = await Promise.all(
-        Array.from({ length: visibleCount }, async (_, index) => {
-          const encodedIndex = BigInt(index).toString(16).padStart(64, "0");
+        Array.from({ length: visibleCount }, async (_, pageIndex) => {
+          const processorNumber = offset + pageIndex;
+          const encodedIndex = BigInt(processorNumber).toString(16).padStart(64, "0");
           const result = await rpc<string>(
             endpoint,
             "eth_call",
             [{ to: TAPEOUT_FACTORY, data: CPU_AT_SELECTOR + encodedIndex }, "latest"],
-            10 + index,
+            10 + pageIndex,
           );
-          return { processorNumber: index, address: decodeAddress(result) };
+          return { processorNumber, address: decodeAddress(result) };
         }),
       );
 
@@ -72,8 +81,10 @@ export async function GET() {
         chainId: 196,
         blockNumber: blockNumber.toString(),
         processorCount: processorCount.toString(),
+        offset,
+        limit,
         processors,
-        truncated: processorCount > BigInt(visibleCount),
+        hasMore: end < processorCount,
         factory: TAPEOUT_FACTORY,
         rpcEndpoint: endpoint,
         checkedAt: new Date().toISOString(),
