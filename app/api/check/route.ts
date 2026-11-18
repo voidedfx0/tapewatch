@@ -1,36 +1,12 @@
 import { createHash } from "node:crypto";
 import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { isBlockedAddress } from "../../../lib/public-target.mjs";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const MAX_BYTES = 1024 * 1024;
 const TIMEOUT_MS = 12000;
 const MAX_REDIRECTS = 3;
-
-function isBlockedAddress(address: string) {
-  const version = isIP(address);
-  if (version === 4) {
-    const parts = address.split(".").map(Number);
-    const [a, b, c] = parts;
-    return a === 0 || a === 10 || a === 127 || a >= 224 ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) ||
-      (a === 100 && b >= 64 && b <= 127) ||
-      (a === 192 && b === 0 && c === 0) ||
-      (a === 198 && (b === 18 || b === 19));
-  }
-  if (version === 6) {
-    const normalized = address.toLowerCase();
-    return normalized === "::" || normalized === "::1" ||
-      normalized.startsWith("fc") || normalized.startsWith("fd") ||
-      normalized.startsWith("fe8") || normalized.startsWith("fe9") ||
-      normalized.startsWith("fea") || normalized.startsWith("feb") ||
-      normalized.startsWith("ff") || normalized.startsWith("::ffff:");
-  }
-  return true;
-}
 
 async function validatePublicTarget(url: URL) {
   if (!["http:", "https:"].includes(url.protocol)) throw new Error("Only public HTTP and HTTPS websites can be checked.");
