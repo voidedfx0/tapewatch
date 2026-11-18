@@ -139,7 +139,6 @@ export default function Home() {
   useEffect(() => {
     let active = true;
     let networkTimer: ReturnType<typeof setInterval> | undefined;
-    let circuitTimer: ReturnType<typeof setInterval> | undefined;
     async function loadNetworkStatus() {
       try {
         const response = await fetch("/api/network/xlayer", { cache: "no-store" });
@@ -155,6 +154,17 @@ export default function Home() {
         if (active) setNetworkConnection("error");
       }
     }
+    void loadNetworkStatus();
+    networkTimer = setInterval(() => { void loadNetworkStatus(); }, 15000);
+    return () => {
+      active = false;
+      if (networkTimer) clearInterval(networkTimer);
+    };
+  }, [networkRefreshKey]);
+
+  useEffect(() => {
+    let active = true;
+    let circuitTimer: ReturnType<typeof setInterval> | undefined;
     async function loadCircuitStatus() {
       try {
         const response = await fetch("/api/tapeout/xlayer", { cache: "no-store" });
@@ -170,16 +180,13 @@ export default function Home() {
         if (active) setCircuitConnection("error");
       }
     }
-    void loadNetworkStatus();
     void loadCircuitStatus();
-    networkTimer = setInterval(() => { void loadNetworkStatus(); }, 15000);
     circuitTimer = setInterval(() => { void loadCircuitStatus(); }, 60000);
     return () => {
       active = false;
-      if (networkTimer) clearInterval(networkTimer);
       if (circuitTimer) clearInterval(circuitTimer);
     };
-  }, [networkRefreshKey, circuitRefreshKey]);
+  }, [circuitRefreshKey]);
 
   useEffect(() => {
     let active = true;
