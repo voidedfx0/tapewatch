@@ -36,27 +36,6 @@ export default function CircuitWorkspace() {
   const [detail, setDetail] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
-  const [walletAddress, setWalletAddress] = useState("");
-  const [walletData, setWalletData] = useState<any>(null);
-  const [walletLoading, setWalletLoading] = useState(false);
-  const [walletError, setWalletError] = useState("");
-  const inspectWallet = async () => {
-    const address = walletAddress.trim();
-    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
-      setWalletError("Enter a valid X Layer wallet address.");
-      setWalletData(null);
-      return;
-    }
-    setWalletLoading(true); setWalletError(""); setWalletData(null);
-    try {
-      const response = await fetch("/api/xlayer/wallet?address=" + encodeURIComponent(address), { cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok || !data.ok) { const code = data.providerCode ? ` (OKX code ${data.providerCode})` : ""; throw new Error((data.error || "Wallet data could not be loaded.") + code); }
-      setWalletData(data);
-    } catch (caught) {
-      setWalletError(caught instanceof Error ? caught.message : "Wallet data could not be loaded.");
-    } finally { setWalletLoading(false); }
-  };
   const inspectProcessor = async (processor: Processor, selectedToken?: string) => {
     setSelectedProcessor(processor); setDetail(null); setDetailError(""); setDetailLoading(true);
     try {
@@ -149,37 +128,6 @@ export default function CircuitWorkspace() {
           <small>{snapshot?.checkedAt ? new Date(snapshot.checkedAt).toLocaleTimeString() : "Waiting for first read"}</small>
         </article>
       </div>
-
-      <section className="detail-card wallet-intelligence-card" id="wallet-intelligence">
-        <div className="detail-card-heading">
-          <div><span className="mini-icon">◎</span><h2>Wallet intelligence</h2></div>
-          <span className="circuit-evidence-badge">X LAYER · READ-ONLY</span>
-        </div>
-        <p className="detail-muted wallet-intelligence-intro">Inspect a public wallet address to review recent indexed transactions, direction, contract interactions and counterparties. No wallet connection or signing is required.</p>
-        <div className="wallet-search-row">
-          <input value={walletAddress} onChange={event => setWalletAddress(event.target.value)} onKeyDown={event => { if (event.key === "Enter") void inspectWallet(); }} placeholder="Paste X Layer wallet address (0x…)" aria-label="X Layer wallet address" autoCapitalize="off" autoCorrect="off" spellCheck={false}/>
-          <button className="secondary-button" type="button" onClick={() => void inspectWallet()} disabled={walletLoading}>{walletLoading ? "Inspecting…" : "Inspect wallet"}</button>
-        </div>
-        {walletError && <p className="wallet-intelligence-error">{walletError}</p>}
-        {walletLoading && <p className="circuit-detail-status">Reading recent indexed wallet transactions…</p>}
-        {walletData && <>
-          <div className="wallet-profile-heading"><div><span className="changes-kicker">WALLET PROFILE · X LAYER</span><code>{walletData.address}</code></div><a href={EXPLORER + "/address/" + walletData.address} target="_blank" rel="noreferrer">Open explorer ↗</a></div>
-          <div className="wallet-summary-grid">
-            <div><span>TRANSACTIONS RETURNED</span><strong>{walletData.summary.returnedTransactions}</strong><small>Latest indexed page</small></div>
-            <div><span>OUTGOING</span><strong>{walletData.summary.outgoing}</strong><small>From this address</small></div>
-            <div><span>INCOMING</span><strong>{walletData.summary.incoming}</strong><small>To this address</small></div>
-            <div><span>CONTRACT INTERACTIONS</span><strong>{walletData.summary.contractInteractions}</strong><small>Contract endpoints flagged by indexer</small></div>
-            <div><span>COUNTERPARTIES</span><strong>{walletData.summary.uniqueCounterparties}</strong><small>Unique addresses in this sample</small></div>
-          </div>
-          <div className="wallet-activity-heading"><strong>Recent transactions</strong><span>Up to 30 records · Page 1</span></div>
-          {walletData.transactions.length ? <div className="wallet-activity-list">{walletData.transactions.map((tx: any) => <div className="wallet-activity-row" key={tx.hash}>
-            <div className="wallet-activity-main"><strong>{tx.from.toLowerCase() === walletData.address.toLowerCase() ? "Outgoing" : "Incoming"} · {tx.amount} {tx.symbol}</strong><small>Block {Number(tx.blockNumber).toLocaleString()} · {tx.status} · {tx.toIsContract ? "Contract destination" : "Regular destination"}</small><code>{tx.hash}</code></div>
-            <a href={EXPLORER + "/tx/" + tx.hash} target="_blank" rel="noreferrer">Transaction ↗</a>
-          </div>)}</div> : <p className="circuit-detail-status">No normal transactions were returned for this address in the latest indexed page.</p>}
-          <p className="circuit-history-limit">{walletData.note}</p>
-        </>}
-        <p className="wallet-provider-note">Data provider: OKX X Layer Data API. API credentials are used only on the server and must never be entered into this form.</p>
-      </section>
 
       <section className="detail-card circuit-registry-card">
         <div className="detail-card-heading">
