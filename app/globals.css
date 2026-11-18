@@ -1344,3 +1344,7 @@ h1 span { color: #777c84; }
 .topbar-brand-name { font-size:16px; font-weight:750; letter-spacing:-.55px; color:var(--text); }
 .topbar-brand-name span { font-weight:450; opacity:.72; }
 @media(prefers-reduced-motion:reduce) { .topbar-brand .brand-mark { transition:none; } }
+
+/* Keep the topbar brand mark compact so it never competes with navigation. */
+.topbar-brand { gap:0; flex:0 0 auto; }
+.topbar-brand .brand-mark { width:32px; height:32px; flex-basis:32px; }
