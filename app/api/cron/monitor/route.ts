@@ -1,30 +1,13 @@
 import { createHash } from "node:crypto";
 import { lookup } from "node:dns/promises";
+import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { isBlockedAddress } from "../../../../lib/public-target.mjs";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const MAX_BYTES = 1024 * 1024;
 const TIMEOUT_MS = 12000;
-
-function blocked(address: string) {
-  const version = isIP(address);
-  if (version === 4) {
-    const [a,b,c] = address.split(".").map(Number);
-    return a === 0 || a === 10 || a === 127 || a >= 224 ||
-      (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) ||
-      (a === 192 && b === 0 && c === 0) || (a === 198 && (b === 18 || b === 19));
-  }
-  if (version === 6) {
-    const value = address.toLowerCase();
-    return value === "::" || value === "::1" || value.startsWith("fc") ||
-      value.startsWith("fd") || value.startsWith("fe8") || value.startsWith("fe9") ||
-      value.startsWith("fea") || value.startsWith("feb") || value.startsWith("ff") ||
-      value.startsWith("::ffff:");
-  }
-  return true;
-}
 
 async function capture(rawUrl: string) {
   let status = "unreachable";
@@ -46,7 +29,7 @@ async function capture(rawUrl: string) {
       throw new Error("This address is not a public website.");
     }
     const addresses = isIP(host) ? [{ address: host }] : await lookup(host, { all: true, verbatim: true });
-    if (!addresses.length || addresses.some(({ address }) => blocked(address))) {
+    if (!addresses.length || addresses.some(({ address }) => isBlockedAddress(address))) {
       throw new Error("This website resolves to a private or reserved network address.");
     }
 
