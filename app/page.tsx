@@ -742,7 +742,7 @@ export default function Home() {
           </div>
           <section className="section-card changes-records-card">
             <div className="section-heading"><div><h2>Change records</h2><p>Latest 100 saved observations across your monitored websites.</p></div><span className="coming-soon">{changeFeedLoading ? "LOADING" : changeFeed.length ? "DATABASE RECORDS" : "NO RECORDS"}</span></div>
-            {changeFeedLoading ? <div className="changes-feed-state">Loading saved change records…</div> : changeFeedError ? <div className="changes-feed-state"><p>{changeFeedError}</p><button className="secondary-button" onClick={() => setShowChanges(false) || setTimeout(() => setShowChanges(true), 0)}>Retry</button></div> : changeFeed.length === 0 ? <div className="changes-empty">
+            {changeFeedLoading ? <div className="changes-feed-state">Loading saved change records…</div> : changeFeedError ? <div className="changes-feed-state"><p>{changeFeedError}</p><button className="secondary-button" onClick={() => { setShowChanges(false); window.setTimeout(() => setShowChanges(true), 0); }}>Retry</button></div> : changeFeed.length === 0 ? <div className="changes-empty">
               <div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="activity" size={28}/></div></div>
               <h3>No saved change records yet</h3>
               <p>When a website check detects a difference from its previous saved fingerprint, TapeWatch will add the observation here. Add a website and run checks to begin building its history.</p>
