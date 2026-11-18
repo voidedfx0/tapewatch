@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     return Response.json({
       ok: false,
       code: "PROVIDER_NOT_CONFIGURED",
-      error: "Wallet transaction data is not connected yet. The OKX Onchain API credentials must be added as private Cloudflare Worker secrets."
+      error: "Wallet transaction data is not connected yet. The OKX Onchain API credentials must be added as private Vercel Production environment variables."
     }, { status: 503 });
   }
 
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     const payload = await response.json() as OkxResponse;
     if (!response.ok || payload.code !== "0") {
       const providerMessage = payload.msg || "The OKX data provider rejected the request.";
-      return Response.json({ ok: false, error: providerMessage }, { status: response.status >= 400 ? response.status : 502 });
+      return Response.json({ ok: false, error: providerMessage, providerCode: payload.code ?? null, providerHttpStatus: response.status }, { status: response.status >= 400 ? response.status : 502 });
     }
     const page = payload.data?.[0];
     const transactions = (page?.transactionLists ?? []).filter(tx =>
