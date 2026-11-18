@@ -6,7 +6,7 @@ const NAME = "0x06fdde03";
 const OWNER_OF = "0x6352211e";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const HISTORY_BLOCKS = BigInt(20000);
-const LOG_CHUNK_BLOCKS = BigInt(500);
+const LOG_CHUNK_BLOCKS = BigInt(100);
 type Rpc<T> = { result?: T; error?: { message?: string; code?: number } };
 async function rpc<T>(endpoint: string, method: string, params: unknown[], id: number): Promise<T> {
   const response = await fetch(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id, method, params }), cache: "no-store", signal: AbortSignal.timeout(12000) });
@@ -77,7 +77,7 @@ export async function GET(request: Request) {
         token = { tokenId, owner: decodeAddress(ownerHex) };
       }
       return Response.json({ ok: true, processorNumber: number, address, name: decodeString(nameHex), blockNumber: block.toString(), token, transfers,
-        historyNote: "Transfer events are shown only for blocks " + fromBlock.toString() + "–" + block.toString() + " (latest 20,000 blocks, queried in 500-block batches). Older events may exist. This is recent ERC-721 transfer activity, not a complete audited ownership record.",
+        historyNote: "Transfer events are shown only for blocks " + fromBlock.toString() + "–" + block.toString() + " (latest 20,000 blocks, queried in 100-block batches). Older events may exist. This is recent ERC-721 transfer activity, not a complete audited ownership record.",
         rpcEndpoint: endpoint }, { headers: { "Cache-Control": "no-store" } });
     } catch (error) { lastError = error instanceof Error ? error.message : "Unknown RPC error"; }
   }
