@@ -5,6 +5,8 @@ import { supabase } from "../lib/supabase";
 
 type Site = { id: string; url: string; status: "Setup draft" };
 type WebsiteCheck = { id: string; checked_at: string; status: string; http_status: number | null; final_url: string | null; content_hash: string | null; page_title: string | null; error_message: string | null };
+type DashboardCheck = { id: string; website_id: string; checked_at: string; status: string; http_status: number | null; page_title: string | null };
+type DashboardChange = { id: string; website_id: string; detected_at: string; previous_title: string | null; current_title: string | null };
 type WebsiteChange = { id: string; detected_at: string; change_type: string; previous_check_id: string | null; current_check_id: string; previous_hash: string | null; current_hash: string | null; previous_title: string | null; current_title: string | null };
 type MonitoringSetting = { id: string; website_id: string; user_id: string; enabled: boolean; frequency: "daily"; last_run_at: string | null; next_run_at: string | null };
 type IntelligenceProfile = { id: string; website_id: string; business_name: string | null; summary: string | null; purpose: string | null; products: string[]; services: string[]; features: string[]; identity_type: string | null; alternate_names: string[]; field_evidence: Record<string, string> | null; contact_emails: string[]; contact_phones: string[]; locations: string[]; pricing_details: string[]; technologies: string[]; integrations: string[]; discovery_evidence: { type: string; value: string; source_url: string; excerpt: string }[]; target_audience: string | null; key_topics: string[]; important_pages: { type: string; label: string; url: string }[]; source_urls: string[]; social_profiles: { platform: string; url: string; evidence?: string }[]; pages_analyzed: { url: string; title: string | null; description: string | null }[]; confidence: string | null; analyzed_at: string | null };
@@ -34,6 +36,9 @@ function Icon({ name, size = 18 }: { name: string; size?: number }) {
 export default function Home() {
   const [sites, setSites] = useState<Site[]>(initialSites);
   const [sitesLoading, setSitesLoading] = useState(true);
+  const [dashboardChecks, setDashboardChecks] = useState<DashboardCheck[]>([]);
+  const [dashboardChanges, setDashboardChanges] = useState<DashboardChange[]>([]);
+  const [dashboardActivityLoading, setDashboardActivityLoading] = useState(true);
   const [savingSite, setSavingSite] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [url, setUrl] = useState("");
@@ -113,6 +118,33 @@ export default function Home() {
     void loadWebsites();
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function loadDashboardActivity() {
+      if (!supabase || sites.length === 0) {
+        setDashboardChecks([]);
+        setDashboardChanges([]);
+        setDashboardActivityLoading(false);
+        return;
+      }
+      setDashboardActivityLoading(true);
+      const websiteIds = sites.map((site) => site.id);
+      const [checksResult, changesResult] = await Promise.all([
+        supabase.from("website_checks").select("id, website_id, checked_at, status, http_status, page_title").in("website_id", websiteIds).order("checked_at", { ascending: false }).limit(40),
+        supabase.from("website_changes").select("id, website_id, detected_at, previous_title, current_title").in("website_id", websiteIds).order("detected_at", { ascending: false }).limit(20),
+      ]);
+      if (active) {
+        if (checksResult.error) console.error("TapeWatch dashboard checks failed:", checksResult.error);
+        if (changesResult.error) console.error("TapeWatch dashboard changes failed:", changesResult.error);
+        setDashboardChecks((checksResult.data ?? []) as DashboardCheck[]);
+        setDashboardChanges((changesResult.data ?? []) as DashboardChange[]);
+        setDashboardActivityLoading(false);
+      }
+    }
+    void loadDashboardActivity();
+    return () => { active = false; };
+  }, [sites]);
 
   useEffect(() => {
     let active = true;
@@ -242,6 +274,19 @@ export default function Home() {
     : null;
 
   const filteredSites = useMemo(() => sites.filter((site) => site.url.toLowerCase().includes(query.toLowerCase())), [sites, query]);
+  const dashboardWeekly = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 7 }, (_, index) => {
+      const day = new Date(today);
+      day.setDate(today.getDate() - (6 - index));
+      const key = day.toLocaleDateString();
+      return { key, label: day.toLocaleDateString(undefined, { weekday: "short" }), checks: dashboardChecks.filter((item) => new Date(item.checked_at).toLocaleDateString() === key).length, changes: dashboardChanges.filter((item) => new Date(item.detected_at).toLocaleDateString() === key).length };
+    });
+  }, [dashboardChecks, dashboardChanges]);
+  const dashboardRecentActivity = useMemo(() => [
+    ...dashboardChecks.map((item) => ({ id: "dashboard-check-" + item.id, at: item.checked_at, title: item.status === "reachable" ? "Website check completed" : item.status === "reachable_partial" ? "Partial website capture" : item.status === "http_error" ? "Website returned an HTTP error" : "Website check unavailable", detail: item.page_title || item.status.replaceAll("_", " "), kind: "check" as const })),
+    ...dashboardChanges.map((item) => ({ id: "dashboard-change-" + item.id, at: item.detected_at, title: "Content fingerprint changed", detail: (item.previous_title || "Previous version") + " → " + (item.current_title || "New version"), kind: "change" as const })),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, 5), [dashboardChecks, dashboardChanges]);
   const timelineEvents = useMemo(() => [
     ...checks.map((check) => ({ id: "check-" + check.id, at: check.checked_at, kind: "check", category: "OBSERVATION", title: check.status === "reachable" ? "Website check completed" : check.status === "reachable_partial" ? "Partial website capture" : check.status === "http_error" ? "Website returned an HTTP error" : "Website check unavailable", detail: (check.http_status ? "HTTP " + check.http_status + " · " : "") + (check.page_title || check.status.replaceAll("_", " ")), hash: check.content_hash, checkId: check.id, status: check.status, httpStatus: check.http_status, finalUrl: check.final_url, errorMessage: check.error_message, previousHash: null as string | null, currentHash: null as string | null, previousCheckId: null as string | null, currentCheckId: null as string | null })),
     ...changes.map((change) => ({ id: "change-" + change.id, at: change.detected_at, kind: "change", category: "DETECTED CHANGE", title: "Content fingerprint changed", detail: (change.previous_title || "Previous version") + " → " + (change.current_title || "New version"), hash: change.current_hash, checkId: null as string | null, status: change.change_type, httpStatus: null as number | null, finalUrl: null as string | null, errorMessage: null as string | null, previousHash: change.previous_hash, currentHash: change.current_hash, previousCheckId: change.previous_check_id, currentCheckId: change.current_check_id })),
@@ -678,8 +723,21 @@ export default function Home() {
           <section className="stats-grid" aria-label="Monitoring summary">
             <article className="stat-card"><div className="stat-head">Websites on watchlist <span className="stat-icon"><Icon name="globe"/></span></div><div className="stat-number">{sites.length}<small> / —</small></div><div className="stat-foot">Saved workspace entries</div></article>
             <article className="stat-card"><div className="stat-head">Verified observations <span className="stat-icon"><Icon name="shield"/></span></div><div className="stat-number">—</div><div className="stat-foot">Verification source not connected</div></article>
-            <article className="stat-card"><div className="stat-head">Changes recorded <span className="stat-icon"><Icon name="activity"/></span></div><div className="stat-number">—</div><div className="stat-foot">Change history not connected</div></article>
+            <article className="stat-card"><div className="stat-head">Changes recorded <span className="stat-icon"><Icon name="activity"/></span></div><div className="stat-number">{dashboardActivityLoading ? "—" : dashboardChanges.length}</div><div className="stat-foot">Saved fingerprint differences</div></article>
             <article className="stat-card"><div className="stat-head">Linked circuits <span className="stat-icon"><Icon name="layers"/></span></div><div className="stat-number">—</div><div className="stat-foot">Contract sources not configured</div></article>
+          </section>
+
+          <section className="dashboard-insights-grid" aria-label="Monitoring activity insights">
+            <article className="dashboard-chart-card">
+              <div className="dashboard-insight-heading"><div><span className="eyebrow">OBSERVATION ACTIVITY</span><h2>Monitoring pulse</h2></div><span className="coming-soon">LAST 7 DAYS</span></div>
+              <p className="dashboard-insight-copy">Daily website checks and recorded content differences from your saved websites.</p>
+              {dashboardActivityLoading ? <div className="dashboard-chart-empty">Loading saved activity…</div> : dashboardChecks.length || dashboardChanges.length ? <div className="dashboard-chart" role="img" aria-label="Bar chart of daily website checks and detected changes for the last seven days">{dashboardWeekly.map((day) => <div className="dashboard-chart-day" key={day.key}><div className="dashboard-chart-bars"><span className="dashboard-bar checks" style={{ height: `${Math.max(3, (day.checks / Math.max(1, ...dashboardWeekly.map((item) => item.checks))) * 100)}%` }} title={`${day.checks} checks`}/><span className="dashboard-bar changes" style={{ height: `${Math.max(3, (day.changes / Math.max(1, ...dashboardWeekly.map((item) => item.changes))) * 100)}%` }} title={`${day.changes} changes`}/></div><span>{day.label}</span></div>)}</div> : <div className="dashboard-chart-empty">No saved monitoring activity yet. Run a website check to begin building this chart.</div>}
+              <div className="dashboard-chart-legend"><span><i className="legend-checks"/> Website checks ({dashboardChecks.length})</span><span><i className="legend-changes"/> Changes ({dashboardChanges.length})</span></div>
+            </article>
+            <article className="dashboard-activity-card">
+              <div className="dashboard-insight-heading"><div><span className="eyebrow">RECENT RECORDS</span><h2>Activity timeline</h2></div><span className="coming-soon">{dashboardRecentActivity.length} EVENTS</span></div>
+              {dashboardActivityLoading ? <div className="dashboard-chart-empty">Loading recent records…</div> : dashboardRecentActivity.length ? <div className="dashboard-recent-list">{dashboardRecentActivity.map((item) => <div className="dashboard-recent-item" key={item.id}><span className={`dashboard-recent-marker ${item.kind}`}/><div><strong>{item.title}</strong><p>{item.detail}</p><time>{new Date(item.at).toLocaleString()}</time></div></div>)}</div> : <div className="dashboard-chart-empty">Your saved checks and detected changes will appear here as they happen.</div>}
+            </article>
           </section>
 
           {sites.length === 0 && <section className="getting-started" aria-label="Getting started">
