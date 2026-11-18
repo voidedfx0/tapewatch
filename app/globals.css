@@ -1359,3 +1359,30 @@ h1 span { color: #777c84; }
  .topbar-brand .brand-mark { width:27px; height:27px; flex-basis:27px; }
  .topbar-brand-name { font-size:10px; letter-spacing:-.2px; }
 }
+
+/* Circuit processor inspector and on-chain transfer history */
+.circuit-row-actions{display:flex;align-items:center;gap:14px;white-space:nowrap}
+.circuit-inspect-button{border:0;background:transparent;color:#4d55c5;font-size:11px;font-weight:700;cursor:pointer}
+.circuit-inspect-button:hover{text-decoration:underline}
+.circuit-processor-detail{margin-top:20px;padding:20px;border:1px solid #e1e3e7;border-radius:12px;background:linear-gradient(145deg,#fff,#f8f9fa);box-shadow:0 8px 26px #17181b08;animation:card-enter .35s ease both}
+.circuit-detail-heading,.circuit-history-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.circuit-detail-heading h3{margin:6px 0 0;font-size:19px}
+.circuit-close-detail{border:1px solid #e1e3e7;border-radius:7px;background:#fff;padding:7px 11px;font-size:10px;cursor:pointer}
+.circuit-detail-address{display:block;margin-top:12px;overflow-wrap:anywhere;color:#737780;font-size:11px}
+.circuit-detail-status,.circuit-detail-error{color:#777c84;font-size:11px;line-height:1.6}.circuit-detail-error{color:#a23f45}
+.circuit-detail-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}
+.circuit-detail-facts>div{min-width:0;padding:12px;border:1px solid #e8eaed;border-radius:8px;background:#fff}
+.circuit-detail-facts span,.circuit-holder-card>span{display:block;color:#92969d;font-size:8px;font-weight:750;letter-spacing:1px}
+.circuit-detail-facts strong{display:block;margin-top:7px;overflow-wrap:anywhere;font-size:12px}
+.circuit-token-lookup{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:18px;padding:15px;border:1px solid #e8eaed;border-radius:9px;background:#fff}
+.circuit-token-lookup strong{font-size:12px}.circuit-token-lookup p{margin:5px 0 0;color:#858a92;font-size:10px;line-height:1.5}
+.circuit-token-controls{display:flex;gap:8px;flex:0 0 auto}.circuit-token-controls input{width:100px;height:38px;padding:0 10px;border:1px solid #d9dce0;border-radius:7px;background:#fff;color:#17181b}
+.circuit-holder-card{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;padding:13px;border:1px solid #e5e7eb;border-radius:8px;background:#f7f8f9}
+.circuit-holder-card>span{flex-basis:100%}.circuit-holder-card code{flex:1;min-width:0;overflow-wrap:anywhere;font-size:11px}
+.circuit-holder-card a,.circuit-transfer-row>a{color:#4d55c5;font-size:10px;font-weight:650;white-space:nowrap}
+.circuit-history-heading{margin-top:20px;padding-bottom:10px;border-bottom:1px solid #eceef0}.circuit-history-heading strong{font-size:11px}.circuit-history-heading span,.circuit-history-limit{color:#92969d;font-size:9px}
+.circuit-transfer-row{display:grid;grid-template-columns:minmax(120px,.8fr) minmax(0,1.6fr) auto;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #eceef0}
+.circuit-transfer-row strong,.circuit-transfer-row small{display:block}.circuit-transfer-row strong{font-size:10px}.circuit-transfer-row small{margin-top:4px;color:#92969d;font-size:9px}
+.circuit-transfer-addresses{display:grid;gap:5px;min-width:0}.circuit-transfer-addresses span{display:flex;gap:6px;align-items:center;color:#92969d;font-size:9px}.circuit-transfer-addresses code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#555a62;font-size:9px}
+.circuit-history-limit{margin:12px 0 0;line-height:1.6}
+@media(max-width:650px){.circuit-row-actions{gap:9px}.circuit-processor-detail{padding:14px}.circuit-detail-facts{grid-template-columns:1fr}.circuit-token-lookup{align-items:stretch;flex-direction:column}.circuit-token-controls input{flex:1;width:auto;min-width:0}.circuit-transfer-row{grid-template-columns:1fr auto;gap:8px}.circuit-transfer-addresses{grid-column:1/-1}}

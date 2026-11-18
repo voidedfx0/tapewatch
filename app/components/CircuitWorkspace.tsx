@@ -31,6 +31,27 @@ export default function CircuitWorkspace() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [hasMore, setHasMore] = useState(false);
+  const [selectedProcessor, setSelectedProcessor] = useState<Processor | null>(null);
+  const [tokenId, setTokenId] = useState("1");
+  const [detail, setDetail] = useState<any>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
+  const inspectProcessor = async (processor: Processor, selectedToken?: string) => {
+    setSelectedProcessor(processor); setDetail(null); setDetailError(""); setDetailLoading(true);
+    try {
+      const params = new URLSearchParams({ processorNumber: String(processor.processorNumber), address: processor.address });
+      if (selectedToken) params.set("tokenId", selectedToken);
+      const response = await fetch("/api/tapeout/xlayer/processor?" + params.toString(), { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Could not read processor details.");
+      setDetail(data);
+    } catch (caught) { setDetailError(caught instanceof Error ? caught.message : "Processor details are unavailable."); }
+    finally { setDetailLoading(false); }
+  };
+  const readTokenHistory = async () => {
+    if (!selectedProcessor || !/^\\d+$/.test(tokenId) || BigInt(tokenId) < BigInt(1)) { setDetailError("Enter a valid token ID greater than zero."); return; }
+    await inspectProcessor(selectedProcessor, tokenId);
+  };
 
   const readPage = useCallback(async (offset: number, append: boolean) => {
     if (append) setLoadingMore(true);
@@ -128,10 +149,27 @@ export default function CircuitWorkspace() {
               <div className="circuit-processor-row" key={processor.processorNumber}>
                 <div className="circuit-processor-index">#{processor.processorNumber}</div>
                 <div className="circuit-processor-address"><strong>Processor {processor.processorNumber}</strong><code>{processor.address}</code></div>
-                <a href={`${EXPLORER}/address/${processor.address}`} target="_blank" rel="noreferrer">View contract ↗</a>
+                <div className="circuit-row-actions"><button type="button" className="circuit-inspect-button" onClick={() => void inspectProcessor(processor)}>Inspect</button><a href={EXPLORER + "/address/" + processor.address} target="_blank" rel="noreferrer">Explorer ↗</a></div>
               </div>
             ))}
           </div>
+        )}
+
+        {selectedProcessor && (
+          <section className="circuit-processor-detail" aria-live="polite">
+            <div className="circuit-detail-heading"><div><span className="changes-kicker">PROCESSOR INSPECTOR</span><h3>Processor #{selectedProcessor.processorNumber}</h3></div><button type="button" className="circuit-close-detail" onClick={() => { setSelectedProcessor(null); setDetail(null); setDetailError(""); }}>Close</button></div>
+            <code className="circuit-detail-address">{selectedProcessor.address}</code>
+            {detailLoading && <p className="circuit-detail-status">Reading processor contract on X Layer…</p>}
+            {detailError && <p className="circuit-detail-error">{detailError}</p>}
+            {detail && <>
+              <div className="circuit-detail-facts"><div><span>CONTRACT NAME</span><strong>{detail.name || "Not exposed"}</strong></div><div><span>NETWORK</span><strong>X Layer · 196</strong></div><div><span>READ BLOCK</span><strong>{Number(detail.blockNumber).toLocaleString()}</strong></div></div>
+              <div className="circuit-token-lookup"><div><strong>Circuit token lookup</strong><p>Enter a token ID to read its current holder and recent ERC-721 transfer records.</p></div><div className="circuit-token-controls"><input inputMode="numeric" value={tokenId} onChange={event => setTokenId(event.target.value)} aria-label="Circuit token ID" placeholder="Token ID"/><button type="button" className="secondary-button" onClick={() => void readTokenHistory()} disabled={detailLoading}>Read token</button></div></div>
+              {detail.token && <div className="circuit-holder-card"><span>CURRENT HOLDER · TOKEN #{detail.token.tokenId}</span><code>{detail.token.owner}</code><a href={EXPLORER + "/address/" + detail.token.owner} target="_blank" rel="noreferrer">View holder ↗</a></div>}
+              <div className="circuit-history-heading"><strong>{detail.token ? "Recent transfer history · #" + detail.token.tokenId : "Recent processor activity"}</strong><span>Last 20,000 blocks</span></div>
+              {detail.transfers?.length ? <div className="circuit-transfer-list">{detail.transfers.map((event: any) => <div className="circuit-transfer-row" key={event.transactionHash + event.logIndex}><div><strong>{event.from.toLowerCase() === "0x0000000000000000000000000000000000000000" ? "Mint" : "Transfer"} · Token #{event.tokenId}</strong><small>Block {Number(event.blockNumber).toLocaleString()}</small></div><div className="circuit-transfer-addresses"><span>From <code>{event.from}</code></span><span>To <code>{event.to}</code></span></div><a href={EXPLORER + "/tx/" + event.transactionHash} target="_blank" rel="noreferrer">Tx ↗</a></div>)}</div> : <p className="circuit-detail-status">No matching transfer events were found in the scanned block window.</p>}
+              <p className="circuit-history-limit">{detail.historyNote}</p>
+            </>}
+          </section>
         )}
         <div className="circuit-pagination">
           <span>{processors.length.toLocaleString()} of {snapshot?.processorCount ?? "—"} processors loaded</span>
