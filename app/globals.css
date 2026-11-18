@@ -1565,3 +1565,17 @@ h1 span { color: #777c84; }
 .settings-bottom-note{margin-top:20px;padding-top:14px;border-top:1px solid var(--border,rgba(255,255,255,.08));color:var(--muted,#9297a1);font-size:9px;line-height:1.6}
 @media(max-width:850px){.settings-layout{grid-template-columns:1fr}.settings-nav{position:static;grid-template-columns:repeat(2,minmax(0,1fr))}.settings-nav-item{grid-template-columns:28px minmax(0,1fr)}.settings-nav-item>b{display:none}}
 @media(max-width:560px){.settings-panel{padding:15px}.settings-nav{grid-template-columns:1fr}.settings-nav-item{padding:10px}.settings-title-row{align-items:flex-start;flex-direction:column}.settings-refresh{width:100%}.settings-stat-grid{grid-template-columns:1fr}.settings-info-row{flex-direction:column;gap:5px}.settings-info-row strong{text-align:left}.settings-card-heading{flex-direction:column}}
+
+
+/* Refined workspace navigation, typography and overview timeline */
+.back-button{display:inline-flex;align-items:center;gap:6px;margin-right:8px;padding:6px 10px;border:1px solid #2b3948;border-radius:7px;background:#121c27;color:#cbd6e2;font-size:11px;font-weight:650;transition:background .18s ease,border-color .18s ease}
+.back-button:hover{background:#1b2937;border-color:#526579;color:#fff}
+.breadcrumb-root{color:#7f8da0}
+body{font-family:var(--font-space-grotesk), "Segoe UI Variable", "Inter", system-ui, sans-serif}
+.mini-card#activity{padding:17px 18px}
+.mini-card#activity .mini-heading h2{font-size:13px;letter-spacing:-.2px}
+.mini-card#activity .mini-heading .coming-soon{font-size:8px;letter-spacing:.08em}
+.mini-card#activity .activity-feed-item strong{font-size:10px;line-height:1.4}
+.mini-card#activity .activity-feed-item p{font-size:9px;line-height:1.5}
+.mini-card#activity .activity-feed-item time{font-size:8px}
+.mini-card#activity .activity-empty p{font-size:9px;line-height:1.55}
