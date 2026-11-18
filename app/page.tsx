@@ -45,6 +45,11 @@ export default function Home() {
   const [dashboardChecks, setDashboardChecks] = useState<DashboardCheck[]>([]);
   const [dashboardChanges, setDashboardChanges] = useState<DashboardChange[]>([]);
   const [dashboardActivityLoading, setDashboardActivityLoading] = useState(true);
+  const [networkBlock, setNetworkBlock] = useState<string | null>(null);
+  const [networkCheckedAt, setNetworkCheckedAt] = useState<string | null>(null);
+  const [networkConnection, setNetworkConnection] = useState<"loading" | "connected" | "error">("loading");
+  const [circuitCount, setCircuitCount] = useState<number | null>(null);
+  const [circuitConnection, setCircuitConnection] = useState<"loading" | "connected" | "error">("loading");
   const [savingSite, setSavingSite] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [url, setUrl] = useState("");
@@ -127,6 +132,51 @@ export default function Home() {
 
     void loadWebsites();
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    let networkTimer: ReturnType<typeof setInterval> | undefined;
+    let circuitTimer: ReturnType<typeof setInterval> | undefined;
+    async function loadNetworkStatus() {
+      try {
+        const response = await fetch("/api/network/xlayer", { cache: "no-store" });
+        if (!response.ok) throw new Error("Network request failed");
+        const data = await response.json();
+        if (!data?.ok || !data?.blockNumber) throw new Error("Network response unavailable");
+        if (active) {
+          setNetworkBlock(String(data.blockNumber));
+          setNetworkCheckedAt(data.checkedAt ?? null);
+          setNetworkConnection("connected");
+        }
+      } catch {
+        if (active) setNetworkConnection("error");
+      }
+    }
+    async function loadCircuitStatus() {
+      try {
+        const response = await fetch("/api/tapeout/xlayer", { cache: "no-store" });
+        if (!response.ok) throw new Error("Registry request failed");
+        const data = await response.json();
+        const count = Number(data?.processorCount);
+        if (!data?.ok || !Number.isFinite(count)) throw new Error("Registry response unavailable");
+        if (active) {
+          setCircuitCount(count);
+          setCircuitConnection("connected");
+        }
+      } catch {
+        if (active) setCircuitConnection("error");
+      }
+    }
+    void loadNetworkStatus();
+    void loadCircuitStatus();
+    networkTimer = setInterval(() => { void loadNetworkStatus(); }, 15000);
+    circuitTimer = setInterval(() => { void loadCircuitStatus(); }, 60000);
+    return () => {
+      active = false;
+      if (networkTimer) clearInterval(networkTimer);
+      if (circuitTimer) clearInterval(circuitTimer);
+    };
   }, []);
 
   useEffect(() => {
@@ -807,13 +857,17 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="notice-bar"><span className="notice-icon"><Icon name="shield" size={17}/></span><div><strong>Preview workspace · data connections pending</strong><p>Your workspace is ready to configure. Live website observations, integrity results, and blockchain events will appear after their data sources are connected.</p></div><span className="preview-tag">PREVIEW</span></div>
+          <div className="notice-bar"><span className="notice-icon"><Icon name="activity" size={17}/></span><div><strong>Workspace status</strong><p>Website records {sitesLoading ? "are loading" : "are connected"} · X Layer {networkConnection === "connected" ? "is live" : networkConnection === "loading" ? "is connecting" : "is temporarily unavailable"} · Circuit registry {circuitConnection === "connected" ? "is live" : circuitConnection === "loading" ? "is connecting" : "is temporarily unavailable"}. This dashboard shows observed data only; it does not imply independent verification.</p></div><span className="preview-tag">{networkConnection === "connected" && circuitConnection === "connected" ? "LIVE" : "STATUS"}</span></div>
 
-          <section className="stats-grid" aria-label="Monitoring summary">
-            <article className="stat-card"><div className="stat-head">Websites on watchlist <span className="stat-icon"><Icon name="globe"/></span></div><div className="stat-number">{sites.length}<small> / —</small></div><div className="stat-foot">Saved workspace entries</div></article>
-            <article className="stat-card"><div className="stat-head">Verified observations <span className="stat-icon"><Icon name="shield"/></span></div><div className="stat-number">—</div><div className="stat-foot">Verification source not connected</div></article>
-            <article className="stat-card"><div className="stat-head">Changes recorded <span className="stat-icon"><Icon name="activity"/></span></div><div className="stat-number">{dashboardActivityLoading ? "—" : dashboardChanges.length}</div><div className="stat-foot">Saved fingerprint differences</div></article>
-            <article className="stat-card"><div className="stat-head">Linked circuits <span className="stat-icon"><Icon name="layers"/></span></div><div className="stat-number">—</div><div className="stat-foot">Contract sources not configured</div></article>
+          <section className="stats-grid" aria-label="Live workspace summary">
+            <article className="stat-card"><div className="stat-head">Websites on watchlist <span className="stat-icon"><Icon name="globe"/></span></div><div className="stat-number">{sitesLoading ? "—" : sites.length}</div><div className="stat-foot">{sitesLoading ? "Loading saved websites" : "Saved workspace entries"}</div></article>
+            <article className="stat-card"><div className="stat-head">Website checks loaded <span className="stat-icon"><Icon name="shield"/></span></div><div className="stat-number">{dashboardActivityLoading ? "—" : dashboardChecks.length}</div><div className="stat-foot">Latest saved observations (up to 40)</div></article>
+            <article className="stat-card"><div className="stat-head">Changes recorded <span className="stat-icon"><Icon name="activity"/></span></div><div className="stat-number">{dashboardActivityLoading ? "—" : dashboardChanges.length}</div><div className="stat-foot">Latest saved differences (up to 20)</div></article>
+            <article className="stat-card"><div className="stat-head">Registered circuits <span className="stat-icon"><Icon name="layers"/></span></div><div className="stat-number">{circuitConnection === "connected" ? circuitCount : "—"}</div><div className="stat-foot">{circuitConnection === "connected" ? "Live X Layer registry count" : circuitConnection === "loading" ? "Loading registry" : "Registry temporarily unavailable"}</div></article>
+          </section>
+          <section className="section-card" aria-label="X Layer network status">
+            <div className="section-heading"><div><h2>X Layer network</h2><p>Live public RPC status, refreshed automatically every 15 seconds.</p></div><span className="coming-soon">{networkConnection === "connected" ? "CONNECTED" : networkConnection === "loading" ? "CONNECTING" : "UNAVAILABLE"}</span></div>
+            <div className="table-toolbar"><div className="table-title">LATEST BLOCK <span>{networkBlock ?? "—"}</span></div><span className="dashboard-insight-copy">{networkCheckedAt ? "Last checked " + new Date(networkCheckedAt).toLocaleTimeString() : networkConnection === "error" ? "Could not load live network data" : "Waiting for network response"}</span></div>
           </section>
 
           <section className="dashboard-insights-grid" aria-label="Monitoring activity insights">
@@ -853,17 +907,17 @@ export default function Home() {
             <div className="intelligence-heading"><div><div className="eyebrow">THE TAPEWATCH LAYERS</div><h2>From observation to evidence.</h2><p>One workspace for website changes, integrity signals, and relevant blockchain activity.</p></div><span className="module-count">03 MODULES</span></div>
             <div className="intelligence-grid">
               <article className="intelligence-card">
-                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="activity" size={19}/></span><span className="module-state">ENGINE IN DEVELOPMENT</span></div>
+                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="activity" size={19}/></span><span className="module-state">OBSERVATIONS AVAILABLE</span></div>
                 <div className="intelligence-card-body"><h3>Change intelligence</h3><p>Compare website versions, inspect detected differences, and follow the history of each observation.</p></div>
                 <div className="intelligence-card-foot"><span>Version history · File changes</span><span className="module-arrow"><Icon name="arrow" size={15}/></span></div>
               </article>
               <article className="intelligence-card">
-                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="layers" size={19}/></span><span className="module-state">SOURCE REVIEW PENDING</span></div>
+                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="layers" size={19}/></span><span className="module-state">REGISTRY LIVE · EVENTS LIMITED</span></div>
                 <div className="intelligence-card-body"><h3>Blockchain transparency</h3><p>Connect supported DeWEB records, circuit references, ownership events, and on-chain integrity evidence.</p></div>
                 <div className="intelligence-card-foot"><span>X Layer · Circuit records</span><span className="module-arrow"><Icon name="arrow" size={15}/></span></div>
               </article>
               <article className="intelligence-card">
-                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="clock" size={19}/></span><span className="module-state">AWAITING EVENTS</span></div>
+                <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="clock" size={19}/></span><span className="module-state">WEBSITE ACTIVITY</span></div>
                 <div className="intelligence-card-body"><h3>Trust timeline</h3><p>Bring observations, verification checks, and relevant chain events into one chronological record.</p></div>
                 <div className="intelligence-card-foot"><span>Evidence trail · Event history</span><span className="module-arrow"><Icon name="arrow" size={15}/></span></div>
               </article>
