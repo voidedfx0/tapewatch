@@ -1579,3 +1579,6 @@ body{font-family:var(--font-space-grotesk), "Segoe UI Variable", "Inter", system
 .mini-card#activity .activity-feed-item p{font-size:9px;line-height:1.5}
 .mini-card#activity .activity-feed-item time{font-size:8px}
 .mini-card#activity .activity-empty p{font-size:9px;line-height:1.55}
+
+
+.heading-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
