@@ -82,7 +82,11 @@ export default function CircuitWorkspace() {
     void readPage(0, false);
   }, [readPage]);
 
-  useEffect(() => { void readPage(0, false); }, [readPage]);
+  useEffect(() => {
+    void readPage(0, false);
+    const interval = window.setInterval(() => { void readPage(0, false); }, 60_000);
+    return () => window.clearInterval(interval);
+  }, [readPage]);
 
   const filteredProcessors = useMemo(() => {
     const term = search.trim().toLowerCase();

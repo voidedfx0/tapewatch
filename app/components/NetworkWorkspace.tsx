@@ -52,7 +52,11 @@ export default function NetworkWorkspace() {
     }
   }, []);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    void refresh();
+    const interval = window.setInterval(() => { void refresh(); }, 15_000);
+    return () => window.clearInterval(interval);
+  }, [refresh]);
 
   const syncing = status?.syncing === false
     ? "Not syncing"

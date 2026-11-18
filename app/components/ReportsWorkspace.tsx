@@ -79,6 +79,11 @@ export default function ReportsWorkspace({ sites }: { sites: Site[] }) {
     return () => { active = false; };
   }, [sites, siteId, from, to, refresh]);
 
+  useEffect(() => {
+    const interval = window.setInterval(() => setRefresh((value) => value + 1), 30_000);
+    return () => window.clearInterval(interval);
+  }, []);
+
   const siteUrl = (id: string) => sites.find((site) => site.id === id)?.url ?? "Website record";
   const failedChecks = checks.filter((item) => item.status === "http_error" || item.status === "unreachable");
   const events = useMemo(() => [

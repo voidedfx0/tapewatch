@@ -82,6 +82,11 @@ export default function AlertsWorkspace({ sites }: { sites: Site[] }) {
     return () => { active = false; };
   }, [sites, refreshKey]);
 
+  useEffect(() => {
+    const interval = window.setInterval(() => setRefreshKey((value) => value + 1), 30_000);
+    return () => window.clearInterval(interval);
+  }, []);
+
   const filtered = useMemo(() => filter === "all" ? records : records.filter((item) => item.kind === filter), [records, filter]);
   const availabilityCount = records.filter((item) => item.kind === "availability").length;
   const changeCount = records.filter((item) => item.kind === "change").length;
