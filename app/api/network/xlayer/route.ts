@@ -46,7 +46,7 @@ export async function GET() {
 
       const latestNumber = BigInt(blockNumberHex);
       const blockNumbers = Array.from({ length: RECENT_BLOCK_COUNT }, (_, index) => latestNumber - BigInt(index))
-        .filter((number) => number >= 0n);
+        .filter((number) => number >= BigInt(0));
       const blocks = await Promise.all(blockNumbers.map((number, index) =>
         rpc<RpcBlock | null>(endpoint, "eth_getBlockByNumber", ["0x" + number.toString(16), false], 10 + index)
       ));
