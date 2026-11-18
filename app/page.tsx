@@ -52,6 +52,7 @@ export default function Home() {
   const [changeFeedLoading, setChangeFeedLoading] = useState(false);
   const [changeFeedError, setChangeFeedError] = useState("");
   const [activeSection, setActiveSection] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [detailTab, setDetailTab] = useState<"overview" | "intelligence" | "changes" | "checks" | "timeline" | "settings">("overview");
   const [intelligenceProfile, setIntelligenceProfile] = useState<IntelligenceProfile | null>(null);
   const [intelligenceLoading, setIntelligenceLoading] = useState(false);
@@ -600,7 +601,34 @@ export default function Home() {
       <section className="main-panel" id="overview">
         <header className="topbar">
           <div className="breadcrumbs">Workspace <span>/</span> <strong>{selectedSite ? "Website details" : showChanges ? "Change intelligence" : activeSection ? sectionContent[activeSection]?.title ?? "Workspace" : "Overview"}</strong></div>
-          <div className="topbar-right"><span className="preview-pill"><span/> Preview environment</span><button className="icon-button" aria-label="Search websites" onClick={() => document.getElementById("site-search")?.focus()}><Icon name="search"/></button></div>
+          <div className="topbar-right">
+            <button className={`menu-trigger topbar-menu-trigger ${menuOpen ? "is-open" : ""}`} type="button" aria-expanded={menuOpen} aria-controls="workspace-menu" onClick={() => setMenuOpen((open) => !open)}>
+              <span className="menu-trigger-icon"><i/><i/><i/></span><span>Menu</span><span className="menu-chevron">⌄</span>
+            </button>
+            <div className={`nav-popover topbar-nav-popover ${menuOpen ? "is-open" : ""}`} id="workspace-menu">
+              <div className="nav-popover-head"><span>WORKSPACE</span><button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)}>×</button></div>
+              <nav className="nav-list" aria-label="Main navigation">
+                <a className={`nav-item ${!selectedSite && !showChanges && !activeSection ? "active" : ""}`} href="#overview" onClick={() => { openSection("overview"); setMenuOpen(false); }}><Icon name="grid"/> Overview</a>
+                <a className="nav-item" href="#websites" onClick={() => { openSection("websites"); setMenuOpen(false); document.getElementById("websites")?.scrollIntoView({ behavior: "smooth" }); }}><Icon name="globe"/> Websites <span className="nav-count">{sites.length}</span></a>
+                <a className={`nav-item ${showChanges ? "active" : ""}`} href="#changes" onClick={() => { openSection("changes"); setMenuOpen(false); }}><Icon name="activity"/> Changes</a>
+                <a className={`nav-item ${activeSection === "timeline" || (selectedSite && detailTab === "timeline") ? "active" : ""}`} href="#timeline" onClick={() => { if (sites.length) { setSelectedSite(sites[0]); setDetailTab("timeline"); setShowChanges(false); setActiveSection(""); } else { openSection("timeline"); } setMenuOpen(false); }}><Icon name="clock"/> Trust Timeline</a>
+              </nav>
+              <div className="nav-popover-divider"/><div className="nav-popover-label">ECOSYSTEM</div>
+              <nav className="nav-list" aria-label="Ecosystem navigation">
+                <a className={`nav-item ${activeSection === "circuits" ? "active" : ""}`} href="#circuits" onClick={() => { openSection("circuits"); setMenuOpen(false); }}><Icon name="layers"/> Circuits</a>
+                <a className={`nav-item ${activeSection === "networks" ? "active" : ""}`} href="#networks" onClick={() => { openSection("networks"); setMenuOpen(false); }}><Icon name="globe"/> Networks</a>
+              </nav>
+              <div className="nav-popover-divider"/><div className="nav-popover-label">MANAGEMENT</div>
+              <nav className="nav-list" aria-label="Management navigation">
+                <a className={`nav-item ${activeSection === "alerts" ? "active" : ""}`} href="#alerts" onClick={() => { openSection("alerts"); setMenuOpen(false); }}><Icon name="activity"/> Alerts</a>
+                <a className={`nav-item ${activeSection === "reports" ? "active" : ""}`} href="#reports" onClick={() => { openSection("reports"); setMenuOpen(false); }}><Icon name="file"/> Reports</a>
+                <a className={`nav-item ${activeSection === "settings" ? "active" : ""}`} href="#settings" onClick={() => { openSection("settings"); setMenuOpen(false); }}><Icon name="settings"/> Settings</a>
+              </nav>
+              <div className="nav-popover-network"><span className="network-dot"/> X Layer <small>Read-only connection</small></div>
+            </div>
+            <span className="preview-pill"><span/> Preview environment</span>
+            <button className="icon-button" aria-label="Search websites" onClick={() => document.getElementById("site-search")?.focus()}><Icon name="search"/></button>
+          </div>
         </header>
 
         {selectedSite ? (
