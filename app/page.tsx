@@ -12,6 +12,7 @@ type DashboardChange = { id: string; website_id: string; detected_at: string; pr
 type WebsiteChange = { id: string; detected_at: string; change_type: string; previous_check_id: string | null; current_check_id: string; previous_hash: string | null; current_hash: string | null; previous_title: string | null; current_title: string | null };
 type ChangeFeedRecord = WebsiteChange & { website_id: string };
 type MonitoringSetting = { id: string; website_id: string; user_id: string; enabled: boolean; frequency: "daily"; last_run_at: string | null; next_run_at: string | null };
+type AlertRecord = { id: string; websiteId: string; websiteUrl: string; at: string; kind: "availability" | "change"; severity: "critical" | "warning" | "info"; title: string; detail: string };
 type IntelligenceProfile = { id: string; website_id: string; business_name: string | null; summary: string | null; purpose: string | null; products: string[]; services: string[]; features: string[]; identity_type: string | null; alternate_names: string[]; field_evidence: Record<string, string> | null; contact_emails: string[]; contact_phones: string[]; locations: string[]; pricing_details: string[]; technologies: string[]; integrations: string[]; discovery_evidence: { type: string; value: string; source_url: string; excerpt: string }[]; target_audience: string | null; key_topics: string[]; important_pages: { type: string; label: string; url: string }[]; source_urls: string[]; social_profiles: { platform: string; url: string; evidence?: string }[]; pages_analyzed: { url: string; title: string | null; description: string | null }[]; confidence: string | null; analyzed_at: string | null };
 
 const initialSites: Site[] = [];
@@ -71,6 +72,11 @@ export default function Home() {
   const [monitoredSiteIds, setMonitoredSiteIds] = useState<string[]>([]);
   const [monitoringLoading, setMonitoringLoading] = useState(false);
   const [savingMonitoring, setSavingMonitoring] = useState(false);
+  const [alerts, setAlerts] = useState<AlertRecord[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [alertsError, setAlertsError] = useState("");
+  const [alertFilter, setAlertFilter] = useState<"all" | "availability" | "changes">("all");
+  const [alertRefreshKey, setAlertRefreshKey] = useState(0);
 
 
   useEffect(() => {
@@ -190,6 +196,82 @@ export default function Home() {
     void loadChangeFeed();
     return () => { active = false; };
   }, [showChanges, sites]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadAlerts() {
+      if (activeSection !== "alerts") return;
+      if (!supabase) {
+        setAlerts([]);
+        setAlertsError("The database connection is not configured.");
+        return;
+      }
+      if (sites.length === 0) {
+        setAlerts([]);
+        setAlertsError("");
+        setAlertsLoading(false);
+        return;
+      }
+      setAlertsLoading(true);
+      setAlertsError("");
+      const websiteIds = sites.map((site) => site.id);
+      const [checksResult, changesResult] = await Promise.all([
+        supabase.from("website_checks")
+          .select("id, website_id, checked_at, status, http_status, error_message, page_title")
+          .in("website_id", websiteIds).order("checked_at", { ascending: false }).limit(200),
+        supabase.from("website_changes")
+          .select("id, website_id, detected_at, change_type, previous_title, current_title")
+          .in("website_id", websiteIds).order("detected_at", { ascending: false }).limit(100),
+      ]);
+      if (!active) return;
+      if (checksResult.error || changesResult.error) {
+        console.error("TapeWatch alerts feed failed:", checksResult.error || changesResult.error);
+        setAlertsError("Some alert records could not be loaded. Please refresh and try again.");
+      }
+      const siteById = new Map(sites.map((site) => [site.id, site.url]));
+      const records: AlertRecord[] = [];
+      const priorStatus = new Map<string, string>();
+      for (const check of [...((checksResult.data ?? []) as { id: string; website_id: string; checked_at: string; status: string; http_status: number | null; error_message: string | null; page_title: string | null }[])].reverse()) {
+        const websiteUrl = siteById.get(check.website_id);
+        if (!websiteUrl) continue;
+        if (check.status === "unreachable" || check.status === "http_error") {
+          records.push({
+            id: "check-" + check.id, websiteId: check.website_id, websiteUrl, at: check.checked_at,
+            kind: "availability", severity: "critical",
+            title: check.status === "http_error" ? "Website returned an HTTP error" : "Website could not be reached",
+            detail: [check.http_status ? "HTTP " + check.http_status : "", check.error_message || "The latest saved check could not confirm availability."].filter(Boolean).join(" · "),
+          });
+        } else if (check.status === "reachable_partial") {
+          records.push({
+            id: "check-" + check.id, websiteId: check.website_id, websiteUrl, at: check.checked_at,
+            kind: "availability", severity: "warning", title: "Website capture was incomplete",
+            detail: check.error_message || "The response was only partially captured; no full content fingerprint was saved.",
+          });
+        } else if (check.status === "reachable" && (priorStatus.get(check.website_id) === "unreachable" || priorStatus.get(check.website_id) === "http_error")) {
+          records.push({
+            id: "recovery-" + check.id, websiteId: check.website_id, websiteUrl, at: check.checked_at,
+            kind: "availability", severity: "info", title: "Website is reachable again",
+            detail: "A later saved check confirmed a successful response.",
+          });
+        }
+        priorStatus.set(check.website_id, check.status);
+      }
+      for (const change of (changesResult.data ?? []) as { id: string; website_id: string; detected_at: string; change_type: string; previous_title: string | null; current_title: string | null }[]) {
+        const websiteUrl = siteById.get(change.website_id);
+        if (!websiteUrl) continue;
+        records.push({
+          id: "change-" + change.id, websiteId: change.website_id, websiteUrl, at: change.detected_at,
+          kind: "change", severity: "info", title: "Website content changed",
+          detail: [change.previous_title || "Previous version", "→", change.current_title || "New version"].join(" "),
+        });
+      }
+      records.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+      setAlerts(records.slice(0, 100));
+      setAlertsLoading(false);
+    }
+    void loadAlerts();
+    return () => { active = false; };
+  }, [activeSection, sites, alertRefreshKey]);
 
   useEffect(() => {
     let active = true;
@@ -755,7 +837,26 @@ export default function Home() {
             </section>}
             {detailTab === "settings" && <section className="detail-card settings-preview"><div className="detail-card-heading"><div><span className="mini-icon"><Icon name="settings" size={17}/></span><h2>Monitoring preferences</h2></div><span className={monitoringSetting?.enabled ? "status-pill status-active" : "coming-soon"}>{monitoringSetting?.enabled ? "DAILY MONITORING ON" : "PAUSED"}</span></div><div className="monitoring-control-row"><div><strong>Automatic daily checks</strong><p className="detail-muted">Capture a website fingerprint once per day and record detected content changes.</p></div><button type="button" className={monitoringSetting?.enabled ? "secondary-button" : "primary-button"} onClick={() => void toggleDailyMonitoring(!monitoringSetting?.enabled)} disabled={monitoringLoading || savingMonitoring}>{monitoringLoading ? "Loading…" : savingMonitoring ? "Saving…" : monitoringSetting?.enabled ? "Pause monitoring" : "Enable daily checks"}</button></div><div className="info-rows"><div><span>Check frequency</span><strong>Daily</strong></div><div><span>Last scheduled check</span><strong>{monitoringSetting?.last_run_at ? new Date(monitoringSetting.last_run_at).toLocaleString() : "Not run yet"}</strong></div><div><span>Next scheduled check</span><strong>{monitoringSetting?.enabled && monitoringSetting.next_run_at ? new Date(monitoringSetting.next_run_at).toLocaleString() : "Not scheduled"}</strong></div></div><p className="detail-muted settings-footnote">Scheduled checks run through the secure server scheduler. Pausing monitoring preserves existing evidence history. Change notifications are not active yet.</p></section>}
           </div>
-        ) : activeSection === "circuits" ? <CircuitWorkspace /> : activeSection === "networks" ? <NetworkWorkspace /> : activeSection && sectionContent[activeSection] ? <div className="content module-workspace" id={activeSection}><div className="workspace-title-row"><div><div className="eyebrow">{sectionContent[activeSection].eyebrow}</div><h1>{sectionContent[activeSection].title}<span>.</span></h1><p className="intro">{sectionContent[activeSection].description}</p></div><span className="preview-pill"><span/> PREVIEW</span></div><div className="module-notice"><Icon name="shield" size={18}/><div><strong>Data sources are not connected</strong><p>This section is a frontend foundation. It will display real records only after the relevant monitoring or network integration is implemented and validated.</p></div></div><div className="module-page-grid">{sectionContent[activeSection].items.map((item) => <article className="module-page-card" key={item.title}><div className="module-page-card-top"><span className="mini-icon"><Icon name={activeSection === "settings" ? "settings" : activeSection === "timeline" ? "clock" : activeSection === "reports" ? "file" : "shield"} size={17}/></span><span className="coming-soon">{item.state}</span></div><h2>{item.title}</h2><p>{item.description}</p></article>)}</div><div className="module-evidence-note"><strong>Evidence-first design.</strong> No live activity, verification result or network status is being fabricated in this preview.</div></div> : showChanges ? <div className="content changes-workspace" id="changes">
+        ) : activeSection === "alerts" ? <div className="content alerts-workspace" id="alerts">
+            <div className="workspace-title-row"><div><div className="eyebrow">MONITORING MANAGEMENT</div><h1>Alerts centre<span>.</span></h1><p className="intro">A live in-app feed of saved availability issues, recoveries and website content changes.</p></div><button className="secondary-button" onClick={() => setAlertRefreshKey((value) => value + 1)} disabled={alertsLoading}>{alertsLoading ? "Refreshing…" : "Refresh alerts"}</button></div>
+            <div className="alerts-summary-grid">
+              <article><span>AVAILABILITY EVENTS</span><strong>{alerts.filter((item) => item.kind === "availability" && item.severity === "critical").length}</strong><small>Saved unreachable or HTTP-error checks</small></article>
+              <article><span>INCOMPLETE CAPTURES</span><strong>{alerts.filter((item) => item.severity === "warning").length}</strong><small>Partial results without a full fingerprint</small></article>
+              <article><span>CONTENT CHANGES</span><strong>{alerts.filter((item) => item.kind === "change").length}</strong><small>Recorded fingerprint differences</small></article>
+            </div>
+            <div className="alerts-feed-card">
+              <div className="alerts-feed-heading"><div><strong>Recent events</strong><span>{alerts.length} records · newest first</span></div><div className="alerts-filter-row">
+                <button className={alertFilter === "all" ? "active" : ""} onClick={() => setAlertFilter("all")}>All</button>
+                <button className={alertFilter === "availability" ? "active" : ""} onClick={() => setAlertFilter("availability")}>Availability</button>
+                <button className={alertFilter === "changes" ? "active" : ""} onClick={() => setAlertFilter("changes")}>Changes</button>
+              </div></div>
+              {alertsError && <p className="alerts-error">{alertsError}</p>}
+              {alertsLoading ? <p className="alerts-empty">Loading saved alert records…</p> : alerts.filter((item) => alertFilter === "all" || (alertFilter === "availability" ? item.kind === "availability" : item.kind === "change")).length ? <div className="alerts-list">{alerts.filter((item) => alertFilter === "all" || (alertFilter === "availability" ? item.kind === "availability" : item.kind === "change")).map((item) => <article className={`alerts-row alerts-${item.severity}`} key={item.id}>
+                <span className="alerts-indicator" aria-hidden="true"></span><div className="alerts-row-main"><div className="alerts-row-top"><strong>{item.title}</strong><span className={`alerts-kind alerts-kind-${item.severity}`}>{item.kind === "change" ? "CONTENT CHANGE" : item.severity === "critical" ? "AVAILABILITY" : item.severity === "warning" ? "PARTIAL CAPTURE" : "RECOVERY"}</span></div><a href={item.websiteUrl} target="_blank" rel="noreferrer">{item.websiteUrl}</a><p>{item.detail}</p><small>{new Date(item.at).toLocaleString()}</small></div>
+              </article>)}</div> : <div className="alerts-empty"><h3>No matching alert records</h3><p>{sites.length ? "Saved website checks and detected changes will appear here when they produce an alert-worthy event." : "Add a website and run a check to start building your alert history."}</p></div>}
+            </div>
+            <p className="alerts-disclaimer">These are in-app records derived from saved checks and change events. Email, SMS and external webhook delivery are not enabled; no notification is sent outside TapeWatch.</p>
+          </div> : activeSection === "circuits" ? <CircuitWorkspace /> : activeSection === "networks" ? <NetworkWorkspace /> : activeSection && sectionContent[activeSection] ? <div className="content module-workspace" id={activeSection}><div className="workspace-title-row"><div><div className="eyebrow">{sectionContent[activeSection].eyebrow}</div><h1>{sectionContent[activeSection].title}<span>.</span></h1><p className="intro">{sectionContent[activeSection].description}</p></div><span className="preview-pill"><span/> PREVIEW</span></div><div className="module-notice"><Icon name="shield" size={18}/><div><strong>Data sources are not connected</strong><p>This section is a frontend foundation. It will display real records only after the relevant monitoring or network integration is implemented and validated.</p></div></div><div className="module-page-grid">{sectionContent[activeSection].items.map((item) => <article className="module-page-card" key={item.title}><div className="module-page-card-top"><span className="mini-icon"><Icon name={activeSection === "settings" ? "settings" : activeSection === "timeline" ? "clock" : activeSection === "reports" ? "file" : "shield"} size={17}/></span><span className="coming-soon">{item.state}</span></div><h2>{item.title}</h2><p>{item.description}</p></article>)}</div><div className="module-evidence-note"><strong>Evidence-first design.</strong> No live activity, verification result or network status is being fabricated in this preview.</div></div> : showChanges ? <div className="content changes-workspace" id="changes">
           <div className="workspace-title-row">
             <div><div className="eyebrow">WEBSITE INTELLIGENCE</div><h1>Change intelligence<span>.</span></h1><p className="intro">Investigate what changed across your monitored websites, with a clear trail back to the evidence.</p></div>
             <span className="preview-pill"><span/> SAVED RECORDS</span>
