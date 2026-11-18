@@ -1,0 +1,27 @@
+name: TapeWatch scheduled monitoring
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run due website checks
+        env:
+          TAPEWATCH_APP_URL: ${{ secrets.TAPEWATCH_APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TAPEWATCH_APP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "Missing TAPEWATCH_APP_URL or CRON_SECRET repository secrets."
+            exit 1
+          fi
+          curl --fail-with-body --silent --show-error \
+            --request GET "${TAPEWATCH_APP_URL%/}/api/cron/monitor" \
+            --header "Authorization: Bearer ${CRON_SECRET}"
