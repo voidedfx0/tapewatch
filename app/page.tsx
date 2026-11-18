@@ -48,8 +48,10 @@ export default function Home() {
   const [networkBlock, setNetworkBlock] = useState<string | null>(null);
   const [networkCheckedAt, setNetworkCheckedAt] = useState<string | null>(null);
   const [networkConnection, setNetworkConnection] = useState<"loading" | "connected" | "error">("loading");
+  const [networkRefreshKey, setNetworkRefreshKey] = useState(0);
   const [circuitCount, setCircuitCount] = useState<number | null>(null);
   const [circuitConnection, setCircuitConnection] = useState<"loading" | "connected" | "error">("loading");
+  const [circuitRefreshKey, setCircuitRefreshKey] = useState(0);
   const [savingSite, setSavingSite] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [url, setUrl] = useState("");
@@ -177,7 +179,7 @@ export default function Home() {
       if (networkTimer) clearInterval(networkTimer);
       if (circuitTimer) clearInterval(circuitTimer);
     };
-  }, []);
+  }, [networkRefreshKey, circuitRefreshKey]);
 
   useEffect(() => {
     let active = true;
@@ -879,7 +881,7 @@ export default function Home() {
             <article className="stat-card"><div className="stat-head">Registered circuits <span className="stat-icon"><Icon name="layers"/></span></div><div className="stat-number">{circuitConnection === "connected" ? circuitCount : "—"}</div><div className="stat-foot">{circuitConnection === "connected" ? "Live X Layer registry count" : circuitConnection === "loading" ? "Loading registry" : "Registry temporarily unavailable"}</div></article>
           </section>
           <section className="section-card" aria-label="X Layer network status">
-            <div className="section-heading"><div><h2>X Layer network</h2><p>Live public RPC status, refreshed automatically every 15 seconds.</p></div><span className="coming-soon">{networkConnection === "connected" ? "CONNECTED" : networkConnection === "loading" ? "CONNECTING" : "UNAVAILABLE"}</span></div>
+            <div className="section-heading"><div><h2>X Layer network</h2><p>Live public RPC status, refreshed automatically every 15 seconds.</p></div><div className="heading-actions"><button className="secondary-button" type="button" onClick={() => { setNetworkConnection("loading"); setNetworkRefreshKey((value) => value + 1); }} disabled={networkConnection === "loading"}>Refresh network</button><span className="coming-soon">{networkConnection === "connected" ? "CONNECTED" : networkConnection === "loading" ? "CONNECTING" : "UNAVAILABLE"}</span></div></div>
             <div className="table-toolbar"><div className="table-title">LATEST BLOCK <span>{networkBlock ?? "—"}</span></div><span className="dashboard-insight-copy">{networkCheckedAt ? "Last checked " + new Date(networkCheckedAt).toLocaleTimeString() : networkConnection === "error" ? "Could not load live network data" : "Waiting for network response"}</span></div>
           </section>
 
@@ -937,7 +939,7 @@ export default function Home() {
             </div>
           </section>
           <div className="lower-grid">
-            <section className="mini-card" id="circuits"><div className="mini-heading"><div><span className="mini-icon"><Icon name="layers" size={17}/></span><h2>Circuit intelligence</h2></div><span className="coming-soon">{circuitConnection === "connected" ? circuitCount + " RECORDS" : circuitConnection === "loading" ? "CONNECTING" : "UNAVAILABLE"}</span></div><p>{circuitConnection === "connected" ? "The X Layer circuit registry is connected and currently exposes " + circuitCount + " processor records. Ownership activity and event history are not connected yet." : "The X Layer circuit registry could not be loaded. Ownership activity and event history remain unavailable until a supported event source is connected."}</p><div className="mini-foot"><span><Icon name="clock" size={14}/> {circuitConnection === "connected" ? "Registry source live" : "Registry status unavailable"}</span><span>Read-only source <Icon name="arrow" size={13}/></span></div></section>
+            <section className="mini-card" id="circuits"><div className="mini-heading"><div><span className="mini-icon"><Icon name="layers" size={17}/></span><h2>Circuit intelligence</h2></div><div className="heading-actions"><button className="secondary-button" type="button" onClick={() => { setCircuitConnection("loading"); setCircuitRefreshKey((value) => value + 1); }} disabled={circuitConnection === "loading"}>Refresh registry</button><span className="coming-soon">{circuitConnection === "connected" ? circuitCount + " RECORDS" : circuitConnection === "loading" ? "CONNECTING" : "UNAVAILABLE"}</span></div></div><p>{circuitConnection === "connected" ? "The X Layer circuit registry is connected and currently exposes " + circuitCount + " processor records. Ownership activity and event history are not connected yet." : "The X Layer circuit registry could not be loaded. Ownership activity and event history remain unavailable until a supported event source is connected."}</p><div className="mini-foot"><span><Icon name="clock" size={14}/> {circuitConnection === "connected" ? "Registry source live" : "Registry status unavailable"}</span><span>Read-only source <Icon name="arrow" size={13}/></span></div></section>
             <section className="mini-card" id="activity"><div className="mini-heading"><div><span className="mini-icon"><Icon name="activity" size={17}/></span><h2>Trust timeline</h2></div><span className="coming-soon">{dashboardActivityLoading ? "LOADING" : dashboardRecentActivity.length ? dashboardRecentActivity.length + " EVENTS" : "NO EVENTS"}</span></div>
               {dashboardActivityLoading ? <div className="activity-empty"><span className="activity-line"/><p>Loading saved website activity…</p></div> : dashboardRecentActivity.length ? <div className="activity-feed">{dashboardRecentActivity.slice(0,5).map((event) => <article className="activity-feed-item" key={event.id}><span className="activity-line"/><div><strong>{event.title}</strong><p>{event.detail}</p><time>{new Date(event.at).toLocaleString()}</time></div></article>)}</div> : <div className="activity-empty"><span className="activity-line"/><p>No website checks have been saved yet. Run a check on a saved website to create the first timeline event. Chain events are not connected.</p></div>}
             </section>
