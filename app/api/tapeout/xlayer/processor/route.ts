@@ -5,8 +5,7 @@ const CPU_AT = "0x4bc7cbbd";
 const NAME = "0x06fdde03";
 const OWNER_OF = "0x6352211e";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-const HISTORY_BLOCKS = BigInt(20000);
-const LOG_CHUNK_BLOCKS = BigInt(100);
+const HISTORY_BLOCKS = BigInt(100);
 type Rpc<T> = { result?: T; error?: { message?: string; code?: number } };
 async function rpc<T>(endpoint: string, method: string, params: unknown[], id: number): Promise<T> {
   const response = await fetch(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id, method, params }), cache: "no-store", signal: AbortSignal.timeout(12000) });
@@ -36,16 +35,11 @@ type TransferLog = { topics: string[]; blockNumber: string; transactionHash: str
 async function readTransferLogs(endpoint: string, address: string, fromBlock: bigint, toBlock: bigint, tokenId: string | null) {
   const topics: (string | null)[] = [TRANSFER_TOPIC, null, null];
   if (tokenId !== null) topics.push("0x" + BigInt(tokenId).toString(16).padStart(64, "0"));
-  const all: TransferLog[] = [];
-  for (let start = fromBlock; start <= toBlock; start += LOG_CHUNK_BLOCKS) {
-    const end = start + LOG_CHUNK_BLOCKS - BigInt(1) > toBlock ? toBlock : start + LOG_CHUNK_BLOCKS - BigInt(1);
-    const logs = await rpc<TransferLog[]>(endpoint, "eth_getLogs", [{
-      address, fromBlock: "0x" + start.toString(16), toBlock: "0x" + end.toString(16), topics
-    }], 5);
-    all.push(...logs);
-  }
-  return all;
+  return rpc<TransferLog[]>(endpoint, "eth_getLogs", [{
+    address, fromBlock: "0x" + fromBlock.toString(16), toBlock: "0x" + toBlock.toString(16), topics
+  }], 5);
 }
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const number = Number(url.searchParams.get("processorNumber"));
@@ -77,7 +71,7 @@ export async function GET(request: Request) {
         token = { tokenId, owner: decodeAddress(ownerHex) };
       }
       return Response.json({ ok: true, processorNumber: number, address, name: decodeString(nameHex), blockNumber: block.toString(), token, transfers,
-        historyNote: "Transfer events are shown only for blocks " + fromBlock.toString() + "–" + block.toString() + " (latest 20,000 blocks, queried in 100-block batches). Older events may exist. This is recent ERC-721 transfer activity, not a complete audited ownership record.",
+        historyNote: "Transfer events are shown only for blocks " + fromBlock.toString() + "–" + block.toString() + " (latest 100 blocks in a single request). Older events may exist. This is recent ERC-721 transfer activity, not a complete audited ownership record.",
         rpcEndpoint: endpoint }, { headers: { "Cache-Control": "no-store" } });
     } catch (error) { lastError = error instanceof Error ? error.message : "Unknown RPC error"; }
   }
