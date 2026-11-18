@@ -1456,6 +1456,17 @@ h1 span { color: #777c84; }
 @media(max-width:560px){.wallet-intelligence-card{padding:14px}.wallet-search-row{flex-direction:column}.wallet-search-row .secondary-button{width:100%}.wallet-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.wallet-profile-heading{align-items:flex-start;flex-direction:column}.wallet-activity-row{align-items:flex-start;flex-direction:column}.wallet-activity-row>a{align-self:flex-end}}
 
 
+/* X Layer network explorer additions */
+.network-metrics-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.network-blocks-card{margin-top:0}
+.network-block-list{display:grid;margin-top:8px}
+.network-block-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(90px,.8fr) minmax(90px,.7fr);align-items:center;gap:14px;padding:12px 2px;border-top:1px solid #edf0f3}
+.network-block-main,.network-block-stats{display:grid;gap:5px;min-width:0}
+.network-block-main strong,.network-block-stats strong{color:#343943;font-size:10px;font-weight:700}
+.network-block-main small,.network-block-stats small{color:#9297a1;font-size:8px;overflow-wrap:anywhere}
+@media(max-width:700px){.network-metrics-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.network-block-row{grid-template-columns:minmax(0,1fr) auto;gap:8px}.network-block-stats:last-child{display:none}}
+
+
 /* Alerts centre */
 .alerts-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:24px 0}
 .alerts-summary-card{background:var(--panel,rgba(255,255,255,.025));border:1px solid var(--border,rgba(255,255,255,.1));border-radius:16px;padding:20px}
