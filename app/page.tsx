@@ -922,7 +922,7 @@ export default function Home() {
               <article className="intelligence-card">
                 <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="activity" size={19}/></span><span className="module-state">{dashboardActivityLoading ? "LOADING RECORDS" : dashboardChanges.length ? dashboardChanges.length + " CHANGES RECORDED" : dashboardChecks.length ? "BASELINE CAPTURED" : "AWAITING FIRST CHECK"}</span></div>
                 <div className="intelligence-card-body"><h3>Change intelligence</h3><p>{dashboardChecks.length ? dashboardChecks.length + " saved website observations and " + dashboardChanges.length + " detected changes are available across your watchlist." : "Run a website check to create the first saved observation. Later fingerprint differences will appear here."}</p></div>
-                <div className="intelligence-card-foot"><span>Version history · File changes</span><span className="module-arrow"><Icon name="arrow" size={15}/></span></div>
+                <div className="intelligence-card-foot"><span>Version history · File changes</span><button type="button" className="module-arrow" aria-label="Open Circuits" onClick={() => openSection("circuits")}><Icon name="arrow" size={15}/></button></div>
               </article>
               <article className="intelligence-card">
                 <div className="intelligence-card-top"><span className="intelligence-icon"><Icon name="layers" size={19}/></span><span className="module-state">{circuitConnection === "connected" ? "REGISTRY CONNECTED" : circuitConnection === "loading" ? "CONNECTING" : "REGISTRY UNAVAILABLE"}</span></div>
