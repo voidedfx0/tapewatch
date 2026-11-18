@@ -44,7 +44,7 @@ export async function GET(request: Request) {
   const address = url.searchParams.get("address") ?? "";
   const tokenId = url.searchParams.get("tokenId");
   if (!Number.isSafeInteger(number) || number < 0 || !/^0x[a-fA-F0-9]{40}$/.test(address)) return Response.json({ ok: false, error: "A valid processor number and address are required." }, { status: 400 });
-  if (tokenId !== null && (!/^\d+$/.test(tokenId) || BigInt(tokenId) < BigInt(1) || BigInt(tokenId) >= (BigInt(1) << BigInt(256)))) return Response.json({ ok: false, error: "Token ID must be a positive uint256." }, { status: 400 });
+  if (tokenId !== null && (tokenId.length > 78 || !/^\d+$/.test(tokenId) || BigInt(tokenId) < BigInt(1) || BigInt(tokenId) >= (BigInt(1) << BigInt(256)))) return Response.json({ ok: false, error: "Token ID must be a positive uint256." }, { status: 400 });
   let lastError = "X Layer RPC is unavailable.";
   for (const endpoint of RPC_ENDPOINTS) {
     try {

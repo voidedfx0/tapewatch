@@ -660,7 +660,7 @@ export async function POST(request: Request) {
       ? "The homepage appears to rely heavily on JavaScript. TapeWatch reads server-delivered HTML and may miss content rendered only in a browser."
       : "Readable server-delivered HTML content was found. Content that requires browser-side interaction may still be missing.";
     const coverageNote = pages.length >= MAX_PAGES
-      ? "The analysis reached its 12-page limit. Large websites may contain additional relevant pages that were not reviewed."
+      ? `The analysis reached its ${MAX_PAGES}-page limit. Large websites may contain additional relevant pages that were not reviewed.`
       : "The analysis reviewed the homepage and selected relevant public pages; it did not crawl every URL on the website.";
     const identitySignals = [
       ...(businessName ? ["A business or site name was identified"] : []),
