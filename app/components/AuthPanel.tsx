@@ -25,6 +25,8 @@ export default function AuthPanel({
   useEffect(() => {
     if (!supabase) {
       onAccessChange?.("visitor");
+      setOpen(true);
+      setMessage("Account sign-in is temporarily unavailable. You can still continue as a visitor.");
       return;
     }
     const refresh = async () => {
@@ -34,6 +36,9 @@ export default function AuthPanel({
         await supabase.auth.signOut();
         setUserEmail(null);
         onAccessChange?.("visitor");
+        let visitorSkipped = false;
+        try { visitorSkipped = sessionStorage.getItem("tapewatch-visitor") === "1"; } catch {}
+        if (!visitorSkipped) setOpen(true);
         return;
       }
       setUserEmail(session?.user.email ?? null);
@@ -147,7 +152,10 @@ export default function AuthPanel({
             <div className="eyebrow">TAPEWATCH ACCOUNT</div>
             <h2 id="auth-title">{userEmail ? "Your account" : mode === "signup" ? "Create your account" : mode === "reset" ? "Reset password" : "Welcome to TapeWatch"}</h2>
             <p className="auth-description">{userEmail ? "Your workspace is connected to this account." : "Explore Circuits and Networks as a visitor. Sign in to add websites, run checks, enable monitoring and save your work."}</p>
-            {userEmail ? <>
+            {!supabase ? <>
+              <p className="auth-message">Account sign-in is not configured for this deployment yet.</p>
+              <button type="button" className="auth-secondary auth-visitor" onClick={continueAsVisitor}>Continue as visitor</button>
+            </> : userEmail ? <>
               <div className="auth-current-account"><strong>{userEmail}</strong><span>Signed in</span></div>
               <button type="button" className="auth-secondary" disabled={busy} onClick={() => void signOut()}>{busy ? "Signing out…" : "Sign out"}</button>
             </> : <>
