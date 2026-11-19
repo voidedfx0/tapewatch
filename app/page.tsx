@@ -746,7 +746,7 @@ export default function Home() {
 
       <section className="main-panel" id="overview">
         <header className="topbar">
-          <div className="breadcrumbs topbar-brand-wrap">{(selectedSite || showChanges || activeSection) && <button type="button" className="back-button" onClick={() => { openSection("overview"); setDetailTab("overview"); }}>← Back</button>}<a className="topbar-brand" href="#overview" onClick={() => openSection("overview")} aria-label="TapeWatch home"><span className="brand-mark"><span /></span><span className="topbar-brand-word">Tape<span>Watch</span></span></a></div>
+          <div className="breadcrumbs topbar-brand-wrap">{(selectedSite || showChanges || activeSection) && <button type="button" className="back-button" onClick={() => { openSection("overview"); setDetailTab("overview"); }}>← Back</button>}<a className="topbar-brand" href="#overview" onClick={() => openSection("overview")} aria-label="TapeWatch home"><span className="topbar-brand-symbol" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M7 9.5h18M7 16h11M7 22.5h18" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"/><path d="M22 13.5v5" stroke="#85898F" strokeWidth="2.4" strokeLinecap="round"/><circle cx="22" cy="16" r="2.2" fill="#85898F"/></svg></span><span className="topbar-brand-word"><strong>Tape</strong><span>Watch</span></span></a></div>
           <div className="topbar-right">
             <button className={`menu-trigger topbar-menu-trigger ${menuOpen ? "is-open" : ""}`} type="button" aria-expanded={menuOpen} aria-controls="workspace-menu" onClick={() => setMenuOpen((open) => !open)}>
               <span className="menu-trigger-icon"><i/><i/><i/></span><span>Menu</span><span className="menu-chevron">⌄</span>
