@@ -773,7 +773,7 @@ export default function Home() {
               <div className="nav-account-panel"><AuthPanel onAccessChange={handleAccessChange} requestAuth={authRequest} /></div>
               <div className="nav-popover-network"><span className="network-dot"/> X Layer <small>Public RPC · read-only</small></div>
             </div>
-            <span className="preview-pill"><span/> Workspace session</span>
+            <span className="preview-pill"><span/>{access === "authenticated" ? "Signed-in workspace" : "Visitor · read-only"}</span>
             <button className="icon-button" aria-label="Search websites" onClick={() => document.getElementById("site-search")?.focus()}><Icon name="search"/></button>
           </div>
         </header>
