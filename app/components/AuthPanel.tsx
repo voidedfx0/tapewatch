@@ -10,9 +10,11 @@ type Access = "visitor" | "authenticated";
 export default function AuthPanel({
   onAccessChange,
   requestAuth = 0,
+  showTrigger = true,
 }: {
   onAccessChange?: (access: Access) => void;
   requestAuth?: number;
+  showTrigger?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("signin");
@@ -36,9 +38,7 @@ export default function AuthPanel({
         await supabase.auth.signOut();
         setUserEmail(null);
         onAccessChange?.("visitor");
-        let visitorSkipped = false;
-        try { visitorSkipped = sessionStorage.getItem("tapewatch-visitor") === "1"; } catch {}
-        if (!visitorSkipped) setOpen(true);
+        setOpen(true);
         return;
       }
       setUserEmail(session?.user.email ?? null);
@@ -46,9 +46,7 @@ export default function AuthPanel({
         onAccessChange?.("authenticated");
       } else {
         onAccessChange?.("visitor");
-        let visitorSkipped = false;
-        try { visitorSkipped = sessionStorage.getItem("tapewatch-visitor") === "1"; } catch {}
-        if (!visitorSkipped) setOpen(true);
+        setOpen(true);
       }
     };
     void refresh();
@@ -69,7 +67,6 @@ export default function AuthPanel({
   }, [requestAuth]);
 
   function continueAsVisitor() {
-    try { sessionStorage.setItem("tapewatch-visitor", "1"); } catch {}
     setOpen(false);
     setMessage("");
     onAccessChange?.("visitor");
@@ -99,7 +96,6 @@ export default function AuthPanel({
         const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
         if (!data.user || data.user.is_anonymous) throw new Error("A verified account is required.");
-        try { sessionStorage.removeItem("tapewatch-visitor"); } catch {}
         setUserEmail(data.user.email ?? null);
         onAccessChange?.("authenticated");
         setOpen(false);
@@ -133,7 +129,6 @@ export default function AuthPanel({
     setBusy(false);
     if (error) setMessage(error.message);
     else {
-      try { sessionStorage.setItem("tapewatch-visitor", "1"); } catch {}
       onAccessChange?.("visitor");
       window.location.reload();
     }
@@ -141,10 +136,10 @@ export default function AuthPanel({
 
   return (
     <>
-      <button type="button" className="account-trigger" onClick={() => { setOpen(true); setMessage(""); setMode("signin"); }}>
+      {showTrigger && <button type="button" className="account-trigger" onClick={() => { setOpen(true); setMessage(""); setMode("signin"); }}>
         <span className="account-trigger-dot" />
         {userEmail || "Visitor · Sign in"}
-      </button>
+      </button>}
       {open && typeof document !== "undefined" && createPortal(
         <div className="auth-backdrop auth-dropdown-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
           <section className="auth-dialog auth-dropdown-panel" role="dialog" aria-modal="true" aria-labelledby="auth-title">
