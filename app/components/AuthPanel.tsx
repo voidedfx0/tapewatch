@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
 
 type Mode = "signin" | "signup" | "reset";
@@ -121,7 +122,7 @@ export default function AuthPanel() {
         <span className="account-trigger-dot" />
         {userEmail ? userEmail : anonymous ? "Save your workspace" : "Sign in"}
       </button>
-      {open && <div className="auth-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+      {open && typeof document !== "undefined" && createPortal(<div className="auth-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
         <section className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title">
           <button className="auth-close" type="button" aria-label="Close" onClick={() => setOpen(false)}>×</button>
           <div className="eyebrow">TAPEWATCH ACCOUNT</div>
@@ -146,7 +147,7 @@ export default function AuthPanel() {
           {message && <p className="auth-message" role="status">{message}</p>}
           <p className="auth-footnote">By continuing, you agree to use TapeWatch responsibly. Your private workspace is protected by account-based database policies.</p>
         </section>
-      </div>}
+      </div>, document.body)}
     </>
   );
 }
