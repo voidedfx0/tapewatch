@@ -1696,11 +1696,11 @@ body{font-family:var(--font-space-grotesk), "Segoe UI Variable", "Inter", system
 
 .topbar-brand-wrap{display:flex;align-items:center;gap:14px}
 .topbar-brand{display:inline-flex;align-items:center;gap:9px;color:#17181b;text-decoration:none;font-family:var(--font-space-grotesk),Arial,sans-serif;font-size:14px;font-weight:750;letter-spacing:-.55px}
-.topbar-brand-symbol{display:grid;place-items:center;width:29px;height:29px;flex:0 0 29px;border:1px solid #d9dadd;border-radius:9px;background:linear-gradient(145deg,#fff 0%,#f0f1f2 100%);color:#17181b;box-shadow:0 2px 7px rgba(20,20,20,.06);transition:transform .2s ease,border-color .2s ease}
+.topbar-brand-symbol{display:grid;place-items:center;width:29px;height:29px;flex:0 0 29px;border:1px solid #17181b;border-radius:9px;background:#17181b;color:#fff;box-shadow:0 2px 7px rgba(20,20,20,.08);transition:transform .2s ease,border-color .2s ease}
 .topbar-brand-symbol svg{display:block;width:22px;height:22px}
-.topbar-brand:hover .topbar-brand-symbol{transform:translateY(-1px);border-color:#aeb1b5}
+.topbar-brand:hover .topbar-brand-symbol{transform:translateY(-1px);border-color:#000}
 .topbar-brand-word{display:inline-flex;align-items:baseline;gap:0;white-space:nowrap;line-height:1}
 .topbar-brand-word strong{color:#17181b;font-weight:780}
-.topbar-brand-word span{color:#85898f;font-weight:520}
+.topbar-brand-word span{margin-left:-2px;color:#17181b;font-weight:650;letter-spacing:-.8px}
 @media(max-width:560px){.topbar-brand{gap:7px;font-size:13px}.topbar-brand-symbol{width:27px;height:27px;flex-basis:27px}}
 @media(prefers-reduced-motion:reduce){.topbar-brand-symbol{transition:none}}
