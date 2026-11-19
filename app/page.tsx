@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import CircuitWorkspace from "./components/CircuitWorkspace";
 import NetworkWorkspace from "./components/NetworkWorkspace";
@@ -65,6 +65,9 @@ export default function Home() {
   const [changeFeedError, setChangeFeedError] = useState("");
   const [activeSection, setActiveSection] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [access, setAccess] = useState<"checking" | "visitor" | "authenticated">("checking");
+  const [authRequest, setAuthRequest] = useState(0);
+  const handleAccessChange = useCallback((next: "visitor" | "authenticated") => setAccess(next), []);
   const [detailTab, setDetailTab] = useState<"overview" | "intelligence" | "changes" | "checks" | "timeline" | "settings">("overview");
   const [intelligenceProfile, setIntelligenceProfile] = useState<IntelligenceProfile | null>(null);
   const [intelligenceLoading, setIntelligenceLoading] = useState(false);
@@ -101,16 +104,17 @@ export default function Home() {
       }
 
       try {
-        let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
-
-        if (!session) {
-          const { data, error } = await supabase.auth.signInAnonymously();
-          if (error) throw error;
-          session = data.session;
+        if (!session || session.user.is_anonymous || !session.user.email) {
+          if (active) {
+            setSites([]);
+            setMonitoredSiteIds([]);
+            setDashboardChecks([]);
+            setDashboardChanges([]);
+          }
+          return;
         }
-
-        if (!session) throw new Error("A secure workspace session could not be created.");
 
         const { data, error } = await supabase
           .from("websites")
@@ -469,6 +473,13 @@ export default function Home() {
   };
 
   function openSection(section: string) {
+    const publicSections = ["overview", "circuits", "networks"];
+    if (access !== "authenticated" && !publicSections.includes(section)) {
+      setAuthRequest((value) => value + 1);
+      setNotice("Sign in or create an account to use TapeWatch services.");
+      setMenuOpen(false);
+      return;
+    }
     setSelectedSite(null);
     setShowChanges(section === "changes");
     setActiveSection(section === "changes" || section === "overview" || section === "websites" ? "" : section);
@@ -476,6 +487,11 @@ export default function Home() {
 
   async function addSite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (access !== "authenticated") {
+      setShowAdd(false);
+      setAuthRequest((value) => value + 1);
+      return;
+    }
     const trimmed = url.trim();
     if (!/^https?:\/\/.+\..+/.test(trimmed)) {
       setNotice("Enter a complete website address, including https://");
@@ -532,6 +548,7 @@ export default function Home() {
   }
 
   async function toggleDailyMonitoring(enabled: boolean) {
+    if (access !== "authenticated") { setAuthRequest((value) => value + 1); return; }
     if (!selectedSite || !supabase) return;
     setSavingMonitoring(true);
     setNotice("");
@@ -569,6 +586,7 @@ export default function Home() {
   }
 
   async function analyzeWebsiteIntelligence() {
+    if (access !== "authenticated") { setAuthRequest((value) => value + 1); return; }
     if (!selectedSite || !supabase) return;
     setAnalyzingIntelligence(true);
     setNotice("");
@@ -594,6 +612,7 @@ export default function Home() {
   }
 
   async function runWebsiteCheck() {
+    if (access !== "authenticated") { setAuthRequest((value) => value + 1); return; }
     if (!selectedSite || !supabase) return;
     setCheckingWebsite(true);
     setNotice("");
@@ -635,6 +654,7 @@ export default function Home() {
   }
 
   async function verifySavedCheck(savedCheck: WebsiteCheck) {
+    if (access !== "authenticated") { setAuthRequest((value) => value + 1); return; }
     if (!selectedSite || !supabase) return;
     setVerifyingCheckId(savedCheck.id);
     setVerificationResult(null);
@@ -750,7 +770,7 @@ export default function Home() {
                 <a className={`nav-item ${activeSection === "settings" ? "active" : ""}`} href="#settings" onClick={() => { openSection("settings"); setMenuOpen(false); }}><Icon name="settings"/> Settings</a>
               </nav>
               <div className="nav-popover-divider"/><div className="nav-popover-label">ACCOUNT</div>
-              <div className="nav-account-panel"><AuthPanel /></div>
+              <div className="nav-account-panel"><AuthPanel onAccessChange={handleAccessChange} requestAuth={authRequest} /></div>
               <div className="nav-popover-network"><span className="network-dot"/> X Layer <small>Public RPC · read-only</small></div>
             </div>
             <span className="preview-pill"><span/> Workspace session</span>
@@ -975,7 +995,7 @@ export default function Home() {
           </section>}
 
           <section className="section-card" id="websites">
-            <div className="section-heading"><div><h2>Website watchlist</h2><p>Your saved websites and their current setup state.</p></div><button className="text-button" onClick={() => setShowAdd(true)}>Add website <Icon name="arrow" size={15}/></button></div>
+            <div className="section-heading"><div><h2>Website watchlist</h2><p>Your saved websites and their current setup state.</p></div><button className="text-button" onClick={() => { if (access === "authenticated") setShowAdd(true); else setAuthRequest((value) => value + 1); }}>Add website <Icon name="arrow" size={15}/></button></div>
             <div className="table-toolbar"><div className="table-title">ALL SITES <span>{sites.length}</span></div><label className="search-box"><Icon name="search" size={16}/><input id="site-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search websites..." /></label></div>
             {sitesLoading ? <div className="empty-state"><p>Loading your saved websites…</p></div> : filteredSites.length ? <div className="site-list">{filteredSites.map((site) => <button className="site-row site-row-button" key={site.id} onClick={() => { setSelectedSite(site); setDetailTab("overview"); }}><div className="site-favicon"><Icon name="globe" size={17}/></div><div className="site-details"><strong className="watchlist-name-window" title={site.url}><span className="watchlist-name-track"><span>{site.url}</span><span aria-hidden="true">{site.url}</span></span></strong><span>Saved in your workspace</span></div><span className={`draft-status ${monitoredSiteIds.includes(site.id) ? "monitoring-on" : ""}`} title={monitoredSiteIds.includes(site.id) ? "Daily monitoring is enabled" : "Daily monitoring is off"}><span/> {monitoredSiteIds.includes(site.id) ? "Monitoring on" : "Setup draft"}</span><span className="site-open"><Icon name="arrow" size={15}/></span></button>)}</div> : <div className="empty-state"><div className="empty-illustration"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="empty-globe"><Icon name="globe" size={29}/></div><span className="spark spark-one"/> <span className="spark spark-two"/></div><h3>{query ? "No matching websites" : "Nothing on your watchlist yet"}</h3><p>{query ? "Try a different search term." : "Add a website to start setting up your monitoring workspace. You can review the setup before anything is connected."}</p>{!query && <button className="secondary-button" onClick={() => setShowAdd(true)}><Icon name="plus" size={16}/> Add your first website</button>}</div>}
           </section>
