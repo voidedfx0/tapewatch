@@ -706,6 +706,7 @@ export default function Home() {
 
   return (
     <main className="app-shell">
+      <AuthPanel onAccessChange={handleAccessChange} requestAuth={authRequest} showTrigger={false} />
       <aside className="sidebar">
         <a className="brand" href="#" aria-label="TapeWatch home">
           <span className="brand-mark"><span /></span>
@@ -770,7 +771,7 @@ export default function Home() {
                 <a className={`nav-item ${activeSection === "settings" ? "active" : ""}`} href="#settings" onClick={() => { openSection("settings"); setMenuOpen(false); }}><Icon name="settings"/> Settings</a>
               </nav>
               <div className="nav-popover-divider"/><div className="nav-popover-label">ACCOUNT</div>
-              <div className="nav-account-panel"><AuthPanel onAccessChange={handleAccessChange} requestAuth={authRequest} /></div>
+              <div className="nav-account-panel"><button type="button" className="account-trigger" onClick={() => { setAuthRequest((value) => value + 1); setMenuOpen(false); }}><span className="account-trigger-dot" />{access === "authenticated" ? "Account" : "Visitor · Sign in"}</button></div>
               <div className="nav-popover-network"><span className="network-dot"/> X Layer <small>Public RPC · read-only</small></div>
             </div>
             <span className="preview-pill"><span/>{access === "authenticated" ? "Signed-in workspace" : "Visitor · read-only"}</span>
