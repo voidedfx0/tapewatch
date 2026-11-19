@@ -146,9 +146,13 @@ export default function AuthPanel({
         {userEmail || "Visitor · Sign in"}
       </button>
       {open && typeof document !== "undefined" && createPortal(
-        <div className="auth-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
-          <section className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+        <div className="auth-backdrop auth-dropdown-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+          <section className="auth-dialog auth-dropdown-panel" role="dialog" aria-modal="true" aria-labelledby="auth-title">
             <button className="auth-close" type="button" aria-label="Close" onClick={() => setOpen(false)}>×</button>
+            <div className="auth-presence" aria-hidden="true">
+              <span className="auth-eye"><svg viewBox="0 0 36 24"><path d="M2 12C6 5.5 11.5 2.5 18 2.5S30 5.5 34 12c-4 6.5-9.5 9.5-16 9.5S6 18.5 2 12Z"/><circle cx="18" cy="12" r="5.2"/><circle className="auth-eye-glint" cx="20" cy="10" r="1.3"/><path className="auth-eye-lid" d="M2 12C6 5.5 11.5 2.5 18 2.5S30 5.5 34 12"/></svg></span>
+              <span className="auth-presence-copy" key={mode}>TAPEWATCH <i>·</i> YOUR SIGNAL, IN FOCUS</span>
+            </div>
             <div className="eyebrow">TAPEWATCH ACCOUNT</div>
             <h2 id="auth-title">{userEmail ? "Your account" : mode === "signup" ? "Create your account" : mode === "reset" ? "Reset password" : "Welcome to TapeWatch"}</h2>
             <p className="auth-description">{userEmail ? "Your workspace is connected to this account." : "Explore Circuits and Networks as a visitor. Sign in to add websites, run checks, enable monitoring and save your work."}</p>
