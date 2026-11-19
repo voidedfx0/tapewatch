@@ -463,8 +463,8 @@ export async function POST(request: Request) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data: userData, error: authError } = await supabase.auth.getUser();
-  if (authError || !userData.user) {
-    return NextResponse.json({ error: "Your workspace session is invalid. Refresh and try again." }, { status: 401 });
+  if (authError || !userData.user || userData.user.is_anonymous) {
+    return NextResponse.json({ error: "A signed-in account is required for this service." }, { status: 401 });
   }
 
   let payload: { websiteId?: string };
