@@ -1693,3 +1693,10 @@ body{font-family:var(--font-space-grotesk), "Segoe UI Variable", "Inter", system
   .auth-dropdown-panel .auth-current-account, .auth-eye circle:nth-child(2),
   .auth-eye-lid { animation: none !important; transition: none !important; }
 }
+
+.topbar-brand-wrap{display:flex;align-items:center;gap:14px}
+.topbar-brand{display:inline-flex;align-items:center;gap:8px;color:#e7edf5;text-decoration:none;font-size:13px;font-weight:750;letter-spacing:-.35px}
+.topbar-brand .brand-mark{width:22px;height:22px;border-radius:6px}
+.topbar-brand .brand-mark span{width:10px;height:10px;border-width:1.7px}
+.topbar-brand .brand-mark span:after{width:4px;height:4px;right:-4px;top:-4px}
+.topbar-brand-word span{color:#aab6c4;font-weight:500}
