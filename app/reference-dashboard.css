@@ -357,3 +357,46 @@ h1 span { color: #b5ef73 !important; }
 .token-fusion-next { margin-top:12px; padding:12px 13px; border:1px dashed #344237; border-radius:8px; background:#0e1510; }
 .token-fusion-next>strong { color:#c6d5c5; font-size:10px; }
 @media(max-width:600px) { .token-fusion-summary { gap:7px; } .token-fusion-summary>div { padding:10px; } .token-fusion-summary strong { font-size:18px; } .token-fusion-summary small { font-size:8px; } .token-fusion-list article { padding:9px; gap:8px; } }
+
+
+/* Compact Signal Fusion heading and prevent mobile horizontal overflow */
+.token-signal-fusion .token-panel-title h3 {
+  font-size: 13px !important;
+  line-height: 1.35;
+  letter-spacing: -.15px;
+}
+.token-signal-fusion .token-panel-title .changes-kicker {
+  font-size: 8px;
+}
+html, body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+*, *::before, *::after { box-sizing: border-box; }
+.app-shell, .main-panel, .content, .module-workspace {
+  min-width: 0;
+  max-width: 100%;
+}
+@media (max-width: 700px) {
+  .content, .main-panel, .module-workspace { min-width: 0; width: 100%; }
+  .token-intelligence-extra, .token-intel-panel, .token-signal-fusion,
+  .token-panel-title, .token-fusion-summary, .token-fusion-list,
+  .token-fusion-next, .token-intel-grid { min-width: 0; max-width: 100%; }
+  .token-intelligence-extra *, .token-intel-panel *, .token-signal-fusion * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+  .token-live-heading, .token-panel-title, .token-live-status {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+  .token-fusion-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .token-fusion-summary > div { min-width: 0; }
+  .token-fusion-summary strong { font-size: 16px; }
+  .token-fusion-summary small { font-size: 8px; }
+  .token-fusion-list article { min-width: 0; }
+  .token-fusion-list article > div { min-width: 0; flex: 1 1 0; }
+  .token-chart-axis span { min-width: 0; overflow-wrap: anywhere; }
+  .token-trade-row { min-width: 0; }
+}
