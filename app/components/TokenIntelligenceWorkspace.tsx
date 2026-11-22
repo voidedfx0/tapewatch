@@ -18,6 +18,7 @@ const short = (v: string) => v.slice(0, 6) + "…" + v.slice(-4);
 export default function TokenIntelligenceWorkspace() {
   const [network, setNetwork] = useState<NetworkKey>("xlayer");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -27,7 +28,7 @@ export default function TokenIntelligenceWorkspace() {
   const [lastUpdated, setLastUpdated] = useState("");
 
   const refresh = useCallback(async (targetPage: number, query: string) => {
-    setLoading(true); setError("");
+    setRefreshing(true); setError("");
     try {
       const params = new URLSearchParams({ page: String(targetPage) });
       if (query.length >= 2) params.set("search", query);
@@ -37,12 +38,12 @@ export default function TokenIntelligenceWorkspace() {
       setSnapshot({ ...data, tokens: (data.tokens ?? []).map((token: Token) => ({ ...token, networkKey: network })) }); setLastUpdated(data.checkedAt);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not load token data for the selected network.");
-    } finally { setLoading(false); }
+    } finally { setLoading(false); setRefreshing(false); }
   }, [network]);
   useEffect(() => { setPage(1); }, [debouncedSearch, network]);
   useEffect(() => { void refresh(page, debouncedSearch); }, [refresh, page, debouncedSearch]);
   useEffect(() => {
-    const timer = window.setInterval(() => { void refresh(page, debouncedSearch); }, 60_000);
+    const timer = window.setInterval(() => { void refresh(page, debouncedSearch); }, 5_000);
     return () => window.clearInterval(timer);
   }, [refresh, page, debouncedSearch]);
 
@@ -59,8 +60,9 @@ export default function TokenIntelligenceWorkspace() {
           <p className="intro">A multi-chain intelligence workspace, starting with the live X Layer integration.</p>
         </div>
         <div className="token-workspace-actions">
+          <span className="token-auto-refresh" title="TapeWatch checks the selected index every five seconds">AUTO · 5S</span>
           <label className="token-network-select"><span>NETWORK</span><select value={network} onChange={(event) => { setNetwork(event.target.value as NetworkKey); setPage(1); setSearch(""); setDebouncedSearch(""); setSnapshot(null); setSelected(null); }} aria-label="Select token network"><option value="xlayer">X Layer</option><option value="ethereum">Ethereum</option><option value="bnb">BNB Chain</option><option value="solana">Solana</option></select></label>
-          <button className="secondary-button" type="button" onClick={() => void refresh(page, debouncedSearch)} disabled={loading}>{loading ? "Refreshing…" : "Refresh tokens"}</button>
+          <button className="secondary-button" type="button" onClick={() => void refresh(page, debouncedSearch)} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh now"}</button>
         </div>
       </div>
       <div className="token-network-roadmap" role="status"><span className="token-network-live-dot" /><div><strong>{networkLabel} is selected</strong><p>Token and pool discovery is sourced from GeckoTerminal. Extended trade, contract and live-event analysis remains available on X Layer while network-specific evidence adapters are added.</p></div><span className="token-network-count">4 NETWORKS</span></div>
@@ -79,7 +81,7 @@ export default function TokenIntelligenceWorkspace() {
         <article className="circuit-metric-card"><span>TOKENS ON THIS PAGE</span><strong>{snapshot?.tokens.length ?? "—"}</strong><small>{isWideSearch ? "Matches returned for this search page" : "Unique token contracts returned for this page"}</small></article>
         <article className="circuit-metric-card"><span>POOLS RETURNED</span><strong>{snapshot?.poolCount ?? "—"}</strong><small>From the selected discovery page</small></article>
         <article className="circuit-metric-card"><span>NETWORK</span><strong>{networkLabel}</strong><small>{snapshot?.chainId ? "Chain ID " + snapshot.chainId : network === "solana" ? "Solana mainnet" : "Network metadata loading"}</small></article>
-        <article className="circuit-metric-card"><span>DATA STATUS</span><strong>{loading ? "Checking…" : snapshot ? "Connected" : "Unavailable"}</strong><small>{lastUpdated ? "Updated " + new Date(lastUpdated).toLocaleTimeString() : "Waiting for source response"}</small></article>
+        <article className="circuit-metric-card"><span>DATA STATUS</span><strong>{loading ? "Checking…" : refreshing ? "Updating…" : snapshot ? "Connected" : "Unavailable"}</strong><small>{lastUpdated ? "Updated " + new Date(lastUpdated).toLocaleTimeString() : "Waiting for source response"}</small></article>
       </div>
 
       {error && <div className="module-notice circuit-error"><span className="circuit-status-dot error"/><div><strong>Token discovery unavailable</strong><p>{error}</p></div></div>}
