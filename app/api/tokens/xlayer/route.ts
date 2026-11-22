@@ -28,10 +28,8 @@ export async function GET() {
         dex: pool.relationships?.dex?.data?.id ?? "Unknown DEX",
         liquidityUsd: attrs.reserve_in_usd ?? null,
         volume24hUsd: attrs.volume_usd?.h24 ?? null,
-        priceChange24h: role === "base" ? (attrs.price_change_percentage?.h24 ?? null) : null,
         buys24h: attrs.transactions?.h24?.buys ?? null,
         sells24h: attrs.transactions?.h24?.sells ?? null,
-        priceUsd: role === "base" ? (attrs.base_token_price_usd ?? null) : null,
       };
       for (const [token, role] of [[base, "base"], [quote, "quote"]] as const) {
         const a = token?.attributes;
@@ -48,6 +46,8 @@ export async function GET() {
             coingeckoId: a.coingecko_coin_id ?? null,
             role,
             ...poolDetails,
+            priceChange24h: role === "base" ? (attrs.price_change_percentage?.h24 ?? null) : null,
+            priceUsd: role === "base" ? (attrs.base_token_price_usd ?? null) : null,
           });
         }
       }
