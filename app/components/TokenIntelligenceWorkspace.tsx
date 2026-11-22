@@ -63,8 +63,6 @@ export default function TokenIntelligenceWorkspace() {
         </div>
       </div>
       <div className="token-network-roadmap" role="status"><span className="token-network-live-dot" /><div><strong>{networkLabel} is selected</strong><p>Token and pool discovery is sourced from GeckoTerminal. Extended trade, contract and live-event analysis remains available on X Layer while network-specific evidence adapters are added.</p></div><span className="token-network-count">4 NETWORKS</span></div>
-      <div className="token-network-roadmap" role="status"><span className="token-network-live-dot" /><div><strong>{networkLabel} is selected</strong><p>Token and pool discovery is sourced from GeckoTerminal. Extended trade, contract and live-event analysis remains available on X Layer while network-specific evidence adapters are added.</p></div><span className="token-network-count">4 NETWORKS</span></div>
-      <div className="token-network-roadmap" role="status"><span className="token-network-live-dot" /><div><strong>{networkLabel} is selected</strong><p>Discovery uses GeckoTerminal indexed pools. Detailed contract and live activity analysis currently remains X Layer-only; additional network-specific evidence is being integrated.</p></div><span className="token-network-count">01 DATA SOURCE</span></div>
 
       <section className="circuit-source-banner token-source-banner">
         <div className="circuit-source-mark">◎</div>
