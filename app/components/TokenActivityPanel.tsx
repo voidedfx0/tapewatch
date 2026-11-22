@@ -37,6 +37,7 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
   useEffect(() => {
     let active = true;
     let busy = false;
+    let contractBusy = false;
     const loadTrades = async () => {
       if (busy) return;
       busy = true;
@@ -53,21 +54,27 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
       finally { busy = false; }
     };
     const loadContract = async () => {
+      if (contractBusy) return;
+      contractBusy = true;
       try {
         const response = await fetch(`/api/tokens/${token.networkKey}/${encodeURIComponent(token.address)}?view=contract`, { cache: "no-store" });
         const data = await response.json();
         if (active && data.ok) setContract(data);
       } catch { /* Contract lookup is independent of the live activity feed. */ }
+      finally { contractBusy = false; }
     };
     void loadTrades();
     void loadContract();
-    const timer = window.setInterval(() => { void loadTrades(); }, 15_000);
+    const timer = window.setInterval(() => { void loadTrades(); void loadContract(); }, 5_000);
     return () => { active = false; window.clearInterval(timer); };
   }, [token.address, token.poolAddress, token.role, token.networkKey, apiBase]);
 
   useEffect(() => {
     let active = true;
+    let chartBusy = false;
     const loadChart = async () => {
+      if (chartBusy) return;
+      chartBusy = true;
       setChartLoading(true);
       setChartError("");
       try {
@@ -77,10 +84,10 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
         if (active) { setCandles(data.candles ?? []); setChartUpdated(data.checkedAt ?? ""); }
       } catch (caught) {
         if (active) setChartError(caught instanceof Error ? caught.message : "Price history is unavailable.");
-      } finally { if (active) setChartLoading(false); }
+      } finally { chartBusy = false; if (active) setChartLoading(false); }
     };
     void loadChart();
-    const timer = window.setInterval(() => { void loadChart(); }, 60_000);
+    const timer = window.setInterval(() => { void loadChart(); }, 5_000);
     return () => { active = false; window.clearInterval(timer); };
   }, [token.poolAddress, token.role, token.networkKey, apiBase, range, candleInterval]);
 
@@ -224,14 +231,14 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
       <p className="token-footnote">Signals are descriptive thresholds, not proof of manipulation, token quality, or future price movement.</p>
     </section>
     <section className="token-intel-panel">
-      <div className="token-panel-title"><div><span className="changes-kicker">RECENT SWAPS</span><h3>Buy and sell transactions</h3></div><small>{activityUpdated ? `Provider checked ${new Date(activityUpdated).toLocaleTimeString()} · refreshes every 15s` : "Provider-indexed trades"}</small></div>
+      <div className="token-panel-title"><div><span className="changes-kicker">RECENT SWAPS</span><h3>Buy and sell transactions</h3></div><small>{activityUpdated ? `Provider checked ${new Date(activityUpdated).toLocaleTimeString()} · refreshes every 5s` : "Provider-indexed trades"}</small></div>
       {trades.length ? <div className="token-trade-list">{trades.map((trade) => <div className="token-trade-row" key={trade.id + trade.hash}>
         <span className={trade.side.toLowerCase() === "buy" ? "trade-buy" : trade.side.toLowerCase() === "sell" ? "trade-sell" : "trade-event"}>{trade.side.toUpperCase()}</span>
         <span><strong>{money(trade.volumeUsd)}</strong><small>{trade.timestamp ? new Date(trade.timestamp).toLocaleString() : "Time unavailable"}</small></span>
         <span><strong>{short(trade.wallet)}</strong><small>Trader address</small></span>
         <a href={`${network.explorer}${network.txPath}${trade.hash}`} target="_blank" rel="noreferrer">Transaction ↗</a>
       </div>)}</div> : <p className="token-empty-inline">{error || "No indexed trades returned for this pool."}</p>}
-      <p className="token-footnote">Trade labels and amounts come from the market-data provider. This feed refreshes every 15 seconds; provider indexing and caching may delay newly confirmed transactions. The X Layer pool also has a raw WebSocket log stream; other networks use indexed polling until dedicated live subscriptions are connected.</p>
+      <p className="token-footnote">Trade labels and amounts come from the market-data provider. This feed is requested every 5 seconds; provider indexing and caching may delay newly confirmed transactions. The X Layer pool also has a raw WebSocket log stream; other networks use indexed polling until dedicated live subscriptions are connected.</p>
     </section>
     <section className="token-intel-panel">
       <div className="token-panel-title"><div><span className="changes-kicker">LIVE CHAIN EVENTS</span><h3>New pool logs</h3></div><small>{token.networkKey === "xlayer" ? "WebSocket · X Layer mainnet" : "Provider-indexed · " + network.name}</small></div>
