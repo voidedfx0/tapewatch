@@ -48,8 +48,38 @@ export async function GET(request: Request, context: { params: Promise<{ poolAdd
           rows = data.data?.attributes?.ohlcv_list ?? [];
         }
       }
-      const candles = rows.map((row) => ({ time: row[0], open: row[1], high: row[2], low: row[3], close: row[4], volume: row[5] })).reverse();
-      return Response.json({ ok: true, candles, range: rangeKey, interval: label, source: "GeckoTerminal", checkedAt: new Date().toISOString(), freshness: "Provider-indexed OHLC candles; refreshes about once per minute and is not a tick-by-tick stream." }, { headers: { "Cache-Control": "no-store" } });
+      let candles = rows.map((row) => ({ time: row[0], open: row[1], high: row[2], low: row[3], close: row[4], volume: row[5] })).reverse();
+      let chartMode = "provider-ohlc";
+      // Some new X Layer pools have swaps indexed before their OHLC endpoint
+      // has enough history. Build clearly-labelled candles from actual indexed
+      // swaps rather than returning an empty chart or inventing prices.
+      if (!candles.length) {
+        const tradeResponse = await fetch(`${GECKO}/networks/x-layer/pools/${poolAddress}/trades`, { headers, cache: "no-store", signal: AbortSignal.timeout(12000) });
+        if (tradeResponse.ok) {
+          const tradeData = await tradeResponse.json() as { data?: GeckoTrade[] };
+          const bucketSeconds = aggregate * (timeframe === "minute" ? 60 : timeframe === "hour" ? 3600 : 86400);
+          const buckets = new Map<number, { open: number; high: number; low: number; close: number; volume: number }>();
+          for (const trade of [...(tradeData.data ?? [])].reverse()) {
+            const attrs = trade.attributes ?? {};
+            const timestamp = attrs.block_timestamp ? Math.floor(new Date(attrs.block_timestamp).getTime() / 1000) : 0;
+            const rawPrice = tokenSide === "quote" ? (attrs.price_from_in_usd ?? attrs.price_to_in_usd) : (attrs.price_to_in_usd ?? attrs.price_from_in_usd);
+            const price = Number(rawPrice);
+            if (!timestamp || !Number.isFinite(price) || price <= 0) continue;
+            const bucket = Math.floor(timestamp / bucketSeconds) * bucketSeconds;
+            const volume = Number(attrs.volume_in_usd ?? 0) || 0;
+            const existing = buckets.get(bucket);
+            if (existing) {
+              existing.high = Math.max(existing.high, price);
+              existing.low = Math.min(existing.low, price);
+              existing.close = price;
+              existing.volume += volume;
+            } else buckets.set(bucket, { open: price, high: price, low: price, close: price, volume });
+          }
+          candles = [...buckets.entries()].sort((a, b) => a[0] - b[0]).map(([time, candle]) => ({ time, ...candle }));
+          if (candles.length) chartMode = "trade-derived";
+        }
+      }
+      return Response.json({ ok: true, candles, chartMode, range: rangeKey, interval: label, source: "GeckoTerminal", checkedAt: new Date().toISOString(), freshness: chartMode === "trade-derived" ? "Candles aggregated from indexed swaps because provider OHLC history is not available for this pool yet." : "Provider-indexed OHLC candles; refreshes about once per minute and is not a tick-by-tick stream." }, { headers: { "Cache-Control": "no-store" } });
     }
     const url = `${GECKO}/networks/x-layer/pools/${poolAddress}/trades`;
     const response = await fetch(url, { headers, cache: "no-store", signal: AbortSignal.timeout(12000) });
