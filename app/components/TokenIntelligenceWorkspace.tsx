@@ -65,7 +65,7 @@ export default function TokenIntelligenceWorkspace() {
           <button className="secondary-button" type="button" onClick={() => void refresh(page, debouncedSearch)} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh now"}</button>
         </div>
       </div>
-      <div className="token-network-roadmap" role="status"><span className="token-network-live-dot" /><div><strong>{networkLabel} is selected</strong><p>Token and pool discovery is sourced from GeckoTerminal. Extended trade, contract and live-event analysis remains available on X Layer while network-specific evidence adapters are added.</p></div><span className="token-network-count">4 NETWORKS</span></div>
+      <div className="token-network-roadmap" role="status"><span className="token-network-live-dot" /><div><strong>{networkLabel} is selected</strong><p>All four networks now have indexed trades, price history, rule-based signal fusion and native RPC account or contract lookups. X Layer also has a raw WebSocket pool-event feed; Ethereum, BNB Chain and Solana currently use indexed polling for activity.</p></div><span className="token-network-count">4 NETWORKS</span></div>
 
       <section className="circuit-source-banner token-source-banner">
         <div className="circuit-source-mark">◎</div>
@@ -124,7 +124,7 @@ export default function TokenIntelligenceWorkspace() {
             <div><span>24h buys / sells</span><strong>{selected.buys24h ?? "—"} / {selected.sells24h ?? "—"}</strong></div>
             <div><span>Pool created</span><strong>{selected.poolCreatedAt ? new Date(selected.poolCreatedAt).toLocaleString() : "Unavailable"}</strong></div>
           </div>
-          {selected.networkKey === "xlayer" ? <TokenActivityPanel token={selected} /> : <div className="module-notice"><strong>Extended intelligence is being connected for {networkLabel}.</strong><p>Token discovery and pool metrics are available from GeckoTerminal. Trade history, contract checks and live event subscriptions are currently enabled only for X Layer.</p></div>}
+          <TokenActivityPanel token={selected} />
           <p className="token-footnote">A newly detected pool is not proof that a token is legitimate. Verify contract details independently before drawing conclusions.</p>
         </section>
       </div>}
