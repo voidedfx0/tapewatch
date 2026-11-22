@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import TokenActivityPanel from "./TokenActivityPanel";
 
 type Token = {
   address: string; name: string; symbol: string; decimals: number | null; imageUrl: string | null;
@@ -116,6 +117,7 @@ export default function TokenIntelligenceWorkspace() {
             <div><span>24h buys / sells</span><strong>{selected.buys24h ?? "—"} / {selected.sells24h ?? "—"}</strong></div>
             <div><span>Pool created</span><strong>{selected.poolCreatedAt ? new Date(selected.poolCreatedAt).toLocaleString() : "Unavailable"}</strong></div>
           </div>
+          <TokenActivityPanel token={selected} />
           <p className="token-footnote">A newly detected pool is not proof that a token is legitimate. Verify contract details independently before drawing conclusions.</p>
         </section>
       </div>}
