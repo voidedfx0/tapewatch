@@ -306,3 +306,8 @@ h1 span { color: #b5ef73 !important; }
 .token-intel-panel .token-footnote { margin-top:12px; }
 @media(max-width:760px) { .token-intel-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .token-trade-row { grid-template-columns:70px 1fr; } .token-trade-row>span:nth-child(3),.token-trade-row>a { grid-column:2; } .token-panel-title { align-items:flex-start; flex-direction:column; gap:4px; } }
 @media(max-width:430px) { .token-intel-grid article { padding:11px; } .token-intel-grid article>strong { font-size:18px; } .token-live-heading { align-items:flex-start; flex-direction:column; } }
+
+
+.token-signal-list { display:grid; gap:9px; margin:0; padding:0; list-style:none; }
+.token-signal-list li { display:flex; align-items:flex-start; gap:9px; color:#c3d1c4; font-size:11px; line-height:1.55; padding:10px 11px; border:1px solid #2b382e; background:#121b14; border-radius:8px; }
+.token-signal-list li i { flex:0 0 6px; width:6px; height:6px; margin-top:5px; border-radius:50%; background:#b5c994; }
