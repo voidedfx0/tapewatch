@@ -29,7 +29,7 @@ export default function TokenSignalFusion({ token, contract, signals }: {
     ...(token.priceChange24h !== null && Number.isFinite(Number(token.priceChange24h)) && Math.abs(Number(token.priceChange24h)) >= 10 ? [{ key: "move", title: "Large reported 24h price move", detail: `Provider-reported change: ${Number(token.priceChange24h).toFixed(2)}%.`, severity: "watch" }] : []),
     ...(liquidity > 0 && liquidity < 5000 ? [{ key: "depth", title: "Limited pool depth", detail: "Current indexed pool liquidity is below $5,000; smaller trades may have greater price impact.", severity: "context" }] : []),
     ...(!contract ? [{ key: "contract-pending", title: "Contract checks incomplete", detail: "Bytecode was not retrieved, so contract presence and verification remain unconfirmed.", severity: "unknown" }] : []),
-    ...(contract && !contract.isContract ? [{ key: "no-code", title: "No contract bytecode returned", detail: "The RPC lookup did not return deployed bytecode for this address.", severity: "unknown" }] : []),
+    ...(contract && !contract.isContract ? [{ key: "no-code", title: "No account or contract record returned", detail: "The network RPC did not return an account or contract record for this address.", severity: "unknown" }] : []),
   ];
   const combined = flags.some((item) => item.key === "turnover") && flags.some((item) => item.key === "mix");
   const ageHours = token.poolCreatedAt ? Math.max(0, (Date.now() - new Date(token.poolCreatedAt).getTime()) / 3_600_000) : null;
@@ -43,7 +43,7 @@ export default function TokenSignalFusion({ token, contract, signals }: {
     <div className="token-fusion-summary">
       <div><span>REVIEW SIGNALS</span><strong>{flags.length}</strong><small>Observed checks needing context</small></div>
       <div><span>POOL AGE</span><strong>{ageText}</strong><small>Pool age, not token deployment age</small></div>
-      <div><span>DATA COVERAGE</span><strong>{contract ? "Partial" : "Limited"}</strong><small>Market index + RPC bytecode lookup</small></div>
+      <div><span>DATA COVERAGE</span><strong>{contract ? "Partial" : "Limited"}</strong><small>Market index + network RPC lookup</small></div>
     </div>
     {combined && <div className="token-fusion-relationship"><strong>Related pattern detected</strong><p>Elevated turnover and a one-sided transaction mix are present together. This combination can warrant closer review, but does not establish manipulation, coordinated activity or selling pressure.</p></div>}
     {flags.length ? <div className="token-fusion-list">{flags.map((flag) => <article key={flag.key} data-severity={flag.severity}><span>{flag.severity === "watch" ? "REVIEW" : flag.severity === "unknown" ? "UNVERIFIED" : "CONTEXT"}</span><div><strong>{flag.title}</strong><p>{flag.detail}</p></div></article>)}</div> : <p className="token-empty-inline">No configured review thresholds were crossed in the available snapshot. This is not a clean bill of health.</p>}
