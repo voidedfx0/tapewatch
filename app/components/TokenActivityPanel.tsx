@@ -79,6 +79,15 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
   const points = candles.map((c) => c.close).filter((v) => Number.isFinite(v));
   const min = Math.min(...points, 0), max = Math.max(...points, 1);
   const path = points.map((v, i) => `${points.length > 1 ? (i / (points.length - 1)) * 300 : 0},${70 - ((v - min) / Math.max(max - min, 1e-12)) * 62}`).join(" ");
+  const medianVolume = candles.length > 2 ? [...candles.slice(0, -1).map((c) => c.volume)].sort((a, b) => a - b)[Math.floor((candles.length - 2) / 2)] : 0;
+  const latestVolume = candles.at(-1)?.volume ?? 0;
+  const volumeMultiple = medianVolume > 0 ? latestVolume / medianVolume : null;
+  const signals = [
+    ...(volumeMultiple != null && volumeMultiple >= 3 ? [`Latest hourly volume is ${volumeMultiple.toFixed(1)}× the median of earlier candles.`] : []),
+    ...(insights.buyShare != null && (insights.buyShare >= 70 || insights.buyShare <= 30) ? [`Reported 24h transaction mix is weighted ${insights.buyShare >= 70 ? "toward buys" : "toward sells"} (${insights.buyShare}% buys).`] : []),
+    ...(token.priceChange24h != null && Math.abs(Number(token.priceChange24h)) >= 10 ? [`Provider reports a ${Number(token.priceChange24h).toFixed(2)}% 24h price move.`] : []),
+    ...(Number(token.liquidityUsd) > 0 && Number(token.volume24hUsd) / Number(token.liquidityUsd) >= 1 ? ["24h reported volume is at least as large as current pool liquidity."] : [])
+  ];
 
   return <div className="token-intelligence-extra">
     <div className="token-live-heading"><div><span className="changes-kicker">ON-CHAIN ACTIVITY</span><h3>Pool activity stream</h3></div><span className="token-live-status"><i/> {feedState}</span></div>
@@ -88,6 +97,11 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
       <article><span>VOLUME / LIQUIDITY</span><strong>{insights.volumeLiquidity == null ? "—" : insights.volumeLiquidity.toFixed(2) + "×"}</strong><small>24h volume divided by current pool liquidity</small></article>
       <article><span>CONTRACT CODE</span><strong>{contract ? (contract.isContract ? "Detected" : "Not found") : "Checking…"}</strong><small>{contract ? `${contract.bytecodeBytes.toLocaleString()} bytecode bytes · source verification not checked` : "X Layer RPC lookup"}</small></article>
     </div>
+    <section className="token-intel-panel">
+      <div className="token-panel-title"><div><span className="changes-kicker">OBSERVED SIGNALS</span><h3>Activity intelligence</h3></div><small>Rule-based observations · no price forecasts</small></div>
+      {signals.length ? <ul className="token-signal-list">{signals.map((signal) => <li key={signal}><i/> {signal}</li>)}</ul> : <p className="token-empty-inline">No configured activity thresholds were crossed in the currently available data.</p>}
+      <p className="token-footnote">Signals are descriptive thresholds, not proof of manipulation, token quality, or future price movement. Historical liquidity comparisons require a longer saved snapshot history.</p>
+    </section>
     <section className="token-intel-panel">
       <div className="token-panel-title"><div><span className="changes-kicker">MARKET HISTORY</span><h3>48-hour price trace</h3></div><small>Hourly candles · provider-indexed</small></div>
       {points.length > 1 ? <svg className="token-chart" viewBox="0 0 300 76" role="img" aria-label="Hourly token price chart"><polyline points={path} fill="none" stroke="#9bd39b" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"/></svg> : <p className="token-empty-inline">Historical candles are not available for this pool yet.</p>}
