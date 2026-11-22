@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Token = { address: string; symbol: string; role: string; poolAddress: string; poolName: string; liquidityUsd: string | null; volume24hUsd: string | null; buys24h: number | null; sells24h: number | null; priceChange24h: string | null; priceUsd: string | null };
+type Token = { address: string; name: string; symbol: string; role: string; poolAddress: string; poolName: string; poolCreatedAt: string | null; dex: string; liquidityUsd: string | null; volume24hUsd: string | null; buys24h: number | null; sells24h: number | null; priceChange24h: string | null; priceUsd: string | null };
 type Trade = { id: string; timestamp: string | null; side: string; hash: string; wallet: string; fromAmount: string | null; toAmount: string | null; priceUsd: string | null; volumeUsd: string | null };
 type Candle = { time: number; open: number; high: number; low: number; close: number; volume: number };
 type LiveEvent = { hash: string; block: string; time: string };
@@ -24,23 +24,38 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
   const [feedState, setFeedState] = useState("Connecting to X Layer…");
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [error, setError] = useState("");
+  const [activityUpdated, setActivityUpdated] = useState("");
+  const [latestBlock, setLatestBlock] = useState("");
 
   useEffect(() => {
     let active = true;
-    const load = async () => {
+    let busy = false;
+    const loadTrades = async () => {
+      if (busy) return;
+      busy = true;
       try {
-        const [tradeRes, contractRes] = await Promise.all([
-          fetch(`/api/tokens/xlayer/${token.poolAddress}?view=activity&side=${token.role}`, { cache: "no-store" }),
-          fetch(`/api/tokens/xlayer/${token.address}?view=contract`, { cache: "no-store" })
-        ]);
-        const [tradeData, contractData] = await Promise.all([tradeRes.json(), contractRes.json()]);
+        const response = await fetch(`/api/tokens/xlayer/${token.poolAddress}?view=activity&side=${token.role}`, { cache: "no-store" });
+        const data = await response.json();
         if (!active) return;
-        if (tradeData.ok) setTrades(tradeData.trades ?? []); else setError(tradeData.error ?? "Trade history unavailable.");
-        if (contractData.ok) setContract(contractData);
-      } catch { if (active) setError("Some intelligence sources could not be reached."); }
+        if (response.ok && data.ok) {
+          setTrades(data.trades ?? []);
+          setActivityUpdated(data.checkedAt ?? new Date().toISOString());
+          setError("");
+        } else setError(data.error ?? "Trade history unavailable.");
+      } catch { if (active) setError("Trade history source could not be reached."); }
+      finally { busy = false; }
     };
-    void load();
-    return () => { active = false; };
+    const loadContract = async () => {
+      try {
+        const response = await fetch(`/api/tokens/xlayer/${token.address}?view=contract`, { cache: "no-store" });
+        const data = await response.json();
+        if (active && data.ok) setContract(data);
+      } catch { /* Contract lookup is independent of the live activity feed. */ }
+    };
+    void loadTrades();
+    void loadContract();
+    const timer = window.setInterval(() => { void loadTrades(); }, 60_000);
+    return () => { active = false; window.clearInterval(timer); };
   }, [token.address, token.poolAddress, token.role]);
 
   useEffect(() => {
@@ -59,6 +74,8 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
     };
     void loadChart();
     return () => { active = false; };
+    const timer = window.setInterval(() => { void loadChart(); }, 60_000);
+    return () => { active = false; window.clearInterval(timer); };
   }, [token.poolAddress, token.role, range]);
 
   useEffect(() => {
@@ -66,29 +83,40 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
     let reconnect: ReturnType<typeof setTimeout> | undefined;
     let disposed = false;
     let requestId = 1;
-    let subscriptionRequestId: number | null = null;
+    const pendingSubscriptions = new Map<number, "blocks" | "pool">();
     const connect = () => {
       if (disposed) return;
       try {
         setFeedState("Connecting to X Layer…");
         socket = new WebSocket("wss://xlayerws.okx.com");
         socket.onopen = () => {
-          subscriptionRequestId = requestId++;
-          socket?.send(JSON.stringify({ jsonrpc: "2.0", id: subscriptionRequestId, method: "eth_subscribe", params: ["logs", { address: token.poolAddress }] }));
+          const blocksId = requestId++;
+          const poolId = requestId++;
+          pendingSubscriptions.set(blocksId, "blocks");
+          pendingSubscriptions.set(poolId, "pool");
+          socket?.send(JSON.stringify({ jsonrpc: "2.0", id: blocksId, method: "eth_subscribe", params: ["newHeads"] }));
+          socket?.send(JSON.stringify({ jsonrpc: "2.0", id: poolId, method: "eth_subscribe", params: ["logs", { address: token.poolAddress }] }));
         };
         socket.onmessage = (message) => {
           try {
             const data = JSON.parse(String(message.data));
-            if (data?.id === subscriptionRequestId) {
-              if (data.result) setFeedState("Subscribed · awaiting pool events");
-              else setFeedState("Subscription rejected");
+            if (typeof data?.id === "number" && pendingSubscriptions.has(data.id)) {
+              const kind = pendingSubscriptions.get(data.id);
+              pendingSubscriptions.delete(data.id);
+              if (data.result) setFeedState(kind === "blocks" ? "Connected · live block stream" : "Connected · pool log stream");
+              else setFeedState("Subscription rejected · retrying");
               return;
             }
             if (data?.error) { setFeedState("Live subscription unavailable"); return; }
-            const log = data?.params?.result;
-            if (log?.transactionHash) {
-              setFeedState("Live · receiving pool events");
-              setEvents((current) => [{ hash: log.transactionHash, block: log.blockNumber ?? "—", time: new Date().toISOString() }, ...current.filter((item) => item.hash !== log.transactionHash)].slice(0, 12));
+            if (data?.method !== "eth_subscription") return;
+            const result = data?.params?.result;
+            if (result?.number && result?.hash) {
+              setLatestBlock(result.number);
+              setFeedState("Live · X Layer blocks received");
+            }
+            if (result?.transactionHash) {
+              setFeedState("Live · pool events received");
+              setEvents((current) => [{ hash: result.transactionHash, block: result.blockNumber ?? "—", time: new Date().toISOString() }, ...current.filter((item) => item.hash !== result.transactionHash)].slice(0, 12));
             }
           } catch { /* Ignore malformed provider messages. */ }
         };
@@ -128,7 +156,18 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
   ];
 
   return <div className="token-intelligence-extra">
-    <div className="token-live-heading"><div><span className="changes-kicker">ON-CHAIN ACTIVITY</span><h3>Pool activity stream</h3></div><span className="token-live-status"><i/> {feedState}</span></div>
+    <div className="token-live-heading"><div><span className="changes-kicker">ON-CHAIN ACTIVITY</span><h3>Pool activity stream</h3></div><span className="token-live-status"><i/> {feedState}{latestBlock ? ` · block ${Number.parseInt(latestBlock, 16).toLocaleString()}` : ""}</span></div>
+    <section className="token-intel-panel">
+      <div className="token-panel-title"><div><span className="changes-kicker">TOKEN & MARKET CONTEXT</span><h3>{token.name} ({token.symbol})</h3></div><small>{activityUpdated ? `Activity checked ${new Date(activityUpdated).toLocaleTimeString()}` : "Waiting for market data"}</small></div>
+      <div className="info-rows">
+        <div><span>Indexed venue</span><strong>{token.dex}</strong></div>
+        <div><span>Pool / pair</span><strong>{token.poolName}</strong></div>
+        <div><span>Pool age</span><strong>{token.poolCreatedAt ? new Date(token.poolCreatedAt).toLocaleString() : "Not supplied"}</strong></div>
+        <div><span>Token contract</span><strong><a href={`https://www.okx.com/web3/explorer/xlayer/token/${token.address}`} target="_blank" rel="noreferrer">{short(token.address)} ↗</a></strong></div>
+        <div><span>Pool contract / explorer</span><strong><a href={`https://www.okx.com/web3/explorer/xlayer/address/${token.poolAddress}`} target="_blank" rel="noreferrer">{short(token.poolAddress)} ↗</a></strong></div>
+      </div>
+      <p className="token-footnote">Venue and pair identify where this indexed liquidity pool exists. They do not confirm a centralized exchange listing or recommend a trading venue.</p>
+    </section>
     <div className="token-intel-grid">
       <article><span>24H TRANSACTIONS</span><strong>{insights.total.toLocaleString()}</strong><small>{token.buys24h ?? "—"} buys · {token.sells24h ?? "—"} sells</small></article>
       <article><span>BUY SHARE</span><strong>{insights.buyShare == null ? "—" : insights.buyShare + "%"}</strong><small>Share of reported 24h pool transactions</small></article>
@@ -164,18 +203,18 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
       <p className="token-footnote">Signals are descriptive thresholds, not proof of manipulation, token quality, or future price movement.</p>
     </section>
     <section className="token-intel-panel">
-      <div className="token-panel-title"><div><span className="changes-kicker">RECENT SWAPS</span><h3>Buy and sell transactions</h3></div><small>Latest provider-indexed trades</small></div>
+      <div className="token-panel-title"><div><span className="changes-kicker">RECENT SWAPS</span><h3>Buy and sell transactions</h3></div><small>{activityUpdated ? `Provider checked ${new Date(activityUpdated).toLocaleTimeString()} · refreshes every 60s` : "Provider-indexed trades"}</small></div>
       {trades.length ? <div className="token-trade-list">{trades.map((trade) => <div className="token-trade-row" key={trade.id + trade.hash}>
         <span className={trade.side.toLowerCase() === "buy" ? "trade-buy" : trade.side.toLowerCase() === "sell" ? "trade-sell" : "trade-event"}>{trade.side.toUpperCase()}</span>
         <span><strong>{money(trade.volumeUsd)}</strong><small>{trade.timestamp ? new Date(trade.timestamp).toLocaleString() : "Time unavailable"}</small></span>
         <span><strong>{short(trade.wallet)}</strong><small>Trader address</small></span>
         <a href={`https://www.okx.com/web3/explorer/xlayer/tx/${trade.hash}`} target="_blank" rel="noreferrer">Transaction ↗</a>
       </div>)}</div> : <p className="token-empty-inline">{error || "No indexed trades returned for this pool."}</p>}
-      <p className="token-footnote">Trade labels and amounts come from the market-data provider. Indexed trades can arrive after confirmation.</p>
+      <p className="token-footnote">Trade labels and amounts come from the market-data provider. This feed refreshes every 60 seconds; provider data may itself be cached for about one minute. New X Layer blocks arrive over WebSocket, but raw logs are not automatically classified as buys or sells.</p>
     </section>
     <section className="token-intel-panel">
       <div className="token-panel-title"><div><span className="changes-kicker">LIVE CHAIN EVENTS</span><h3>New pool logs</h3></div><small>WebSocket · X Layer mainnet</small></div>
-      {events.length ? <div className="token-trade-list">{events.map((event) => <div className="token-trade-row" key={event.hash}><span className="trade-event">ON-CHAIN</span><span><strong>Pool event detected</strong><small>{new Date(event.time).toLocaleTimeString()} · block {Number.parseInt(event.block, 16).toLocaleString()}</small></span><span><strong>{short(event.hash)}</strong><small>Transaction hash</small></span><a href={`https://www.okx.com/web3/explorer/xlayer/tx/${event.hash}`} target="_blank" rel="noreferrer">Inspect ↗</a></div>)}</div> : <p className="token-empty-inline">Waiting for the next confirmed event emitted by this pool. The live feed reports raw logs; it does not guess buy/sell direction.</p>}
+      {events.length ? <div className="token-trade-list">{events.map((event) => <div className="token-trade-row" key={event.hash}><span className="trade-event">ON-CHAIN</span><span><strong>Pool event detected</strong><small>{new Date(event.time).toLocaleTimeString()} · block {Number.parseInt(event.block, 16).toLocaleString()}</small></span><span><strong>{short(event.hash)}</strong><small>Transaction hash</small></span><a href={`https://www.okx.com/web3/explorer/xlayer/tx/${event.hash}`} target="_blank" rel="noreferrer">Inspect ↗</a></div>)}</div> : <p className="token-empty-inline">Waiting for the next event emitted by this pool. The live feed reports raw logs and new block headers; it does not guess buy/sell direction. A DEX-specific swap decoder is required to classify every pool event accurately.</p>}
     </section>
     <p className="token-footnote">Contract bytecode presence does not prove that a token is safe, verified, or trustworthy. TapeWatch is an informational monitoring interface.</p>
   </div>;
