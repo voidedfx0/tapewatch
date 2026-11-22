@@ -15,7 +15,7 @@ const money = (v: string | number | null | undefined) => v == null || !Number.is
 const short = (v: string) => v ? v.slice(0, 8) + "…" + v.slice(-6) : "—";
 const compact = (v: number) => Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 2 }).format(v);
 
-const NETWORK_META: Record<string, { name: string; explorer: string; txPath: string; accountPath: string }> = { xlayer: { name: "X Layer", explorer: "https://www.okx.com/web3/explorer/xlayer", txPath: "/tx/", accountPath: "/token/" }, ethereum: { name: "Ethereum", explorer: "https://etherscan.io", txPath: "/tx/", accountPath: "/token/" }, bnb: { name: "BNB Chain", explorer: "https://bscscan.com", txPath: "/tx/", accountPath: "/token/" }, solana: { name: "Solana", explorer: "https://solscan.io", txPath: "/tx/", accountPath: "/token/" } };
+const NETWORK_META: Record<string, { name: string; explorer: string; txPath: string; accountPath: string; poolPath: string }> = { xlayer: { name: "X Layer", explorer: "https://www.okx.com/web3/explorer/xlayer", txPath: "/tx/", accountPath: "/token/", poolPath: "/address/" }, ethereum: { name: "Ethereum", explorer: "https://etherscan.io", txPath: "/tx/", accountPath: "/token/", poolPath: "/address/" }, bnb: { name: "BNB Chain", explorer: "https://bscscan.com", txPath: "/tx/", accountPath: "/token/", poolPath: "/address/" }, solana: { name: "Solana", explorer: "https://solscan.io", txPath: "/tx/", accountPath: "/token/", poolPath: "/account/" } };
 
 export default function TokenActivityPanel({ token }: { token: Token }) {
   const network = NETWORK_META[token.networkKey] ?? NETWORK_META.xlayer;
@@ -176,8 +176,8 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
         <div><span>Indexed venue</span><strong>{token.dex}</strong></div>
         <div><span>Pool / pair</span><strong>{token.poolName}</strong></div>
         <div><span>Pool age</span><strong>{token.poolCreatedAt ? new Date(token.poolCreatedAt).toLocaleString() : "Not supplied"}</strong></div>
-        <div><span>Token contract</span><strong><a href={`${network.explorer}${network.accountPath}${token.address}`} target="_blank" rel="noreferrer">{short(token.address)} ↗</a></strong></div>
-        <div><span>Pool contract / explorer</span><strong><a href={`${network.explorer}/address/${token.poolAddress}`} target="_blank" rel="noreferrer">{short(token.poolAddress)} ↗</a></strong></div>
+        <div><span>Token / mint address</span><strong><a href={`${network.explorer}${network.accountPath}${token.address}`} target="_blank" rel="noreferrer">{short(token.address)} ↗</a></strong></div>
+        <div><span>Pool / account explorer</span><strong><a href={`${network.explorer}${network.poolPath}${token.poolAddress}`} target="_blank" rel="noreferrer">{short(token.poolAddress)} ↗</a></strong></div>
       </div>
       <p className="token-footnote">Venue and pair identify where this indexed liquidity pool exists. They do not confirm a centralized exchange listing or recommend a trading venue.</p>
     </section>
