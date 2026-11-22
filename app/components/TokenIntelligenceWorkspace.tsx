@@ -9,13 +9,13 @@ type Token = {
   poolCreatedAt: string | null; dex: string; liquidityUsd: string | null; volume24hUsd: string | null;
   priceChange24h: string | null; buys24h: number | null; sells24h: number | null; priceUsd: string | null;
 };
-type Snapshot = { ok: boolean; network: string; chainId: number; source: string; scope: string; tokens: Token[]; poolCount: number; checkedAt: string; page?: number; maxPage?: number; search?: string | null; error?: string };
+type Snapshot = { ok: boolean; network: string; networkKey?: string; chainId: number | null; family?: string; explorer?: string; source: string; scope: string; tokens: Token[]; poolCount: number; checkedAt: string; page?: number; maxPage?: number; search?: string | null; error?: string };
 const EXPLORER = "https://www.okx.com/web3/explorer/xlayer";
 const fmtUsd = (v: string | null) => v == null ? "—" : Number(v).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 const short = (v: string) => v.slice(0, 6) + "…" + v.slice(-4);
 
 export default function TokenIntelligenceWorkspace() {
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [network, setNetwork] = useState("xlayer");\n  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -29,12 +29,12 @@ export default function TokenIntelligenceWorkspace() {
     try {
       const params = new URLSearchParams({ page: String(targetPage) });
       if (query.length >= 2) params.set("search", query);
-      const response = await fetch("/api/tokens/xlayer?" + params.toString(), { cache: "no-store" });
+      const response = await fetch("/api/tokens/" + network + "?" + params.toString(), { cache: "no-store" });
       const data = await response.json() as Snapshot;
       if (!response.ok || !data.ok) throw new Error(data.error || "Token discovery is unavailable.");
-      setSnapshot(data); setLastUpdated(data.checkedAt);
+      setSnapshot({ ...data, tokens: (data.tokens ?? []).map((token: Token) => ({ ...token, networkKey: network })) }); setLastUpdated(data.checkedAt);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not load X Layer token data.");
+      setError(caught instanceof Error ? caught.message : "Could not load token data for the selected network.");
     } finally { setLoading(false); }
   }, []);
 
@@ -47,7 +47,7 @@ export default function TokenIntelligenceWorkspace() {
 
   const tokens = useMemo(() => snapshot?.tokens ?? [], [snapshot]);
   const maxPage = snapshot?.maxPage ?? 10;
-  const isWideSearch = debouncedSearch.length >= 2;
+  const isWideSearch = debouncedSearch.length >= 2;\n  const networkLabel = snapshot?.network ?? ({ xlayer: "X Layer", ethereum: "Ethereum", bnb: "BNB Chain", solana: "Solana" }[network] ?? network);
 
   return (
     <div className="content module-workspace token-workspace" id="token-intelligence">
@@ -58,11 +58,11 @@ export default function TokenIntelligenceWorkspace() {
           <p className="intro">A multi-chain intelligence workspace, starting with the live X Layer integration.</p>
         </div>
         <div className="token-workspace-actions">
-          <label className="token-network-select"><span>NETWORK</span><select value="xlayer" onChange={() => {}} aria-label="Active token network"><option value="xlayer">X Layer · Live</option><option value="ethereum" disabled>Ethereum · Coming soon</option><option value="bnb" disabled>BNB Chain · Coming soon</option><option value="solana" disabled>Solana · Coming soon</option></select></label>
+          <label className="token-network-select"><span>NETWORK</span><select value={network} onChange={(event) => { setNetwork(event.target.value); setPage(1); setSelected(null); }} aria-label="Select token network"><option value="xlayer">X Layer</option><option value="ethereum">Ethereum</option><option value="bnb">BNB Chain</option><option value="solana">Solana</option></select></label>
           <button className="secondary-button" type="button" onClick={() => void refresh(page, debouncedSearch)} disabled={loading}>{loading ? "Refreshing…" : "Refresh tokens"}</button>
         </div>
       </div>
-      <div className="token-network-roadmap" role="status"><span className="token-network-live-dot" /><div><strong>X Layer is the active network</strong><p>Ethereum, BNB Chain and Solana are shown in the network roadmap but are not connected yet. TapeWatch will only display data after each network has a verified source integration.</p></div><span className="token-network-count">01 LIVE · 03 PLANNED</span></div>
+      <div className="token-network-roadmap" role="status"><span className="token-network-live-dot" /><div><strong>{networkLabel} is selected</strong><p>Discovery uses GeckoTerminal indexed pools. Detailed contract and live activity analysis currently remains X Layer-only; additional network-specific evidence is being integrated.</p></div><span className="token-network-count">01 DATA SOURCE</span></div>
 
       <section className="circuit-source-banner token-source-banner">
         <div className="circuit-source-mark">◎</div>
@@ -75,21 +75,21 @@ export default function TokenIntelligenceWorkspace() {
       </section>
 
       <div className="circuit-metrics-grid token-metrics-grid">
-        <article className="circuit-metric-card"><span>TOKENS ON THIS PAGE</span><strong>{snapshot?.tokens.length ?? "—"}</strong><small>{isWideSearch ? "Matches returned for this search page" : "Unique contracts on the current page"}</small></article>
+        <article className="circuit-metric-card"><span>TOKENS ON THIS PAGE</span><strong>{snapshot?.tokens.length ?? "—"}</strong><small>{isWideSearch ? "Matches returned for this search page" : "Unique token contracts returned for this page"}</small></article>
         <article className="circuit-metric-card"><span>POOLS RETURNED</span><strong>{snapshot?.poolCount ?? "—"}</strong><small>From the selected discovery page</small></article>
-        <article className="circuit-metric-card"><span>NETWORK</span><strong>X Layer</strong><small>Chain ID 196 · Mainnet</small></article>
+        <article className="circuit-metric-card"><span>NETWORK</span><strong>{networkLabel}</strong><small>{snapshot?.chainId ? "Chain ID " + snapshot.chainId : network === "solana" ? "Solana mainnet" : "Network metadata loading"}</small></article>
         <article className="circuit-metric-card"><span>DATA STATUS</span><strong>{loading ? "Checking…" : snapshot ? "Connected" : "Unavailable"}</strong><small>{lastUpdated ? "Updated " + new Date(lastUpdated).toLocaleTimeString() : "Waiting for source response"}</small></article>
       </div>
 
       {error && <div className="module-notice circuit-error"><span className="circuit-status-dot error"/><div><strong>Token discovery unavailable</strong><p>{error}</p></div></div>}
 
       <section className="detail-card circuit-registry-card">
-        <div className="detail-card-heading"><div><span className="mini-icon">⌕</span><h2>{isWideSearch ? "Search X Layer token directory" : "Discovered token directory"}</h2></div><span className="circuit-evidence-badge">{isWideSearch ? "WIDE SEARCH" : "LIVE INDEX"}</span></div>
+        <div className="detail-card-heading"><div><span className="mini-icon">⌕</span><h2>{isWideSearch ? "Search {networkLabel} token directory" : "Discovered token directory"}</h2></div><span className="circuit-evidence-badge">{isWideSearch ? "WIDE SEARCH" : "LIVE INDEX"}</span></div>
         <p className="circuit-directory-intro">{isWideSearch ? "Search is sent to GeckoTerminal's indexed X Layer pool search, not just the tokens currently loaded in this table. Try a token name, symbol or full contract address." : snapshot?.scope ?? "Tokens are listed when the data provider indexes a new liquidity pool. A contract deployment without a tracked pool may not appear here."}</p>
-        <label className="circuit-search"><span>⌕</span><input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { setPage(1); setDebouncedSearch(search.trim()); } }} placeholder="Search across X Layer by name, symbol or contract…" aria-label="Search across X Layer tokens"/><button type="button" onClick={() => { setPage(1); setDebouncedSearch(search.trim()); }} disabled={search.trim().length < 2 || loading}>Search</button>{(search || debouncedSearch) && <button type="button" onClick={() => { setSearch(""); setDebouncedSearch(""); setPage(1); }}>Clear</button>}</label>
+        <label className="circuit-search"><span>⌕</span><input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { setPage(1); setDebouncedSearch(search.trim()); } }} placeholder="Search across {networkLabel} by name, symbol or contract…" aria-label={"Search across " + networkLabel + " tokens"}/><button type="button" onClick={() => { setPage(1); setDebouncedSearch(search.trim()); }} disabled={search.trim().length < 2 || loading}>Search</button>{(search || debouncedSearch) && <button type="button" onClick={() => { setSearch(""); setDebouncedSearch(""); setPage(1); }}>Clear</button>}</label>
         {search.trim().length === 1 && <p className="token-footnote">Enter at least 2 characters to search the wider provider index.</p>}
         {loading && <div className="circuit-empty-state">{isWideSearch ? "Searching the wider X Layer index…" : "Loading token page…"}</div>}
-        {!loading && !error && tokens.length === 0 && <div className="circuit-empty-state">{isWideSearch ? "No indexed X Layer pools matched that search." : "No pools were returned on this page."}</div>}
+        {!loading && !error && tokens.length === 0 && <div className="circuit-empty-state">{isWideSearch ? "No indexed pools on {networkLabel} matched that search." : "No pools were returned for {networkLabel} on this page."}</div>}
         {tokens.length > 0 && <div className="token-table-wrap"><table className="token-table">
           <thead><tr><th>TOKEN</th><th>CONTRACT</th><th>PRICE</th><th>POOL LIQUIDITY</th><th>24H VOLUME</th><th>24H CHANGE</th><th>POOL CREATED</th></tr></thead>
           <tbody>{tokens.map((token) => <tr key={token.address} onClick={() => setSelected(token)} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") setSelected(token); }}>
@@ -112,7 +112,7 @@ export default function TokenIntelligenceWorkspace() {
           <div className="detail-card-heading"><div><span className="mini-icon">◎</span><h2>{selected.name} <span className="token-symbol">({selected.symbol})</span></h2></div><button className="secondary-button" type="button" onClick={() => setSelected(null)}>Close</button></div>
           <p className="circuit-directory-intro">Public market-index record. This does not verify the token's safety, ownership or official exchange listing.</p>
           <div className="info-rows">
-            <div><span>Contract</span><strong><a href={EXPLORER + "/token/" + selected.address} target="_blank" rel="noreferrer">{selected.address} ↗</a></strong></div>
+            <div><span>Contract</span><strong><a href={(snapshot?.explorer ?? EXPLORER) + (network === "solana" ? "/account/" : "/token/") + selected.address} target="_blank" rel="noreferrer">{selected.address} ↗</a></strong></div>
             <div><span>Pool</span><strong>{selected.poolName}</strong></div>
             <div><span>DEX</span><strong>{selected.dex}</strong></div>
             <div><span>Pool liquidity</span><strong>{fmtUsd(selected.liquidityUsd)}</strong></div>
@@ -121,7 +121,7 @@ export default function TokenIntelligenceWorkspace() {
             <div><span>24h buys / sells</span><strong>{selected.buys24h ?? "—"} / {selected.sells24h ?? "—"}</strong></div>
             <div><span>Pool created</span><strong>{selected.poolCreatedAt ? new Date(selected.poolCreatedAt).toLocaleString() : "Unavailable"}</strong></div>
           </div>
-          <TokenActivityPanel token={selected} />
+          {selected.networkKey === "xlayer" ? <TokenActivityPanel token={selected} /> : <div className="module-notice"><strong>Extended intelligence is being connected for {networkLabel}.</strong><p>Token discovery and pool metrics are available from GeckoTerminal. Trade history, contract checks and live event subscriptions are currently enabled only for X Layer.</p></div>}
           <p className="token-footnote">A newly detected pool is not proof that a token is legitimate. Verify contract details independently before drawing conclusions.</p>
         </section>
       </div>}
