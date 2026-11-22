@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import TokenActivityPanel from "./TokenActivityPanel";
 
+type NetworkKey = "xlayer" | "ethereum" | "bnb" | "solana";
 type Token = {
   networkKey: string; address: string; name: string; symbol: string; decimals: number | null; imageUrl: string | null;
   coingeckoId: string | null; role: string; poolAddress: string; poolName: string;
@@ -15,7 +16,7 @@ const fmtUsd = (v: string | null) => v == null ? "—" : Number(v).toLocaleStrin
 const short = (v: string) => v.slice(0, 6) + "…" + v.slice(-4);
 
 export default function TokenIntelligenceWorkspace() {
-  const [network, setNetwork] = useState("xlayer");
+  const [network, setNetwork] = useState<NetworkKey>("xlayer");
   const [loading, setLoading] = useState(true);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
@@ -58,7 +59,7 @@ export default function TokenIntelligenceWorkspace() {
           <p className="intro">A multi-chain intelligence workspace, starting with the live X Layer integration.</p>
         </div>
         <div className="token-workspace-actions">
-          <label className="token-network-select"><span>NETWORK</span><select value={network} onChange={(event) => { setNetwork(event.target.value); setPage(1); setSearch(""); setDebouncedSearch(""); setSnapshot(null); setSelected(null); }} aria-label="Select token network"><option value="xlayer">X Layer</option><option value="ethereum">Ethereum</option><option value="bnb">BNB Chain</option><option value="solana">Solana</option></select></label>
+          <label className="token-network-select"><span>NETWORK</span><select value={network} onChange={(event) => { setNetwork(event.target.value as NetworkKey); setPage(1); setSearch(""); setDebouncedSearch(""); setSnapshot(null); setSelected(null); }} aria-label="Select token network"><option value="xlayer">X Layer</option><option value="ethereum">Ethereum</option><option value="bnb">BNB Chain</option><option value="solana">Solana</option></select></label>
           <button className="secondary-button" type="button" onClick={() => void refresh(page, debouncedSearch)} disabled={loading}>{loading ? "Refreshing…" : "Refresh tokens"}</button>
         </div>
       </div>
