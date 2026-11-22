@@ -68,7 +68,7 @@ export default function TokenIntelligenceWorkspace() {
         <div className="circuit-source-mark">◎</div>
         <div>
           <span className="changes-kicker">DISCOVERY SOURCE · GECKOTERMINAL</span>
-          <h2>X Layer token and pool activity</h2>
+          <h2>{networkLabel} token and pool activity</h2>
           <p>Public market-index data, refreshed automatically. Detection means a token appears in an indexed pool; it does not mean OKX has exchange-listed or endorsed it.</p>
         </div>
         <a href="https://www.geckoterminal.com/x-layer/pools" target="_blank" rel="noreferrer">Open source ↗</a>
@@ -84,12 +84,12 @@ export default function TokenIntelligenceWorkspace() {
       {error && <div className="module-notice circuit-error"><span className="circuit-status-dot error"/><div><strong>Token discovery unavailable</strong><p>{error}</p></div></div>}
 
       <section className="detail-card circuit-registry-card">
-        <div className="detail-card-heading"><div><span className="mini-icon">⌕</span><h2>{isWideSearch ? "Search {networkLabel} token directory" : "Discovered token directory"}</h2></div><span className="circuit-evidence-badge">{isWideSearch ? "WIDE SEARCH" : "LIVE INDEX"}</span></div>
+        <div className="detail-card-heading"><div><span className="mini-icon">⌕</span><h2>{isWideSearch ? `Search ${networkLabel} token directory` : "Discovered token directory"}</h2></div><span className="circuit-evidence-badge">{isWideSearch ? "WIDE SEARCH" : "LIVE INDEX"}</span></div>
         <p className="circuit-directory-intro">{isWideSearch ? "Search is sent to GeckoTerminal's indexed X Layer pool search, not just the tokens currently loaded in this table. Try a token name, symbol or full contract address." : snapshot?.scope ?? "Tokens are listed when the data provider indexes a new liquidity pool. A contract deployment without a tracked pool may not appear here."}</p>
-        <label className="circuit-search"><span>⌕</span><input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { setPage(1); setDebouncedSearch(search.trim()); } }} placeholder="Search across {networkLabel} by name, symbol or contract…" aria-label={"Search across " + networkLabel + " tokens"}/><button type="button" onClick={() => { setPage(1); setDebouncedSearch(search.trim()); }} disabled={search.trim().length < 2 || loading}>Search</button>{(search || debouncedSearch) && <button type="button" onClick={() => { setSearch(""); setDebouncedSearch(""); setPage(1); }}>Clear</button>}</label>
+        <label className="circuit-search"><span>⌕</span><input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { setPage(1); setDebouncedSearch(search.trim()); } }} placeholder={"Search across " + networkLabel + " by name, symbol or contract…"} aria-label={"Search across " + networkLabel + " tokens"}/><button type="button" onClick={() => { setPage(1); setDebouncedSearch(search.trim()); }} disabled={search.trim().length < 2 || loading}>Search</button>{(search || debouncedSearch) && <button type="button" onClick={() => { setSearch(""); setDebouncedSearch(""); setPage(1); }}>Clear</button>}</label>
         {search.trim().length === 1 && <p className="token-footnote">Enter at least 2 characters to search the wider provider index.</p>}
-        {loading && <div className="circuit-empty-state">{isWideSearch ? "Searching the wider X Layer index…" : "Loading token page…"}</div>}
-        {!loading && !error && tokens.length === 0 && <div className="circuit-empty-state">{isWideSearch ? "No indexed pools on {networkLabel} matched that search." : "No pools were returned for {networkLabel} on this page."}</div>}
+        {loading && <div className="circuit-empty-state">{isWideSearch ? `Searching the wider ${networkLabel} index…` : "Loading token page…"}</div>}
+        {!loading && !error && tokens.length === 0 && <div className="circuit-empty-state">{isWideSearch ? `No indexed pools on ${networkLabel} matched that search.` : `No pools were returned for ${networkLabel} on this page.`}</div>}
         {tokens.length > 0 && <div className="token-table-wrap"><table className="token-table">
           <thead><tr><th>TOKEN</th><th>CONTRACT</th><th>PRICE</th><th>POOL LIQUIDITY</th><th>24H VOLUME</th><th>24H CHANGE</th><th>POOL CREATED</th></tr></thead>
           <tbody>{tokens.map((token) => <tr key={token.address} onClick={() => setSelected(token)} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") setSelected(token); }}>
