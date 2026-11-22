@@ -16,6 +16,7 @@ const short = (v: string) => v.slice(0, 6) + "…" + v.slice(-4);
 
 export default function TokenIntelligenceWorkspace() {
   const [network, setNetwork] = useState("xlayer");
+  const [loading, setLoading] = useState(true);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -37,7 +38,7 @@ export default function TokenIntelligenceWorkspace() {
       setError(caught instanceof Error ? caught.message : "Could not load token data for the selected network.");
     } finally { setLoading(false); }
   }, [network]);
-
+  useEffect(() => { setPage(1); }, [debouncedSearch, network]);
   useEffect(() => { setPage(1); setSearch(""); }, [debouncedSearch, network]);
   useEffect(() => { void refresh(page, debouncedSearch); }, [refresh, page, debouncedSearch]);
   useEffect(() => {
@@ -57,11 +58,11 @@ export default function TokenIntelligenceWorkspace() {
           <h1>Token intelligence<span>.</span></h1>
           <p className="intro">A multi-chain intelligence workspace, starting with the live X Layer integration.</p>
         </div>
-        <div className="token-workspace-actions">
+          <label className="token-network-select"><span>NETWORK</span><select value={network} onChange={(event) => { setNetwork(event.target.value); setPage(1); setSearch(""); setDebouncedSearch(""); setSnapshot(null); setSelected(null); }} aria-label="Select token network"><option value="xlayer">X Layer</option><option value="ethereum">Ethereum</option><option value="bnb">BNB Chain</option><option value="solana">Solana</option></select></label>
           <label className="token-network-select"><span>NETWORK</span><select value={network} onChange={(event) => { setNetwork(event.target.value); setPage(1); setSelected(null); }} aria-label="Select token network"><option value="xlayer">X Layer</option><option value="ethereum">Ethereum</option><option value="bnb">BNB Chain</option><option value="solana">Solana</option></select></label>
           <button className="secondary-button" type="button" onClick={() => void refresh(page, debouncedSearch)} disabled={loading}>{loading ? "Refreshing…" : "Refresh tokens"}</button>
         </div>
-      </div>
+      <div className="token-network-roadmap" role="status"><span className="token-network-live-dot" /><div><strong>{networkLabel} is selected</strong><p>Token and pool discovery is sourced from GeckoTerminal. Extended trade, contract and live-event analysis remains available on X Layer while network-specific evidence adapters are added.</p></div><span className="token-network-count">4 NETWORKS</span></div>
       <div className="token-network-roadmap" role="status"><span className="token-network-live-dot" /><div><strong>{networkLabel} is selected</strong><p>Discovery uses GeckoTerminal indexed pools. Detailed contract and live activity analysis currently remains X Layer-only; additional network-specific evidence is being integrated.</p></div><span className="token-network-count">01 DATA SOURCE</span></div>
 
       <section className="circuit-source-banner token-source-banner">
