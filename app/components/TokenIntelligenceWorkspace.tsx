@@ -51,14 +51,18 @@ export default function TokenIntelligenceWorkspace() {
 
   return (
     <div className="content module-workspace token-workspace" id="token-intelligence">
-      <div className="workspace-title-row">
+      <div className="workspace-title-row token-workspace-heading">
         <div>
-          <div className="eyebrow">X LAYER ECOSYSTEM · TOKEN DISCOVERY</div>
+          <div className="eyebrow">MULTI-CHAIN ECOSYSTEM · TOKEN DISCOVERY</div>
           <h1>Token intelligence<span>.</span></h1>
-          <p className="intro">Explore newly indexed X Layer pools, browse more pages, or search the wider indexed pool directory.</p>
+          <p className="intro">A multi-chain intelligence workspace, starting with the live X Layer integration.</p>
         </div>
-        <button className="secondary-button" type="button" onClick={() => void refresh(page, debouncedSearch)} disabled={loading}>{loading ? "Refreshing…" : "Refresh tokens"}</button>
+        <div className="token-workspace-actions">
+          <label className="token-network-select"><span>NETWORK</span><select value="xlayer" onChange={() => {}} aria-label="Active token network"><option value="xlayer">X Layer · Live</option><option value="ethereum" disabled>Ethereum · Coming soon</option><option value="bnb" disabled>BNB Chain · Coming soon</option><option value="solana" disabled>Solana · Coming soon</option></select></label>
+          <button className="secondary-button" type="button" onClick={() => void refresh(page, debouncedSearch)} disabled={loading}>{loading ? "Refreshing…" : "Refresh tokens"}</button>
+        </div>
       </div>
+      <div className="token-network-roadmap" role="status"><span className="token-network-live-dot" /><div><strong>X Layer is the active network</strong><p>Ethereum, BNB Chain and Solana are shown in the network roadmap but are not connected yet. TapeWatch will only display data after each network has a verified source integration.</p></div><span className="token-network-count">01 LIVE · 03 PLANNED</span></div>
 
       <section className="circuit-source-banner token-source-banner">
         <div className="circuit-source-mark">◎</div>
