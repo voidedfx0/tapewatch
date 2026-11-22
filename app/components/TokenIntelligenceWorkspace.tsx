@@ -15,8 +15,8 @@ const fmtUsd = (v: string | null) => v == null ? "—" : Number(v).toLocaleStrin
 const short = (v: string) => v.slice(0, 6) + "…" + v.slice(-4);
 
 export default function TokenIntelligenceWorkspace() {
-  const [network, setNetwork] = useState("xlayer");\n  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [network, setNetwork] = useState("xlayer");
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -36,9 +36,9 @@ export default function TokenIntelligenceWorkspace() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not load token data for the selected network.");
     } finally { setLoading(false); }
-  }, []);
+  }, [network]);
 
-  useEffect(() => { setPage(1); }, [debouncedSearch]);
+  useEffect(() => { setPage(1); setSearch(""); }, [debouncedSearch, network]);
   useEffect(() => { void refresh(page, debouncedSearch); }, [refresh, page, debouncedSearch]);
   useEffect(() => {
     const timer = window.setInterval(() => { void refresh(page, debouncedSearch); }, 60_000);
@@ -47,8 +47,8 @@ export default function TokenIntelligenceWorkspace() {
 
   const tokens = useMemo(() => snapshot?.tokens ?? [], [snapshot]);
   const maxPage = snapshot?.maxPage ?? 10;
-  const isWideSearch = debouncedSearch.length >= 2;\n  const networkLabel = snapshot?.network ?? ({ xlayer: "X Layer", ethereum: "Ethereum", bnb: "BNB Chain", solana: "Solana" }[network] ?? network);
-
+  const isWideSearch = debouncedSearch.length >= 2;
+  const networkLabel = snapshot?.network ?? ({ xlayer: "X Layer", ethereum: "Ethereum", bnb: "BNB Chain", solana: "Solana" }[network] ?? network);
   return (
     <div className="content module-workspace token-workspace" id="token-intelligence">
       <div className="workspace-title-row token-workspace-heading">
@@ -71,7 +71,7 @@ export default function TokenIntelligenceWorkspace() {
           <h2>{networkLabel} token and pool activity</h2>
           <p>Public market-index data, refreshed automatically. Detection means a token appears in an indexed pool; it does not mean OKX has exchange-listed or endorsed it.</p>
         </div>
-        <a href="https://www.geckoterminal.com/${snapshot?.networkKey ?? "x-layer"}/pools" target="_blank" rel="noreferrer">Open source ↗</a>
+        <a href={"https://www.geckoterminal.com/" + (snapshot?.networkKey === "xlayer" ? "x-layer" : snapshot?.networkKey === "ethereum" ? "eth" : snapshot?.networkKey === "bnb" ? "bsc" : "solana") + "/pools"} target="_blank" rel="noreferrer">Open source ↗</a>
       </section>
 
       <div className="circuit-metrics-grid token-metrics-grid">
@@ -85,7 +85,7 @@ export default function TokenIntelligenceWorkspace() {
 
       <section className="detail-card circuit-registry-card">
         <div className="detail-card-heading"><div><span className="mini-icon">⌕</span><h2>{isWideSearch ? `Search ${networkLabel} token directory` : "Discovered token directory"}</h2></div><span className="circuit-evidence-badge">{isWideSearch ? "WIDE SEARCH" : "LIVE INDEX"}</span></div>
-        <p className="circuit-directory-intro">{isWideSearch ? "Search is sent to GeckoTerminal's indexed ${networkLabel} pool search, not just the tokens currently loaded in this table. Try a token name, symbol or full contract address." : snapshot?.scope ?? "Tokens are listed when the data provider indexes a new liquidity pool. A contract deployment without a tracked pool may not appear here."}</p>
+        <p className="circuit-directory-intro">{isWideSearch ? `Search is sent to GeckoTerminal indexed ${networkLabel} pool search, not just the tokens currently loaded in this table. Try a token name, symbol or full contract address.` : snapshot?.scope ?? "Tokens are listed when the data provider indexes a new liquidity pool. A contract deployment without a tracked pool may not appear here."}</p>
         <label className="circuit-search"><span>⌕</span><input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { setPage(1); setDebouncedSearch(search.trim()); } }} placeholder={"Search across " + networkLabel + " by name, symbol or contract…"} aria-label={"Search across " + networkLabel + " tokens"}/><button type="button" onClick={() => { setPage(1); setDebouncedSearch(search.trim()); }} disabled={search.trim().length < 2 || loading}>Search</button>{(search || debouncedSearch) && <button type="button" onClick={() => { setSearch(""); setDebouncedSearch(""); setPage(1); }}>Clear</button>}</label>
         {search.trim().length === 1 && <p className="token-footnote">Enter at least 2 characters to search the wider provider index.</p>}
         {loading && <div className="circuit-empty-state">{isWideSearch ? `Searching the wider ${networkLabel} index…` : "Loading token page…"}</div>}
