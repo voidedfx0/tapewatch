@@ -2,10 +2,17 @@ type IncludedToken = { id?: string; type?: string; attributes?: { address?: stri
 type Pool = { id?: string; attributes?: { address?: string; name?: string; pool_created_at?: string; base_token_price_usd?: string; reserve_in_usd?: string; volume_usd?: { h24?: string }; transactions?: { h24?: { buys?: number; sells?: number } }; price_change_percentage?: { h24?: string } }; relationships?: { base_token?: { data?: { id?: string } }; quote_token?: { data?: { id?: string } }; dex?: { data?: { id?: string } } } };
 const SOURCE = "https://api.geckoterminal.com/api/v2";
 const NETWORK = "x-layer";
+const MAX_PAGE = 10;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const response = await fetch(`${SOURCE}/networks/${NETWORK}/new_pools?include=base_token,quote_token,dex&page=1`, {
+    const params = new URL(request.url).searchParams;
+    const page = Math.min(MAX_PAGE, Math.max(1, Number(params.get("page") || 1)));
+    const search = (params.get("search") || "").trim().slice(0, 100);
+    const endpoint = search
+      ? `${SOURCE}/search/pools?${new URLSearchParams({ query: search, network: NETWORK, include: "base_token,quote_token,dex", page: String(page) })}`
+      : `${SOURCE}/networks/${NETWORK}/new_pools?${new URLSearchParams({ include: "base_token,quote_token,dex", page: String(page) })}`;
+    const response = await fetch(endpoint, {
       headers: { Accept: "application/json;version=20230203" },
       cache: "no-store",
       signal: AbortSignal.timeout(12000),
@@ -20,9 +27,8 @@ export async function GET() {
       const quoteId = pool.relationships?.quote_token?.data?.id ?? "";
       const base = included.get(baseId);
       const quote = included.get(quoteId);
-      const poolAddress = attrs.address ?? "";
       const poolDetails = {
-        poolAddress,
+        poolAddress: attrs.address ?? "",
         poolName: attrs.name ?? "Liquidity pool",
         poolCreatedAt: attrs.pool_created_at ?? null,
         dex: pool.relationships?.dex?.data?.id ?? "Unknown DEX",
@@ -58,7 +64,12 @@ export async function GET() {
       chainId: 196,
       source: "GeckoTerminal",
       sourceUrl: "https://www.geckoterminal.com/x-layer/pools",
-      scope: "Tokens appearing in newly indexed liquidity pools; this is not a complete list of deployed contracts or exchange listings.",
+      scope: search
+        ? "Matching tokens from GeckoTerminal's indexed X Layer pool search. Results depend on the provider's search index and are not a complete list of deployed contracts or exchange listings."
+        : "Tokens appearing in newly indexed X Layer liquidity pools. Browse up to 10 provider pages; this is not a complete list of deployed contracts or exchange listings.",
+      search: search || null,
+      page,
+      maxPage: MAX_PAGE,
       tokens: [...tokens.values()],
       poolCount: (payload.data ?? []).length,
       checkedAt: new Date().toISOString(),
