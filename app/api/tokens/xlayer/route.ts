@@ -27,7 +27,9 @@ export async function GET(request: Request) {
       const quoteId = pool.relationships?.quote_token?.data?.id ?? "";
       const base = included.get(baseId);
       const quote = included.get(quoteId);
-      const resolvedPoolAddress = (attrs.address && /^0x[a-fA-F0-9]{40}$/.test(attrs.address) ? attrs.address : pool.id?.match(/0x[a-fA-F0-9]{40}/)?.[0]) ?? "";\n      if (!resolvedPoolAddress) continue;\n      const poolDetails = {
+      const resolvedPoolAddress = (attrs.address && /^0x[a-fA-F0-9]{40}$/.test(attrs.address) ? attrs.address : pool.id?.match(/0x[a-fA-F0-9]{40}/)?.[0]) ?? "";
+      if (!resolvedPoolAddress) continue;
+      const poolDetails = {
         poolAddress: resolvedPoolAddress,
         poolName: attrs.name ?? "Liquidity pool",
         poolCreatedAt: attrs.pool_created_at ?? null,
