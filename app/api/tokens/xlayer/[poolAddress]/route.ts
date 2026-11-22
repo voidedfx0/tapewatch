@@ -3,6 +3,15 @@ const GECKO = "https://api.geckoterminal.com/api/v2";
 const RPC = "https://rpc.xlayer.tech";
 const headers = { Accept: "application/json;version=20230203" };
 
+const chartRanges: Record<string, { timeframe: "minute" | "hour" | "day"; aggregate: number; limit: number; label: string }> = {
+  "1H": { timeframe: "minute", aggregate: 1, limit: 60, label: "1 hour · 1-minute candles" },
+  "24H": { timeframe: "minute", aggregate: 5, limit: 288, label: "24 hours · 5-minute candles" },
+  "7D": { timeframe: "hour", aggregate: 1, limit: 168, label: "7 days · hourly candles" },
+  "30D": { timeframe: "hour", aggregate: 4, limit: 180, label: "30 days · 4-hour candles" },
+  "90D": { timeframe: "day", aggregate: 1, limit: 90, label: "90 days · daily candles" },
+  "6M": { timeframe: "day", aggregate: 1, limit: 180, label: "Up to 6 months · daily candles" },
+};
+
 export async function GET(request: Request, context: { params: Promise<{ poolAddress: string }> }) {
   const { poolAddress } = await context.params;
   if (!/^0x[a-fA-F0-9]{40}$/.test(poolAddress)) return Response.json({ ok: false, error: "Invalid pool address." }, { status: 400 });
@@ -19,14 +28,16 @@ export async function GET(request: Request, context: { params: Promise<{ poolAdd
       return Response.json({ ok: true, address: poolAddress, isContract: code !== "0x" && code !== "0x0", bytecodeBytes: Math.max(0, (code.length - 2) / 2), sourceVerification: "Not checked by this endpoint", checkedAt: new Date().toISOString() }, { headers: { "Cache-Control": "no-store" } });
     }
     if (view === "ohlcv") {
-      const url = `${GECKO}/networks/x-layer/pools/${poolAddress}/ohlcv/hour?aggregate=1&limit=48&currency=usd&token=${tokenSide}`;
+      const rangeKey = requestParams.get("range") ?? "7D";
+      const range = chartRanges[rangeKey] ?? chartRanges["7D"];
+      const url = `${GECKO}/networks/x-layer/pools/${poolAddress}/ohlcv/${range.timeframe}?aggregate=${range.aggregate}&limit=${range.limit}&currency=usd&token=${tokenSide}`;
       const response = await fetch(url, { headers, cache: "no-store", signal: AbortSignal.timeout(12000) });
       if (!response.ok) throw new Error(`Market history source returned HTTP ${response.status}`);
       const data = await response.json() as { data?: { attributes?: { ohlcv_list?: number[][] } } };
       const candles = (data.data?.attributes?.ohlcv_list ?? []).map((row) => ({ time: row[0], open: row[1], high: row[2], low: row[3], close: row[4], volume: row[5] })).reverse();
-      return Response.json({ ok: true, candles, source: "GeckoTerminal", checkedAt: new Date().toISOString() }, { headers: { "Cache-Control": "no-store" } });
+      return Response.json({ ok: true, candles, range: rangeKey, interval: range.label, source: "GeckoTerminal", checkedAt: new Date().toISOString(), freshness: "Provider-indexed market history; not a tick-by-tick stream." }, { headers: { "Cache-Control": "no-store" } });
     }
-    const url = `${GECKO}/networks/x-layer/pools/${poolAddress}/trades?include=`;
+    const url = `${GECKO}/networks/x-layer/pools/${poolAddress}/trades`;
     const response = await fetch(url, { headers, cache: "no-store", signal: AbortSignal.timeout(12000) });
     if (!response.ok) throw new Error(`Trade feed returned HTTP ${response.status}`);
     const data = await response.json() as { data?: GeckoTrade[] };
