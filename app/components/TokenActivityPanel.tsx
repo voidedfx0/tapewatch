@@ -23,8 +23,8 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
     const load = async () => {
       try {
         const [tradeRes, candleRes, contractRes] = await Promise.all([
-          fetch(`/api/tokens/xlayer/${token.poolAddress}?view=activity`, { cache: "no-store" }),
-          fetch(`/api/tokens/xlayer/${token.poolAddress}?view=ohlcv`, { cache: "no-store" }),
+          fetch(`/api/tokens/xlayer/${token.poolAddress}?view=activity&side=${token.role}`, { cache: "no-store" }),
+          fetch(`/api/tokens/xlayer/${token.poolAddress}?view=ohlcv&side=${token.role}`, { cache: "no-store" }),
           fetch(`/api/tokens/xlayer/${token.address}?view=contract`, { cache: "no-store" })
         ]);
         const [tradeData, candleData, contractData] = await Promise.all([tradeRes.json(), candleRes.json(), contractRes.json()]);
@@ -80,7 +80,7 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
   const min = Math.min(...points, 0), max = Math.max(...points, 1);
   const path = points.map((v, i) => `${points.length > 1 ? (i / (points.length - 1)) * 300 : 0},${70 - ((v - min) / Math.max(max - min, 1e-12)) * 62}`).join(" ");
   const medianVolume = candles.length > 2 ? [...candles.slice(0, -1).map((c) => c.volume)].sort((a, b) => a - b)[Math.floor((candles.length - 2) / 2)] : 0;
-  const latestVolume = candles.at(-1)?.volume ?? 0;
+  const latestVolume = candles[candles.length - 1]?.volume ?? 0;
   const volumeMultiple = medianVolume > 0 ? latestVolume / medianVolume : null;
   const signals = [
     ...(volumeMultiple != null && volumeMultiple >= 3 ? [`Latest hourly volume is ${volumeMultiple.toFixed(1)}× the median of earlier candles.`] : []),
