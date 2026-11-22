@@ -7,6 +7,7 @@ type Trade = { id: string; timestamp: string | null; side: string; hash: string;
 type Candle = { time: number; open: number; high: number; low: number; close: number; volume: number };
 type LiveEvent = { hash: string; block: string; time: string };
 type Range = "1H" | "24H" | "7D" | "30D" | "90D" | "6M";
+type CandleInterval = "1m" | "5m";
 const ranges: Range[] = ["1H", "24H", "7D", "30D", "90D", "6M"];
 
 const money = (v: string | number | null | undefined) => v == null || !Number.isFinite(Number(v)) ? "—" : Number(v).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 8 });
@@ -16,7 +17,8 @@ const compact = (v: number) => Intl.NumberFormat(undefined, { notation: "compact
 export default function TokenActivityPanel({ token }: { token: Token }) {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [candles, setCandles] = useState<Candle[]>([]);
-  const [range, setRange] = useState<Range>("7D");
+  const [range, setRange] = useState<Range>("1H");
+  const [candleInterval, setCandleInterval] = useState<CandleInterval>("1m");
   const [chartLoading, setChartLoading] = useState(true);
   const [chartError, setChartError] = useState("");
   const [chartUpdated, setChartUpdated] = useState("");
@@ -64,7 +66,7 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
       setChartLoading(true);
       setChartError("");
       try {
-        const response = await fetch(`/api/tokens/xlayer/${token.poolAddress}?view=ohlcv&side=${token.role}&range=${range}`, { cache: "no-store" });
+        const response = await fetch(`/api/tokens/xlayer/${token.poolAddress}?view=ohlcv&side=${token.role}&range=${range}&interval=${candleInterval}`, { cache: "no-store" });
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error ?? "Price history is unavailable for this pool.");
         if (active) { setCandles(data.candles ?? []); setChartUpdated(data.checkedAt ?? ""); }
@@ -75,7 +77,7 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
     void loadChart();
     const timer = window.setInterval(() => { void loadChart(); }, 60_000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [token.poolAddress, token.role, range]);
+  }, [token.poolAddress, token.role, range, candleInterval]);
 
   useEffect(() => {
     let socket: WebSocket | null = null;
@@ -134,12 +136,18 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
     return { total, buyShare, volumeLiquidity };
   }, [token.buys24h, token.sells24h, token.liquidityUsd, token.volume24hUsd]);
 
-  const points = candles.map((c) => c.close).filter((v) => Number.isFinite(v) && v > 0);
-  const low = points.length ? Math.min(...points) : 0;
-  const high = points.length ? Math.max(...points) : 0;
+  const validCandles = candles.filter((c) => [c.open, c.high, c.low, c.close].every((v) => Number.isFinite(v) && v > 0));
+  const points = validCandles.map((c) => c.close);
+  const low = validCandles.length ? Math.min(...validCandles.map((c) => c.low)) : 0;
+  const high = validCandles.length ? Math.max(...validCandles.map((c) => c.high)) : 0;
   const spread = Math.max(high - low, Math.abs(high) * 0.001, 1e-12);
-  const chartPath = points.map((v, i) => `${points.length > 1 ? 8 + (i / (points.length - 1)) * 584 : 8},${190 - ((v - low) / spread) * 158}`).join(" ");
-  const areaPath = points.length ? `M ${chartPath.replaceAll(" ", " L ")} L 592 198 L 8 198 Z` : "";
+  const yFor = (value: number) => 190 - ((value - low) / spread) * 158;
+  const candleWidth = Math.max(2, Math.min(9, 560 / Math.max(validCandles.length, 1) * 0.58));
+  const candleShapes = validCandles.map((c, i) => {
+    const x = 14 + (i / Math.max(validCandles.length - 1, 1)) * 572;
+    const up = c.close >= c.open;
+    return { x, wickTop: yFor(c.high), wickBottom: yFor(c.low), bodyTop: Math.min(yFor(c.open), yFor(c.close)), bodyHeight: Math.max(1.5, Math.abs(yFor(c.open) - yFor(c.close))), up, key: c.time };
+  });
   const latest = candles[candles.length - 1];
   const first = candles[0];
   const change = first && latest && first.open > 0 ? ((latest.close - first.open) / first.open) * 100 : null;
@@ -175,25 +183,32 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
     </div>
     <section className="token-intel-panel token-chart-panel">
       <div className="token-panel-title"><div><span className="changes-kicker">MARKET HISTORY</span><h3>Price chart</h3></div><small>{chartUpdated ? `Indexed data · updated ${new Date(chartUpdated).toLocaleTimeString()}` : "Historical market data"}</small></div>
-      <div className="token-chart-toolbar" role="group" aria-label="Chart time range">
-        {ranges.map((item) => <button type="button" key={item} className={range === item ? "active" : ""} onClick={() => setRange(item)} aria-pressed={range === item}>{item}</button>)}
+      <div className="token-chart-controls">
+        <div className="token-chart-toolbar" role="group" aria-label="Chart time range">
+          {ranges.map((item) => <button type="button" key={item} className={range === item ? "active" : ""} onClick={() => setRange(item)} aria-pressed={range === item}>{item}</button>)}
+        </div>
+        {(range === "1H" || range === "24H") && <div className="token-chart-toolbar token-interval-toolbar" role="group" aria-label="Candle interval">
+          <span>INTERVAL</span>
+          {(["1m", "5m"] as CandleInterval[]).map((item) => <button type="button" key={item} className={candleInterval === item ? "active" : ""} onClick={() => setCandleInterval(item)} aria-pressed={candleInterval === item}>{item}</button>)}
+        </div>}
       </div>
       <div className="token-chart-summary">
         <div><span>LAST RECORDED CLOSE</span><strong>{money(latest?.close ?? token.priceUsd)}</strong></div>
         <div><span>RANGE CHANGE</span><strong className={change == null ? "" : change >= 0 ? "token-positive" : "token-negative"}>{change == null ? "—" : `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}</strong></div>
         <div><span>RANGE VOLUME</span><strong>{volumeTotal ? `$${compact(volumeTotal)}` : "—"}</strong></div>
       </div>
-      {chartLoading ? <div className="token-chart-placeholder">Loading {range} price history…</div> : chartError ? <p className="token-empty-inline">{chartError}</p> : points.length > 1 ? <div className="token-chart-canvas">
-        <svg className="token-chart" viewBox="0 0 600 220" role="img" aria-label={`${range} price chart for ${token.symbol}`}>
+      {chartLoading ? <div className="token-chart-placeholder">Loading {range} price history…</div> : chartError ? <p className="token-empty-inline">{chartError}</p> : validCandles.length > 0 ? <div className="token-chart-canvas">
+        <svg className="token-chart" viewBox="0 0 600 220" role="img" aria-label={`${range} candlestick price chart for ${token.symbol}`}>
           {[40, 90, 140, 190].map((y) => <line key={y} x1="8" x2="592" y1={y} y2={y} stroke="#ffffff" strokeOpacity=".08" strokeDasharray="3 5"/>)}
-          <defs><linearGradient id="token-chart-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#b5ef73" stopOpacity=".22"/><stop offset="100%" stopColor="#b5ef73" stopOpacity="0"/></linearGradient></defs>
-          <path d={areaPath} fill="url(#token-chart-fill)"/>
-          <polyline points={chartPath} fill="none" stroke="#b5ef73" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round"/>
-          <circle cx="592" cy={190 - ((points[points.length - 1] - low) / spread) * 158} r="4" fill="#b5ef73"/>
+          {candleShapes.map((c) => <g key={c.key}>
+            <line x1={c.x} x2={c.x} y1={c.wickTop} y2={c.wickBottom} stroke={c.up ? "#b5ef73" : "#e18b8b"} strokeWidth="1.3"/>
+            <rect x={c.x - candleWidth / 2} y={c.bodyTop} width={candleWidth} height={c.bodyHeight} rx=".8" fill={c.up ? "#b5ef73" : "#e18b8b"} opacity=".92"/>
+          </g>)}
+          {latest && <g><line x1="8" x2="592" y1={yFor(latest.close)} y2={yFor(latest.close)} stroke="#b5ef73" strokeOpacity=".5" strokeDasharray="4 4"/><circle cx="586" cy={yFor(latest.close)} r="3.5" fill="#b5ef73"/></g>}
         </svg>
         <div className="token-chart-axis"><span>{new Date(first?.time ? first.time * 1000 : 0).toLocaleString()}</span><span>{new Date(latest?.time ? latest.time * 1000 : 0).toLocaleString()}</span></div>
       </div> : <div className="token-chart-placeholder">Not enough indexed candles are available for this range.</div>}
-      <div className="token-chart-legend"><span><i/> Price in USD</span><span>{candles.length.toLocaleString()} candles · {range}</span><span>Source: GeckoTerminal</span></div>
+      <div className="token-chart-legend"><span><i/> Price in USD · OHLC candles</span><span>{candles.length.toLocaleString()} candles · {range}{(range === "1H" || range === "24H") ? ` · ${candleInterval}` : ""}</span><span>Source: GeckoTerminal</span></div>
       <p className="token-footnote">Historical candles are provider-indexed. The X Layer event stream below is a separate on-chain feed; a raw pool log is not itself a decoded trade or a live USD price tick.</p>
     </section>
     <section className="token-intel-panel">
