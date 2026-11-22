@@ -73,7 +73,6 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
       } finally { if (active) setChartLoading(false); }
     };
     void loadChart();
-    return () => { active = false; };
     const timer = window.setInterval(() => { void loadChart(); }, 60_000);
     return () => { active = false; window.clearInterval(timer); };
   }, [token.poolAddress, token.role, range]);
