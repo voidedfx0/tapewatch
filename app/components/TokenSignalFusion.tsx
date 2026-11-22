@@ -11,7 +11,7 @@ type TokenSignalInput = {
   poolCreatedAt: string | null;
   dex: string;
 };
-type ContractSignalInput = { isContract: boolean; bytecodeBytes: number; sourceVerification: string } | null;
+type ContractSignalInput = { isContract: boolean; bytecodeBytes: number | null; sourceVerification: string; accountType?: string } | null;
 
 export default function TokenSignalFusion({ token, contract, signals }: {
   token: TokenSignalInput;
@@ -28,7 +28,7 @@ export default function TokenSignalFusion({ token, contract, signals }: {
     ...(buyShare !== null && (buyShare >= 0.7 || buyShare <= 0.3) ? [{ key: "mix", title: "One-sided transaction mix", detail: `${Math.round(buyShare * 100)}% of reported 24h pool transactions are buys.`, severity: "watch" }] : []),
     ...(token.priceChange24h !== null && Number.isFinite(Number(token.priceChange24h)) && Math.abs(Number(token.priceChange24h)) >= 10 ? [{ key: "move", title: "Large reported 24h price move", detail: `Provider-reported change: ${Number(token.priceChange24h).toFixed(2)}%.`, severity: "watch" }] : []),
     ...(liquidity > 0 && liquidity < 5000 ? [{ key: "depth", title: "Limited pool depth", detail: "Current indexed pool liquidity is below $5,000; smaller trades may have greater price impact.", severity: "context" }] : []),
-    ...(!contract ? [{ key: "contract-pending", title: "Contract checks incomplete", detail: "Bytecode was not retrieved, so contract presence and verification remain unconfirmed.", severity: "unknown" }] : []),
+    ...(!contract ? [{ key: "contract-pending", title: "Account / contract checks incomplete", detail: "Bytecode was not retrieved, so contract presence and verification remain unconfirmed.", severity: "unknown" }] : []),
     ...(contract && !contract.isContract ? [{ key: "no-code", title: "No account or contract record returned", detail: "The network RPC did not return an account or contract record for this address.", severity: "unknown" }] : []),
   ];
   const combined = flags.some((item) => item.key === "turnover") && flags.some((item) => item.key === "mix");
@@ -43,7 +43,7 @@ export default function TokenSignalFusion({ token, contract, signals }: {
     <div className="token-fusion-summary">
       <div><span>REVIEW SIGNALS</span><strong>{flags.length}</strong><small>Observed checks needing context</small></div>
       <div><span>POOL AGE</span><strong>{ageText}</strong><small>Pool age, not token deployment age</small></div>
-      <div><span>DATA COVERAGE</span><strong>{contract ? "Partial" : "Limited"}</strong><small>Market index + network RPC lookup</small></div>
+      <div><span>DATA COVERAGE</span><strong>{contract ? "Partial" : "Limited"}</strong><small>Market index + native network RPC lookup</small></div>
     </div>
     {combined && <div className="token-fusion-relationship"><strong>Related pattern detected</strong><p>Elevated turnover and a one-sided transaction mix are present together. This combination can warrant closer review, but does not establish manipulation, coordinated activity or selling pressure.</p></div>}
     {flags.length ? <div className="token-fusion-list">{flags.map((flag) => <article key={flag.key} data-severity={flag.severity}><span>{flag.severity === "watch" ? "REVIEW" : flag.severity === "unknown" ? "UNVERIFIED" : "CONTEXT"}</span><div><strong>{flag.title}</strong><p>{flag.detail}</p></div></article>)}</div> : <p className="token-empty-inline">No configured review thresholds were crossed in the available snapshot. This is not a clean bill of health.</p>}
