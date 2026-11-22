@@ -45,7 +45,7 @@ export default function TokenIntelligenceWorkspace() {
   }, [refresh, page, debouncedSearch]);
 
   const tokens = useMemo(() => snapshot?.tokens ?? [], [snapshot]);
-  const maxPage = snapshot?.maxPage ?? (isWideSearch ? 1 : 10);
+  const maxPage = snapshot?.maxPage ?? 10;
   const isWideSearch = debouncedSearch.length >= 2;
 
   return (
