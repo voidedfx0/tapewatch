@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import TokenActivityPanel from "./TokenActivityPanel";
 
 type Token = {
-  address: string; name: string; symbol: string; decimals: number | null; imageUrl: string | null;
+  networkKey: string; address: string; name: string; symbol: string; decimals: number | null; imageUrl: string | null;
   coingeckoId: string | null; role: string; poolAddress: string; poolName: string;
   poolCreatedAt: string | null; dex: string; liquidityUsd: string | null; volume24hUsd: string | null;
   priceChange24h: string | null; buys24h: number | null; sells24h: number | null; priceUsd: string | null;
@@ -71,7 +71,7 @@ export default function TokenIntelligenceWorkspace() {
           <h2>{networkLabel} token and pool activity</h2>
           <p>Public market-index data, refreshed automatically. Detection means a token appears in an indexed pool; it does not mean OKX has exchange-listed or endorsed it.</p>
         </div>
-        <a href="https://www.geckoterminal.com/x-layer/pools" target="_blank" rel="noreferrer">Open source ↗</a>
+        <a href="https://www.geckoterminal.com/${snapshot?.networkKey ?? "x-layer"}/pools" target="_blank" rel="noreferrer">Open source ↗</a>
       </section>
 
       <div className="circuit-metrics-grid token-metrics-grid">
@@ -85,7 +85,7 @@ export default function TokenIntelligenceWorkspace() {
 
       <section className="detail-card circuit-registry-card">
         <div className="detail-card-heading"><div><span className="mini-icon">⌕</span><h2>{isWideSearch ? `Search ${networkLabel} token directory` : "Discovered token directory"}</h2></div><span className="circuit-evidence-badge">{isWideSearch ? "WIDE SEARCH" : "LIVE INDEX"}</span></div>
-        <p className="circuit-directory-intro">{isWideSearch ? "Search is sent to GeckoTerminal's indexed X Layer pool search, not just the tokens currently loaded in this table. Try a token name, symbol or full contract address." : snapshot?.scope ?? "Tokens are listed when the data provider indexes a new liquidity pool. A contract deployment without a tracked pool may not appear here."}</p>
+        <p className="circuit-directory-intro">{isWideSearch ? "Search is sent to GeckoTerminal's indexed ${networkLabel} pool search, not just the tokens currently loaded in this table. Try a token name, symbol or full contract address." : snapshot?.scope ?? "Tokens are listed when the data provider indexes a new liquidity pool. A contract deployment without a tracked pool may not appear here."}</p>
         <label className="circuit-search"><span>⌕</span><input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { setPage(1); setDebouncedSearch(search.trim()); } }} placeholder={"Search across " + networkLabel + " by name, symbol or contract…"} aria-label={"Search across " + networkLabel + " tokens"}/><button type="button" onClick={() => { setPage(1); setDebouncedSearch(search.trim()); }} disabled={search.trim().length < 2 || loading}>Search</button>{(search || debouncedSearch) && <button type="button" onClick={() => { setSearch(""); setDebouncedSearch(""); setPage(1); }}>Clear</button>}</label>
         {search.trim().length === 1 && <p className="token-footnote">Enter at least 2 characters to search the wider provider index.</p>}
         {loading && <div className="circuit-empty-state">{isWideSearch ? `Searching the wider ${networkLabel} index…` : "Loading token page…"}</div>}
