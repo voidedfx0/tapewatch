@@ -30,12 +30,26 @@ export async function GET(request: Request, context: { params: Promise<{ poolAdd
     if (view === "ohlcv") {
       const rangeKey = requestParams.get("range") ?? "7D";
       const range = chartRanges[rangeKey] ?? chartRanges["7D"];
-      const url = `${GECKO}/networks/x-layer/pools/${poolAddress}/ohlcv/${range.timeframe}?aggregate=${range.aggregate}&limit=${range.limit}&currency=usd&token=${tokenSide}`;
-      const response = await fetch(url, { headers, cache: "no-store", signal: AbortSignal.timeout(12000) });
+      const requestedInterval = requestParams.get("interval") === "5m" ? "5m" : "1m";
+      const shortRange = rangeKey === "1H" || rangeKey === "24H";
+      const aggregate = shortRange ? (requestedInterval === "5m" ? 5 : 1) : range.aggregate;
+      const limit = shortRange ? (rangeKey === "1H" ? (requestedInterval === "5m" ? 12 : 60) : 288) : range.limit;
+      const timeframe = shortRange ? "minute" : range.timeframe;
+      const label = shortRange ? `${rangeKey} · ${aggregate}-minute candles` : range.label;
+      const makeUrl = (agg: number, count: number) => `${GECKO}/networks/x-layer/pools/${poolAddress}/ohlcv/${timeframe}?aggregate=${agg}&limit=${count}&currency=usd&token=${tokenSide}`;
+      let response = await fetch(makeUrl(aggregate, limit), { headers, cache: "no-store", signal: AbortSignal.timeout(12000) });
       if (!response.ok) throw new Error(`Market history source returned HTTP ${response.status}`);
-      const data = await response.json() as { data?: { attributes?: { ohlcv_list?: number[][] } } };
-      const candles = (data.data?.attributes?.ohlcv_list ?? []).map((row) => ({ time: row[0], open: row[1], high: row[2], low: row[3], close: row[4], volume: row[5] })).reverse();
-      return Response.json({ ok: true, candles, range: rangeKey, interval: range.label, source: "GeckoTerminal", checkedAt: new Date().toISOString(), freshness: "Provider-indexed market history; not a tick-by-tick stream." }, { headers: { "Cache-Control": "no-store" } });
+      let data = await response.json() as { data?: { attributes?: { ohlcv_list?: number[][] } } };
+      let rows = data.data?.attributes?.ohlcv_list ?? [];
+      if (!rows.length && rangeKey === "1H" && aggregate === 1) {
+        response = await fetch(makeUrl(5, 12), { headers, cache: "no-store", signal: AbortSignal.timeout(12000) });
+        if (response.ok) {
+          data = await response.json() as { data?: { attributes?: { ohlcv_list?: number[][] } } };
+          rows = data.data?.attributes?.ohlcv_list ?? [];
+        }
+      }
+      const candles = rows.map((row) => ({ time: row[0], open: row[1], high: row[2], low: row[3], close: row[4], volume: row[5] })).reverse();
+      return Response.json({ ok: true, candles, range: rangeKey, interval: label, source: "GeckoTerminal", checkedAt: new Date().toISOString(), freshness: "Provider-indexed OHLC candles; refreshes about once per minute and is not a tick-by-tick stream." }, { headers: { "Cache-Control": "no-store" } });
     }
     const url = `${GECKO}/networks/x-layer/pools/${poolAddress}/trades`;
     const response = await fetch(url, { headers, cache: "no-store", signal: AbortSignal.timeout(12000) });
