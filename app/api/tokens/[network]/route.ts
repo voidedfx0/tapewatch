@@ -1,5 +1,15 @@
 type IncludedToken = { id?: string; type?: string; attributes?: { address?: string; name?: string; symbol?: string; decimals?: number; image_url?: string; coingecko_coin_id?: string } };
-type Pool = { id?: string; attributes?: { address?: string; name?: string; pool_created_at?: string; base_token_price_usd?: string; reserve_in_usd?: string; volume_usd?: { h24?: string }; transactions?: { h24?: { buys?: number; sells?: number } }; price_change_percentage?: { h24?: string } }; relationships?: { base_token?: { data?: { id?: string } }; quote_token?: { data?: { id?: string } }; dex?: { data?: { id?: string } } };
+type Pool = {
+  id?: string;
+  attributes?: {
+    address?: string; name?: string; pool_created_at?: string; base_token_price_usd?: string; reserve_in_usd?: string;
+    volume_usd?: { h24?: string }; transactions?: { h24?: { buys?: number; sells?: number } };
+    price_change_percentage?: { h24?: string };
+  };
+  relationships?: {
+    base_token?: { data?: { id?: string } }; quote_token?: { data?: { id?: string } }; dex?: { data?: { id?: string } };
+  };
+};
 const SOURCE = "https://api.geckoterminal.com/api/v2";
 const NETWORKS = {
   xlayer: { slug: "x-layer", name: "X Layer", chainId: 196, family: "evm", explorer: "https://www.okx.com/web3/explorer/xlayer", enabled: true },
