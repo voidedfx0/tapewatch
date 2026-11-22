@@ -23,11 +23,6 @@ export default function TokenIntelligenceWorkspace() {
   const [selected, setSelected] = useState<Token | null>(null);
   const [lastUpdated, setLastUpdated] = useState("");
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 350);
-    return () => window.clearTimeout(timer);
-  }, [search]);
-
   const refresh = useCallback(async (targetPage: number, query: string) => {
     setLoading(true); setError("");
     try {
@@ -50,7 +45,7 @@ export default function TokenIntelligenceWorkspace() {
   }, [refresh, page, debouncedSearch]);
 
   const tokens = useMemo(() => snapshot?.tokens ?? [], [snapshot]);
-  const maxPage = snapshot?.maxPage ?? 10;
+  const maxPage = snapshot?.maxPage ?? (isWideSearch ? 1 : 10);
   const isWideSearch = debouncedSearch.length >= 2;
 
   return (
@@ -86,7 +81,7 @@ export default function TokenIntelligenceWorkspace() {
       <section className="detail-card circuit-registry-card">
         <div className="detail-card-heading"><div><span className="mini-icon">⌕</span><h2>{isWideSearch ? "Search X Layer token directory" : "Discovered token directory"}</h2></div><span className="circuit-evidence-badge">{isWideSearch ? "WIDE SEARCH" : "LIVE INDEX"}</span></div>
         <p className="circuit-directory-intro">{isWideSearch ? "Search is sent to GeckoTerminal's indexed X Layer pool search, not just the tokens currently loaded in this table. Try a token name, symbol or full contract address." : snapshot?.scope ?? "Tokens are listed when the data provider indexes a new liquidity pool. A contract deployment without a tracked pool may not appear here."}</p>
-        <label className="circuit-search"><span>⌕</span><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search across X Layer by name, symbol or contract…" aria-label="Search across X Layer tokens"/>{search && <button type="button" onClick={() => setSearch("")}>Clear</button>}</label>
+        <label className="circuit-search"><span>⌕</span><input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { setPage(1); setDebouncedSearch(search.trim()); } }} placeholder="Search across X Layer by name, symbol or contract…" aria-label="Search across X Layer tokens"/><button type="button" onClick={() => { setPage(1); setDebouncedSearch(search.trim()); }} disabled={search.trim().length < 2 || loading}>Search</button>{(search || debouncedSearch) && <button type="button" onClick={() => { setSearch(""); setDebouncedSearch(""); setPage(1); }}>Clear</button>}</label>
         {search.trim().length === 1 && <p className="token-footnote">Enter at least 2 characters to search the wider provider index.</p>}
         {loading && <div className="circuit-empty-state">{isWideSearch ? "Searching the wider X Layer index…" : "Loading token page…"}</div>}
         {!loading && !error && tokens.length === 0 && <div className="circuit-empty-state">{isWideSearch ? "No indexed X Layer pools matched that search." : "No pools were returned on this page."}</div>}
