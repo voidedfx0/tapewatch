@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Token = { address: string; symbol: string; poolAddress: string; poolName: string; liquidityUsd: string | null; volume24hUsd: string | null; buys24h: number | null; sells24h: number | null; priceChange24h: string | null; priceUsd: string | null };
+type Token = { address: string; symbol: string; role: string; poolAddress: string; poolName: string; liquidityUsd: string | null; volume24hUsd: string | null; buys24h: number | null; sells24h: number | null; priceChange24h: string | null; priceUsd: string | null };
 type Trade = { id: string; timestamp: string | null; side: string; hash: string; wallet: string; fromAmount: string | null; toAmount: string | null; priceUsd: string | null; volumeUsd: string | null };
 type Candle = { time: number; open: number; high: number; low: number; close: number; volume: number };
 type LiveEvent = { hash: string; block: string; time: string };
