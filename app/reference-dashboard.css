@@ -333,3 +333,27 @@ h1 span { color: #b5ef73 !important; }
 .token-chart-legend i { width:7px; height:7px; display:inline-block; border-radius:50%; background:#b5ef73; box-shadow:0 0 8px #b5ef7366; }
 .token-chart-placeholder { display:grid; place-items:center; min-height:180px; padding:20px; border:1px dashed #2c3a2e; border-radius:10px; color:#8b998d; text-align:center; font-size:11px; background:#0d140f; }
 @media(max-width:600px) { .token-chart-summary { gap:7px; } .token-chart-summary strong { font-size:13px; } .token-chart-axis { font-size:8px; } }
+
+
+/* TapeWatch signal-fusion brief */
+.token-signal-fusion { position:relative; overflow:hidden; }
+.token-signal-fusion:before { content:""; position:absolute; inset:0 auto 0 0; width:2px; background:linear-gradient(180deg,#b5ef73,transparent 78%); opacity:.8; pointer-events:none; }
+.token-fusion-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:2px 0 14px; }
+.token-fusion-summary>div { min-width:0; padding:13px 14px; border:1px solid #2b382e; border-radius:9px; background:linear-gradient(145deg,#172219,#101711); }
+.token-fusion-summary span { display:block; color:#829184; font-size:8px; font-weight:800; letter-spacing:.12em; }
+.token-fusion-summary strong { display:block; margin:7px 0 4px; color:#eff6ee; font-size:22px; letter-spacing:-.5px; }
+.token-fusion-summary small { display:block; color:#849286; font-size:9px; line-height:1.45; }
+.token-fusion-relationship { padding:13px 14px; margin:0 0 12px; border:1px solid #52603a; border-radius:9px; background:linear-gradient(110deg,#29351c88,#151d15); }
+.token-fusion-relationship strong { color:#d9efb8; font-size:11px; }
+.token-fusion-relationship p,.token-fusion-next p { margin:6px 0 0; color:#a1ad9f; font-size:10px; line-height:1.65; }
+.token-fusion-list { display:grid; gap:8px; }
+.token-fusion-list article { display:flex; align-items:flex-start; gap:11px; padding:11px 12px; border:1px solid #2b382e; border-radius:8px; background:#111912; }
+.token-fusion-list article>span { flex:0 0 auto; margin-top:1px; padding:4px 6px; border:1px solid #46533c; border-radius:4px; color:#c2d9a6; background:#202b1d; font-size:8px; font-weight:800; letter-spacing:.07em; }
+.token-fusion-list article[data-severity="unknown"]>span { color:#c7b98d; border-color:#514a32; background:#292519; }
+.token-fusion-list article[data-severity="context"]>span { color:#a9bdc0; border-color:#35474a; background:#182326; }
+.token-fusion-list article>div { min-width:0; }
+.token-fusion-list article strong { color:#e5eee4; font-size:11px; }
+.token-fusion-list article p { margin:4px 0 0; color:#8e9b90; font-size:10px; line-height:1.55; }
+.token-fusion-next { margin-top:12px; padding:12px 13px; border:1px dashed #344237; border-radius:8px; background:#0e1510; }
+.token-fusion-next>strong { color:#c6d5c5; font-size:10px; }
+@media(max-width:600px) { .token-fusion-summary { gap:7px; } .token-fusion-summary>div { padding:10px; } .token-fusion-summary strong { font-size:18px; } .token-fusion-summary small { font-size:8px; } .token-fusion-list article { padding:9px; gap:8px; } }
