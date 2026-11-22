@@ -274,3 +274,35 @@ h1 span { color: #b5ef73 !important; }
 @media (prefers-reduced-motion: reduce) {
   .nav-item,.stat-card,.section-card,.mini-card,.brand-mark { transition: none !important; }
 }
+
+
+/* Token intelligence detail workspace */
+.token-intelligence-extra { display: grid; gap: 14px; margin-top: 24px; }
+.token-live-heading,.token-panel-title { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.token-live-heading h3,.token-panel-title h3 { margin:4px 0 0; color:#edf3ed; font-size:17px; font-weight:650; }
+.token-live-status { display:inline-flex; align-items:center; gap:8px; color:#a9c5a8; font-size:11px; letter-spacing:.04em; }
+.token-live-status i { width:7px; height:7px; border-radius:50%; background:#8dd38d; box-shadow:0 0 12px #8dd38d88; }
+.token-intel-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.token-intel-grid article,.token-intel-panel { background:linear-gradient(145deg,#111a13,#0c120e); border:1px solid #28362b; border-radius:13px; padding:15px; min-width:0; }
+.token-intel-grid article>span { display:block; color:#829184; font-size:9px; letter-spacing:.12em; font-weight:700; }
+.token-intel-grid article>strong { display:block; color:#eff6ee; font-size:22px; margin:10px 0 5px; overflow-wrap:anywhere; }
+.token-intel-grid article>small,.token-panel-title>small { color:#89988c; font-size:10px; line-height:1.5; }
+.token-panel-title { margin-bottom:14px; }
+.token-chart { display:block; width:100%; height:120px; background:linear-gradient(180deg,#9bd39b0d,transparent); border-radius:8px; }
+.token-chart-footer { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; color:#8d9b90; font-size:11px; margin-top:8px; }
+.token-chart-footer strong { color:#dce8dc; margin-left:5px; }
+.token-trade-list { display:grid; }
+.token-trade-row { display:grid; grid-template-columns:82px minmax(100px,1fr) minmax(100px,1fr) auto; align-items:center; gap:12px; padding:11px 0; border-top:1px solid #253027; }
+.token-trade-row>span { min-width:0; }
+.token-trade-row>span:nth-child(2) strong,.token-trade-row>span:nth-child(3) strong { display:block; color:#e5eee5; font-size:11px; overflow-wrap:anywhere; }
+.token-trade-row small { display:block; color:#819084; font-size:9px; margin-top:4px; }
+.token-trade-row>a { color:#a9cba9; font-size:10px; white-space:nowrap; text-decoration:none; }
+.token-trade-row>a:hover { color:#e2f2e2; }
+.trade-buy,.trade-sell,.trade-event { display:inline-flex; width:max-content; border-radius:5px; padding:5px 7px; font-size:9px; font-weight:800; letter-spacing:.06em; }
+.trade-buy { color:#9ee0a1; background:#17351d; }
+.trade-sell { color:#e0a1a1; background:#3a1d20; }
+.trade-event { color:#c3d3c5; background:#27332a; }
+.token-empty-inline { color:#89988c; font-size:11px; padding:12px 0; }
+.token-intel-panel .token-footnote { margin-top:12px; }
+@media(max-width:760px) { .token-intel-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .token-trade-row { grid-template-columns:70px 1fr; } .token-trade-row>span:nth-child(3),.token-trade-row>a { grid-column:2; } .token-panel-title { align-items:flex-start; flex-direction:column; gap:4px; } }
+@media(max-width:430px) { .token-intel-grid article { padding:11px; } .token-intel-grid article>strong { font-size:18px; } .token-live-heading { align-items:flex-start; flex-direction:column; } }
