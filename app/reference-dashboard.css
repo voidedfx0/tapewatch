@@ -314,6 +314,9 @@ h1 span { color: #b5ef73 !important; }
 
 
 /* Interactive multi-range token chart */
+.token-chart-controls { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; }
+.token-interval-toolbar { align-items:center; margin-left:auto; }
+.token-interval-toolbar>span { color:#829084; font-size:8px; font-weight:800; letter-spacing:.1em; margin-right:3px; }
 .token-chart-toolbar { display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 16px; }
 .token-chart-toolbar button { min-width:48px; padding:7px 11px; color:#9ba99d; background:#111a13; border:1px solid #2a382d; border-radius:7px; font-size:10px; font-weight:700; cursor:pointer; transition:all .18s ease; }
 .token-chart-toolbar button:hover { color:#eaf4e7; border-color:#607657; }
