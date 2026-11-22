@@ -400,3 +400,25 @@ html, body {
   .token-chart-axis span { min-width: 0; overflow-wrap: anywhere; }
   .token-trade-row { min-width: 0; }
 }
+
+
+/* Multi-chain token intelligence selector */
+.token-workspace-heading { align-items: flex-end; gap: 18px; }
+.token-workspace-actions { display: flex; align-items: flex-end; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.token-network-select { display: grid; gap: 6px; min-width: 190px; }
+.token-network-select > span { color: var(--muted, #858585); font-size: 9px; font-weight: 700; letter-spacing: .13em; }
+.token-network-select select { width: 100%; min-height: 40px; padding: 0 34px 0 12px; border: 1px solid var(--line, #303030); border-radius: 9px; background: var(--panel, #111); color: var(--text, #f4f4f4); font: inherit; font-size: 12px; }
+.token-network-select select option:disabled { color: #777; }
+.token-network-roadmap { display: flex; align-items: center; gap: 12px; margin: 0 0 18px; padding: 13px 15px; border: 1px solid var(--line, #303030); border-radius: 12px; background: rgba(255,255,255,.025); }
+.token-network-live-dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #74c69d; box-shadow: 0 0 12px rgba(116,198,157,.45); }
+.token-network-roadmap > div { min-width: 0; flex: 1; }
+.token-network-roadmap strong { display: block; color: var(--text, #f4f4f4); font-size: 11px; font-weight: 650; }
+.token-network-roadmap p { margin: 4px 0 0; color: var(--muted, #999); font-size: 11px; line-height: 1.5; }
+.token-network-count { flex: 0 0 auto; color: var(--muted, #929292); font-size: 9px; font-weight: 700; letter-spacing: .08em; white-space: nowrap; }
+@media (max-width: 700px) {
+  .token-workspace-heading { align-items: stretch; }
+  .token-workspace-actions { display: grid; grid-template-columns: minmax(0,1fr); width: 100%; }
+  .token-network-select { min-width: 0; width: 100%; }
+  .token-network-roadmap { align-items: flex-start; flex-wrap: wrap; }
+  .token-network-count { margin-left: 19px; }
+}
