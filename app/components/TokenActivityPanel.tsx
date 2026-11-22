@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import TokenSignalFusion from "./TokenSignalFusion";
 
 type Token = { address: string; name: string; symbol: string; role: string; poolAddress: string; poolName: string; poolCreatedAt: string | null; dex: string; liquidityUsd: string | null; volume24hUsd: string | null; buys24h: number | null; sells24h: number | null; priceChange24h: string | null; priceUsd: string | null };
 type Trade = { id: string; timestamp: string | null; side: string; hash: string; wallet: string; fromAmount: string | null; toAmount: string | null; priceUsd: string | null; volumeUsd: string | null };
@@ -181,6 +182,7 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
       <article><span>VOLUME / LIQUIDITY</span><strong>{insights.volumeLiquidity == null ? "—" : insights.volumeLiquidity.toFixed(2) + "×"}</strong><small>24h volume divided by current pool liquidity</small></article>
       <article><span>CONTRACT CODE</span><strong>{contract ? (contract.isContract ? "Detected" : "Not found") : "Checking…"}</strong><small>{contract ? `${contract.bytecodeBytes.toLocaleString()} bytecode bytes · source verification not checked` : "X Layer RPC lookup"}</small></article>
     </div>
+    <TokenSignalFusion token={token} contract={contract} signals={signals} />
     <section className="token-intel-panel token-chart-panel">
       <div className="token-panel-title"><div><span className="changes-kicker">MARKET HISTORY</span><h3>Price chart</h3></div><small>{chartUpdated ? `Indexed data · updated ${new Date(chartUpdated).toLocaleTimeString()}` : "Historical market data"}</small></div>
       <div className="token-chart-controls">
