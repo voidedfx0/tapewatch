@@ -87,10 +87,10 @@ export default function TokenIntelligenceWorkspace() {
         {loading && <div className="circuit-empty-state">{isWideSearch ? "Searching the wider X Layer index…" : "Loading token page…"}</div>}
         {!loading && !error && tokens.length === 0 && <div className="circuit-empty-state">{isWideSearch ? "No indexed X Layer pools matched that search." : "No pools were returned on this page."}</div>}
         {tokens.length > 0 && <div className="token-table-wrap"><table className="token-table">
-          <thead><tr><th>TOKEN</th><th>CONTRACT</th><th>POOL LIQUIDITY</th><th>24H VOLUME</th><th>24H CHANGE</th><th>POOL CREATED</th></tr></thead>
+          <thead><tr><th>TOKEN</th><th>CONTRACT</th><th>PRICE</th><th>POOL LIQUIDITY</th><th>24H VOLUME</th><th>24H CHANGE</th><th>POOL CREATED</th></tr></thead>
           <tbody>{tokens.map((token) => <tr key={token.address} onClick={() => setSelected(token)} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") setSelected(token); }}>
             <td><div className="token-identity">{token.imageUrl ? <img src={token.imageUrl} alt="" loading="lazy"/> : <span className="token-placeholder">{token.symbol.slice(0,1)}</span>}<span><strong>{token.name}</strong><small>{token.symbol}</small></span></div></td>
-            <td><code>{short(token.address)}</code></td><td>{fmtUsd(token.liquidityUsd)}</td><td>{fmtUsd(token.volume24hUsd)}</td>
+            <td><code>{short(token.address)}</code></td><td>{fmtUsd(token.priceUsd)}</td><td>{fmtUsd(token.liquidityUsd)}</td><td>{fmtUsd(token.volume24hUsd)}</td>
             <td className={token.priceChange24h && Number(token.priceChange24h) < 0 ? "token-negative" : "token-positive"}>{token.priceChange24h == null ? "—" : Number(token.priceChange24h).toFixed(2) + "%"}</td>
             <td>{token.poolCreatedAt ? new Date(token.poolCreatedAt).toLocaleDateString() : "—"}</td>
           </tr>)}</tbody>
