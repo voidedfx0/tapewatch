@@ -422,3 +422,6 @@ html, body {
   .token-network-roadmap { align-items: flex-start; flex-wrap: wrap; }
   .token-network-count { margin-left: 19px; }
 }
+
+.token-auto-refresh { align-self: center; color: var(--muted, #858585); font-size: 9px; font-weight: 750; letter-spacing: .12em; white-space: nowrap; }
+@media (max-width: 640px) { .token-workspace-actions { width: 100%; justify-content: flex-start; } .token-auto-refresh { order: 3; } }
