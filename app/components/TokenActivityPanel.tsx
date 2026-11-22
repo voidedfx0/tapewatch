@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import TokenSignalFusion from "./TokenSignalFusion";
 
-type Token = { address: string; name: string; symbol: string; role: string; poolAddress: string; poolName: string; poolCreatedAt: string | null; dex: string; liquidityUsd: string | null; volume24hUsd: string | null; buys24h: number | null; sells24h: number | null; priceChange24h: string | null; priceUsd: string | null };
+type Token = { networkKey: string; address: string; name: string; symbol: string; role: string; poolAddress: string; poolName: string; poolCreatedAt: string | null; dex: string; liquidityUsd: string | null; volume24hUsd: string | null; buys24h: number | null; sells24h: number | null; priceChange24h: string | null; priceUsd: string | null };
 type Trade = { id: string; timestamp: string | null; side: string; hash: string; wallet: string; fromAmount: string | null; toAmount: string | null; priceUsd: string | null; volumeUsd: string | null };
 type Candle = { time: number; open: number; high: number; low: number; close: number; volume: number };
 type LiveEvent = { hash: string; block: string; time: string };
@@ -15,7 +15,11 @@ const money = (v: string | number | null | undefined) => v == null || !Number.is
 const short = (v: string) => v ? v.slice(0, 8) + "…" + v.slice(-6) : "—";
 const compact = (v: number) => Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 2 }).format(v);
 
+const NETWORK_META: Record<string, { name: string; explorer: string; txPath: string; accountPath: string }> = { xlayer: { name: "X Layer", explorer: "https://www.okx.com/web3/explorer/xlayer", txPath: "/tx/", accountPath: "/token/" }, ethereum: { name: "Ethereum", explorer: "https://etherscan.io", txPath: "/tx/", accountPath: "/token/" }, bnb: { name: "BNB Chain", explorer: "https://bscscan.com", txPath: "/tx/", accountPath: "/token/" }, solana: { name: "Solana", explorer: "https://solscan.io", txPath: "/tx/", accountPath: "/token/" } };
+
 export default function TokenActivityPanel({ token }: { token: Token }) {
+  const network = NETWORK_META[token.networkKey] ?? NETWORK_META.xlayer;
+  const apiBase = `/api/tokens/${token.networkKey}/${encodeURIComponent(token.poolAddress)}`;
   const [trades, setTrades] = useState<Trade[]>([]);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [range, setRange] = useState<Range>("1H");
@@ -23,8 +27,8 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
   const [chartLoading, setChartLoading] = useState(true);
   const [chartError, setChartError] = useState("");
   const [chartUpdated, setChartUpdated] = useState("");
-  const [contract, setContract] = useState<{ isContract: boolean; bytecodeBytes: number; sourceVerification: string } | null>(null);
-  const [feedState, setFeedState] = useState("Connecting to X Layer…");
+  const [contract, setContract] = useState<{ isContract: boolean; bytecodeBytes: number | null; sourceVerification: string; accountType?: string; owner?: string | null; executable?: boolean | null } | null>(null);
+  const [feedState, setFeedState] = useState("Connecting to indexed market feed…");
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [error, setError] = useState("");
   const [activityUpdated, setActivityUpdated] = useState("");
@@ -37,7 +41,7 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
       if (busy) return;
       busy = true;
       try {
-        const response = await fetch(`/api/tokens/xlayer/${token.poolAddress}?view=activity&side=${token.role}`, { cache: "no-store" });
+        const response = await fetch(`${apiBase}?view=activity&side=${token.role}`, { cache: "no-store" });
         const data = await response.json();
         if (!active) return;
         if (response.ok && data.ok) {
@@ -50,16 +54,16 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
     };
     const loadContract = async () => {
       try {
-        const response = await fetch(`/api/tokens/xlayer/${token.address}?view=contract`, { cache: "no-store" });
+        const response = await fetch(`/api/tokens/${token.networkKey}/${encodeURIComponent(token.address)}?view=contract`, { cache: "no-store" });
         const data = await response.json();
         if (active && data.ok) setContract(data);
       } catch { /* Contract lookup is independent of the live activity feed. */ }
     };
     void loadTrades();
     void loadContract();
-    const timer = window.setInterval(() => { void loadTrades(); }, 60_000);
+    const timer = window.setInterval(() => { void loadTrades(); }, 15_000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [token.address, token.poolAddress, token.role]);
+  }, [token.address, token.poolAddress, token.role, token.networkKey, apiBase]);
 
   useEffect(() => {
     let active = true;
@@ -67,7 +71,7 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
       setChartLoading(true);
       setChartError("");
       try {
-        const response = await fetch(`/api/tokens/xlayer/${token.poolAddress}?view=ohlcv&side=${token.role}&range=${range}&interval=${candleInterval}`, { cache: "no-store" });
+        const response = await fetch(`${apiBase}?view=ohlcv&side=${token.role}&range=${range}&interval=${candleInterval}`, { cache: "no-store" });
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error ?? "Price history is unavailable for this pool.");
         if (active) { setCandles(data.candles ?? []); setChartUpdated(data.checkedAt ?? ""); }
@@ -78,9 +82,10 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
     void loadChart();
     const timer = window.setInterval(() => { void loadChart(); }, 60_000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [token.poolAddress, token.role, range, candleInterval]);
+  }, [token.poolAddress, token.role, token.networkKey, apiBase, range, candleInterval]);
 
   useEffect(() => {
+    if (token.networkKey !== "xlayer") { setFeedState("Provider-indexed polling · " + network.name); setEvents([]); setLatestBlock(""); return; }
     let socket: WebSocket | null = null;
     let reconnect: ReturnType<typeof setTimeout> | undefined;
     let disposed = false;
@@ -128,7 +133,7 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
     };
     connect();
     return () => { disposed = true; if (reconnect) clearTimeout(reconnect); socket?.close(); };
-  }, [token.poolAddress]);
+  }, [token.poolAddress, token.networkKey, network.name]);
 
   const insights = useMemo(() => {
     const buys = token.buys24h ?? 0, sells = token.sells24h ?? 0, total = buys + sells;
@@ -171,8 +176,8 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
         <div><span>Indexed venue</span><strong>{token.dex}</strong></div>
         <div><span>Pool / pair</span><strong>{token.poolName}</strong></div>
         <div><span>Pool age</span><strong>{token.poolCreatedAt ? new Date(token.poolCreatedAt).toLocaleString() : "Not supplied"}</strong></div>
-        <div><span>Token contract</span><strong><a href={`https://www.okx.com/web3/explorer/xlayer/token/${token.address}`} target="_blank" rel="noreferrer">{short(token.address)} ↗</a></strong></div>
-        <div><span>Pool contract / explorer</span><strong><a href={`https://www.okx.com/web3/explorer/xlayer/address/${token.poolAddress}`} target="_blank" rel="noreferrer">{short(token.poolAddress)} ↗</a></strong></div>
+        <div><span>Token contract</span><strong><a href={`${network.explorer}${network.accountPath}${token.address}`} target="_blank" rel="noreferrer">{short(token.address)} ↗</a></strong></div>
+        <div><span>Pool contract / explorer</span><strong><a href={`${network.explorer}/address/${token.poolAddress}`} target="_blank" rel="noreferrer">{short(token.poolAddress)} ↗</a></strong></div>
       </div>
       <p className="token-footnote">Venue and pair identify where this indexed liquidity pool exists. They do not confirm a centralized exchange listing or recommend a trading venue.</p>
     </section>
@@ -180,7 +185,7 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
       <article><span>24H TRANSACTIONS</span><strong>{insights.total.toLocaleString()}</strong><small>{token.buys24h ?? "—"} buys · {token.sells24h ?? "—"} sells</small></article>
       <article><span>BUY SHARE</span><strong>{insights.buyShare == null ? "—" : insights.buyShare + "%"}</strong><small>Share of reported 24h pool transactions</small></article>
       <article><span>VOLUME / LIQUIDITY</span><strong>{insights.volumeLiquidity == null ? "—" : insights.volumeLiquidity.toFixed(2) + "×"}</strong><small>24h volume divided by current pool liquidity</small></article>
-      <article><span>CONTRACT CODE</span><strong>{contract ? (contract.isContract ? "Detected" : "Not found") : "Checking…"}</strong><small>{contract ? `${contract.bytecodeBytes.toLocaleString()} bytecode bytes · source verification not checked` : "X Layer RPC lookup"}</small></article>
+      <article><span>CONTRACT CODE</span><strong>{contract ? (contract.isContract ? "Detected" : "Not found") : "Checking…"}</strong><small>{contract ? `${contract.bytecodeBytes == null ? (contract.accountType ?? "Account found") : contract.bytecodeBytes.toLocaleString() + " bytecode bytes"} · source verification not checked` : "${network.name} RPC account lookup"}</small></article>
     </div>
     <TokenSignalFusion token={token} contract={contract} signals={signals} />
     <section className="token-intel-panel token-chart-panel">
@@ -211,7 +216,7 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
         <div className="token-chart-axis"><span>{new Date(first?.time ? first.time * 1000 : 0).toLocaleString()}</span><span>{new Date(latest?.time ? latest.time * 1000 : 0).toLocaleString()}</span></div>
       </div> : <div className="token-chart-placeholder">Not enough indexed candles are available for this range.</div>}
       <div className="token-chart-legend"><span><i/> Price in USD · OHLC candles</span><span>{candles.length.toLocaleString()} candles · {range}{(range === "1H" || range === "24H") ? ` · ${candleInterval}` : ""}</span><span>Source: GeckoTerminal</span></div>
-      <p className="token-footnote">Historical candles are provider-indexed. The X Layer event stream below is a separate on-chain feed; a raw pool log is not itself a decoded trade or a live USD price tick.</p>
+      <p className="token-footnote">Historical candles are provider-indexed. The live event stream is a separate on-chain feed where a chain WebSocket is connected; raw logs are not automatically decoded into trades.</p>
     </section>
     <section className="token-intel-panel">
       <div className="token-panel-title"><div><span className="changes-kicker">OBSERVED SIGNALS</span><h3>Activity intelligence</h3></div><small>Rule-based observations · no forecasts</small></div>
@@ -219,18 +224,18 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
       <p className="token-footnote">Signals are descriptive thresholds, not proof of manipulation, token quality, or future price movement.</p>
     </section>
     <section className="token-intel-panel">
-      <div className="token-panel-title"><div><span className="changes-kicker">RECENT SWAPS</span><h3>Buy and sell transactions</h3></div><small>{activityUpdated ? `Provider checked ${new Date(activityUpdated).toLocaleTimeString()} · refreshes every 60s` : "Provider-indexed trades"}</small></div>
+      <div className="token-panel-title"><div><span className="changes-kicker">RECENT SWAPS</span><h3>Buy and sell transactions</h3></div><small>{activityUpdated ? `Provider checked ${new Date(activityUpdated).toLocaleTimeString()} · refreshes every 15s` : "Provider-indexed trades"}</small></div>
       {trades.length ? <div className="token-trade-list">{trades.map((trade) => <div className="token-trade-row" key={trade.id + trade.hash}>
         <span className={trade.side.toLowerCase() === "buy" ? "trade-buy" : trade.side.toLowerCase() === "sell" ? "trade-sell" : "trade-event"}>{trade.side.toUpperCase()}</span>
         <span><strong>{money(trade.volumeUsd)}</strong><small>{trade.timestamp ? new Date(trade.timestamp).toLocaleString() : "Time unavailable"}</small></span>
         <span><strong>{short(trade.wallet)}</strong><small>Trader address</small></span>
-        <a href={`https://www.okx.com/web3/explorer/xlayer/tx/${trade.hash}`} target="_blank" rel="noreferrer">Transaction ↗</a>
+        <a href={`${network.explorer}${network.txPath}${trade.hash}`} target="_blank" rel="noreferrer">Transaction ↗</a>
       </div>)}</div> : <p className="token-empty-inline">{error || "No indexed trades returned for this pool."}</p>}
-      <p className="token-footnote">Trade labels and amounts come from the market-data provider. This feed refreshes every 60 seconds; provider data may itself be cached for about one minute. New X Layer blocks arrive over WebSocket, but raw logs are not automatically classified as buys or sells.</p>
+      <p className="token-footnote">Trade labels and amounts come from the market-data provider. This feed refreshes every 15 seconds; provider indexing and caching may delay newly confirmed transactions. The X Layer pool also has a raw WebSocket log stream; other networks use indexed polling until dedicated live subscriptions are connected.</p>
     </section>
     <section className="token-intel-panel">
-      <div className="token-panel-title"><div><span className="changes-kicker">LIVE CHAIN EVENTS</span><h3>New pool logs</h3></div><small>WebSocket · X Layer mainnet</small></div>
-      {events.length ? <div className="token-trade-list">{events.map((event) => <div className="token-trade-row" key={event.hash}><span className="trade-event">ON-CHAIN</span><span><strong>Pool event detected</strong><small>{new Date(event.time).toLocaleTimeString()} · block {Number.parseInt(event.block, 16).toLocaleString()}</small></span><span><strong>{short(event.hash)}</strong><small>Transaction hash</small></span><a href={`https://www.okx.com/web3/explorer/xlayer/tx/${event.hash}`} target="_blank" rel="noreferrer">Inspect ↗</a></div>)}</div> : <p className="token-empty-inline">Waiting for the next event emitted by this pool. The live feed reports raw logs and new block headers; it does not guess buy/sell direction. A DEX-specific swap decoder is required to classify every pool event accurately.</p>}
+      <div className="token-panel-title"><div><span className="changes-kicker">LIVE CHAIN EVENTS</span><h3>New pool logs</h3></div><small>{token.networkKey === "xlayer" ? "WebSocket · X Layer mainnet" : "Provider-indexed · " + network.name}</small></div>
+      {events.length ? <div className="token-trade-list">{events.map((event) => <div className="token-trade-row" key={event.hash}><span className="trade-event">ON-CHAIN</span><span><strong>Pool event detected</strong><small>{new Date(event.time).toLocaleTimeString()} · block {Number.parseInt(event.block, 16).toLocaleString()}</small></span><span><strong>{short(event.hash)}</strong><small>Transaction hash</small></span><a href={`${network.explorer}${network.txPath}${event.hash}`} target="_blank" rel="noreferrer">Inspect ↗</a></div>)}</div> : <p className="token-empty-inline">{token.networkKey === "xlayer" ? "Waiting for the next event emitted by this pool. Raw logs and new block headers are not automatically classified as buys or sells." : "Dedicated raw WebSocket subscriptions are not connected for this network yet. TapeWatch uses indexed trade polling here; no live event stream is claimed."}</p>}
     </section>
     <p className="token-footnote">Contract bytecode presence does not prove that a token is safe, verified, or trustworthy. TapeWatch is an informational monitoring interface.</p>
   </div>;
