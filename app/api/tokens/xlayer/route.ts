@@ -69,7 +69,7 @@ export async function GET(request: Request) {
         : "Tokens appearing in newly indexed X Layer liquidity pools. Browse up to 10 provider pages; this is not a complete list of deployed contracts or exchange listings.",
       search: search || null,
       page,
-      maxPage: MAX_PAGE,
+      maxPage: search ? 1 : MAX_PAGE,
       tokens: [...tokens.values()],
       poolCount: (payload.data ?? []).length,
       checkedAt: new Date().toISOString(),
