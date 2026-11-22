@@ -185,7 +185,7 @@ export default function TokenActivityPanel({ token }: { token: Token }) {
       <article><span>24H TRANSACTIONS</span><strong>{insights.total.toLocaleString()}</strong><small>{token.buys24h ?? "—"} buys · {token.sells24h ?? "—"} sells</small></article>
       <article><span>BUY SHARE</span><strong>{insights.buyShare == null ? "—" : insights.buyShare + "%"}</strong><small>Share of reported 24h pool transactions</small></article>
       <article><span>VOLUME / LIQUIDITY</span><strong>{insights.volumeLiquidity == null ? "—" : insights.volumeLiquidity.toFixed(2) + "×"}</strong><small>24h volume divided by current pool liquidity</small></article>
-      <article><span>ACCOUNT / CODE</span><strong>{contract ? (contract.isContract ? "Detected" : "Not found") : "Checking…"}</strong><small>{contract ? `${contract.bytecodeBytes == null ? (contract.accountType ?? "Account found") : contract.bytecodeBytes.toLocaleString() + " bytecode bytes"} · source verification not checked` : {network.name + " RPC account lookup"}}</small></article>
+      <article><span>ACCOUNT / CODE</span><strong>{contract ? (contract.isContract ? "Detected" : "Not found") : "Checking…"}</strong><small>{contract ? `${contract.bytecodeBytes == null ? (contract.accountType ?? "Account found") : contract.bytecodeBytes.toLocaleString() + " bytecode bytes"} · source verification not checked` : network.name + " RPC account lookup"}</small></article>
     </div>
     <TokenSignalFusion token={token} contract={contract} signals={signals} />
     <section className="token-intel-panel token-chart-panel">
