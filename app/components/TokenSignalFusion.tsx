@@ -32,7 +32,7 @@ export default function TokenSignalFusion({ token, contract, signals }: {
     ...(contract && !contract.isContract ? [{ key: "no-code", title: "No contract bytecode returned", detail: "The RPC lookup did not return deployed bytecode for this address.", severity: "unknown" }] : []),
   ];
   const combined = flags.some((item) => item.key === "turnover") && flags.some((item) => item.key === "mix");
-  const ageHours = token.poolCreatedAt ? (Date.now() - new Date(token.poolCreatedAt).getTime()) / 3_600_000 : null;
+  const ageHours = token.poolCreatedAt ? Math.max(0, (Date.now() - new Date(token.poolCreatedAt).getTime()) / 3_600_000) : null;
   const ageText = ageHours === null || !Number.isFinite(ageHours) ? "Unknown" : ageHours < 24 ? `${Math.max(0, Math.floor(ageHours))}h` : `${Math.floor(ageHours / 24)}d`;
 
   return <section className="token-intel-panel token-signal-fusion">
