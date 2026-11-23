@@ -2,7 +2,7 @@ type IncludedToken = { id?: string; type?: string; attributes?: { address?: stri
 type Pool = {
   id?: string;
   attributes?: {
-    address?: string; name?: string; pool_created_at?: string; base_token_price_usd?: string; reserve_in_usd?: string;
+    address?: string; name?: string; pool_created_at?: string; base_token_price_usd?: string; quote_token_price_usd?: string; reserve_in_usd?: string;
     volume_usd?: { h24?: string }; transactions?: { h24?: { buys?: number; sells?: number } };
     price_change_percentage?: { h24?: string };
   };
@@ -18,6 +18,8 @@ const NETWORKS = {
   solana: { slug: "solana", name: "Solana", chainId: null, family: "solana", explorer: "https://solscan.io", enabled: true },
 } as const;
 const MAX_PAGE = 10;
+const responseCache = new Map<string, { payload: unknown; savedAt: number }>();
+const CACHE_TTL_MS = 45_000;
 export async function GET(request: Request, context: { params: Promise<{ network: string }> }) {
   const { network } = await context.params;
   const config = NETWORKS[network as keyof typeof NETWORKS];
@@ -29,8 +31,19 @@ export async function GET(request: Request, context: { params: Promise<{ network
     const endpoint = search
       ? `${SOURCE}/search/pools?${new URLSearchParams({ query: search, network: config.slug, include: "base_token,quote_token,dex", page: String(page) })}`
       : `${SOURCE}/networks/${config.slug}/new_pools?${new URLSearchParams({ include: "base_token,quote_token,dex", page: String(page) })}`;
-    const response = await fetch(endpoint, { headers: { Accept: "application/json;version=20230203" }, cache: "no-store", signal: AbortSignal.timeout(12000) });
-    if (!response.ok) throw new Error(`GeckoTerminal returned HTTP ${response.status}`);
+    const cacheKey = network + ":" + page + ":" + search.toLowerCase();
+    const cached = responseCache.get(cacheKey);
+    if (cached && Date.now() - cached.savedAt < CACHE_TTL_MS) {
+      return Response.json({ ...(cached.payload as Record<string, unknown>), cacheStatus: "fresh-cache" }, { headers: { "Cache-Control": "private, max-age=20, stale-while-revalidate=60" } });
+    }
+    const response = await fetch(endpoint, { headers: { Accept: "application/json;version=20230203" }, next: { revalidate: 45 }, signal: AbortSignal.timeout(12000) });
+    if (!response.ok) {
+      if (response.status === 429 && cached) {
+        return Response.json({ ...(cached.payload as Record<string, unknown>), cacheStatus: "stale-fallback", warning: "The provider rate-limited this refresh; showing the last successful snapshot." }, { headers: { "Cache-Control": "private, max-age=15, stale-while-revalidate=60" } });
+      }
+      const retryAfter = response.headers.get("retry-after");
+      throw new Error(response.status === 429 ? `GeckoTerminal rate limit reached. Showing cached data where possible; retry in ${retryAfter ?? "about 60"} seconds.` : `GeckoTerminal returned HTTP ${response.status}`);
+    }
     const payload = await response.json() as { data?: Pool[]; included?: IncludedToken[] };
     const included = new Map((payload.included ?? []).filter((item) => item.type === "token" && item.attributes?.address).map((item) => [item.id ?? "", item]));
     const tokens = new Map<string, Record<string, unknown>>();
@@ -55,13 +68,17 @@ export async function GET(request: Request, context: { params: Promise<{ network
           tokens.set(key, {
             address, name: a.name ?? "Unknown token", symbol: a.symbol ?? "—", decimals: a.decimals ?? null,
             imageUrl: a.image_url ?? null, coingeckoId: a.coingecko_coin_id ?? null, role, ...poolDetails,
-            priceChange24h: role === "base" ? (attrs.price_change_percentage?.h24 ?? null) : null,
-            priceUsd: role === "base" ? (attrs.base_token_price_usd ?? null) : null,
+            priceChange24h: role === "base"
+              ? (attrs.price_change_percentage?.h24 ?? null)
+              : attrs.price_change_percentage?.h24 != null && Number(attrs.price_change_percentage.h24) !== -100
+                ? String(((1 / (1 + Number(attrs.price_change_percentage.h24) / 100)) - 1) * 100)
+                : null,
+            priceUsd: role === "base" ? (attrs.base_token_price_usd ?? null) : (attrs.quote_token_price_usd ?? null),
           });
         }
       }
     }
-    return Response.json({
+    const result = {
       ok: true, network: config.name, networkKey: network, chainId: config.chainId, family: config.family,
       explorer: config.explorer, source: "GeckoTerminal", sourceUrl: `https://www.geckoterminal.com/${config.slug}/pools`,
       scope: search
@@ -69,8 +86,17 @@ export async function GET(request: Request, context: { params: Promise<{ network
         : `Tokens appearing in newly indexed ${config.name} liquidity pools. This is not a complete list of deployed contracts or exchange listings.`,
       search: search || null, page, maxPage: search ? 1 : MAX_PAGE, tokens: [...tokens.values()],
       poolCount: (payload.data ?? []).length, checkedAt: new Date().toISOString(),
-    }, { headers: { "Cache-Control": "no-store, max-age=0" } });
+    };
+    responseCache.set(cacheKey, { payload: result, savedAt: Date.now() });
+    return Response.json(result, { headers: { "Cache-Control": "private, max-age=20, stale-while-revalidate=60" } });
   } catch (error) {
-    return Response.json({ ok: false, network: config.name, source: "GeckoTerminal", error: error instanceof Error ? error.message : "Token discovery source is unavailable.", checkedAt: new Date().toISOString() }, { status: 503, headers: { "Cache-Control": "no-store" } });
+    const params = new URL(request.url).searchParams;
+    const page = Math.min(MAX_PAGE, Math.max(1, Number(params.get("page") || 1)));
+    const search = (params.get("search") || "").trim().slice(0, 100);
+    const cached = responseCache.get(network + ":" + page + ":" + search.toLowerCase());
+    if (cached) {
+      return Response.json({ ...(cached.payload as Record<string, unknown>), cacheStatus: "stale-fallback", warning: "The provider is temporarily unavailable; showing the last successful snapshot." }, { headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=60" } });
+    }
+    return Response.json({ ok: false, network: config.name, source: "GeckoTerminal", error: error instanceof Error ? error.message : "Token discovery source is unavailable.", checkedAt: new Date().toISOString() }, { status: 503, headers: { "Cache-Control": "private, max-age=10" } });
   }
 }
