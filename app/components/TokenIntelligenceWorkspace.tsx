@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TokenActivityPanel from "./TokenActivityPanel";
 
 type NetworkKey = "xlayer" | "ethereum" | "bnb" | "solana";
@@ -26,8 +26,11 @@ export default function TokenIntelligenceWorkspace() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Token | null>(null);
   const [lastUpdated, setLastUpdated] = useState("");
+  const refreshBusy = useRef(false);
 
   const refresh = useCallback(async (targetPage: number, query: string) => {
+    if (refreshBusy.current) return;
+    refreshBusy.current = true;
     setRefreshing(true); setError("");
     try {
       const params = new URLSearchParams({ page: String(targetPage) });
@@ -38,12 +41,12 @@ export default function TokenIntelligenceWorkspace() {
       setSnapshot({ ...data, tokens: (data.tokens ?? []).map((token: Token) => ({ ...token, networkKey: network })) }); setLastUpdated(data.checkedAt);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not load token data for the selected network.");
-    } finally { setLoading(false); setRefreshing(false); }
+    } finally { refreshBusy.current = false; setLoading(false); setRefreshing(false); }
   }, [network]);
   useEffect(() => { setPage(1); }, [debouncedSearch, network]);
   useEffect(() => { void refresh(page, debouncedSearch); }, [refresh, page, debouncedSearch]);
   useEffect(() => {
-    const timer = window.setInterval(() => { void refresh(page, debouncedSearch); }, 5_000);
+    const timer = window.setInterval(() => { void refresh(page, debouncedSearch); }, 60_000);
     return () => window.clearInterval(timer);
   }, [refresh, page, debouncedSearch]);
 
@@ -60,7 +63,7 @@ export default function TokenIntelligenceWorkspace() {
           <p className="intro">A multi-chain intelligence workspace, starting with the live X Layer integration.</p>
         </div>
         <div className="token-workspace-actions">
-          <span className="token-auto-refresh" title="TapeWatch checks the selected index every five seconds">AUTO · 5S</span>
+          <span className="token-auto-refresh" title="Token discovery refreshes every 60 seconds to respect the provider rate limit">AUTO · 60S</span>
           <label className="token-network-select"><span>NETWORK</span><select value={network} onChange={(event) => { setNetwork(event.target.value as NetworkKey); setPage(1); setSearch(""); setDebouncedSearch(""); setSnapshot(null); setSelected(null); }} aria-label="Select token network"><option value="xlayer">X Layer</option><option value="ethereum">Ethereum</option><option value="bnb">BNB Chain</option><option value="solana">Solana</option></select></label>
           <button className="secondary-button" type="button" onClick={() => void refresh(page, debouncedSearch)} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh now"}</button>
         </div>
@@ -72,7 +75,7 @@ export default function TokenIntelligenceWorkspace() {
         <div>
           <span className="changes-kicker">DISCOVERY SOURCE · GECKOTERMINAL</span>
           <h2>{networkLabel} token and pool activity</h2>
-          <p>Public market-index data, refreshed automatically. Detection means a token appears in an indexed pool; it does not mean OKX has exchange-listed or endorsed it.</p>
+          <p>Public market-index data, refreshed every 60 seconds to reduce provider rate limits. Detection means a token appears in an indexed pool; it does not mean OKX has exchange-listed or endorsed it.</p>
         </div>
         <a href={"https://www.geckoterminal.com/" + (snapshot?.networkKey === "xlayer" ? "x-layer" : snapshot?.networkKey === "ethereum" ? "eth" : snapshot?.networkKey === "bnb" ? "bsc" : "solana") + "/pools"} target="_blank" rel="noreferrer">Open source ↗</a>
       </section>
