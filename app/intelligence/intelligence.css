@@ -15,3 +15,35 @@
 @media(max-width:1150px){.tw-intel-content{grid-template-columns:minmax(0,1fr) 270px;padding:25px 22px;gap:18px}.tw-intel-sidebar{width:220px}.tw-intel-shell{grid-template-columns:220px minmax(0,1fr)}}
 @media(max-width:850px){.tw-intel-shell{grid-template-columns:1fr}.tw-intel-sidebar{height:auto;position:relative;padding:15px 17px;border-right:0;border-bottom:1px solid var(--line)}.tw-intel-brand{padding:0}.tw-side-label,.tw-side-nav,.tw-sidebar-spacer,.tw-sidebar-status,.tw-settings-link,.tw-profile{display:none}.tw-intel-topbar{padding:0 18px}.tw-intel-content{grid-template-columns:1fr;padding:23px 16px}.tw-intel-rail{border-left:0;border-top:1px solid var(--line);padding:20px 0 0}.tw-chat-frame{min-height:590px}.tw-chat-scroll{max-height:650px}.tw-page-heading{align-items:flex-start;flex-direction:column}.tw-model-chip{display:none}}
 @media(max-width:520px){.tw-intel-topbar{height:56px}.tw-top-actions{gap:0}.tw-secure{display:none}.tw-top-actions button{font-size:9px;padding:8px}.tw-page-heading h1{font-size:27px}.tw-page-heading p{font-size:11px}.tw-welcome{padding:38px 15px}.tw-welcome h2{font-size:30px}.tw-starter-grid{grid-template-columns:1fr}.tw-chat-frame{min-height:610px}.tw-chat-scroll{min-height:460px}.tw-chat-toolbar{padding:0 12px}.tw-messages{padding:18px 12px}.tw-composer{margin:0 10px 12px}.tw-intel-content{padding:18px 11px}.tw-footnote{padding:0 4px}}
+
+
+/* TapeWatch AI — intelligence-core first impression */
+.tw-welcome-core{max-width:760px;padding:20px 30px 32px}
+.tw-core-stage{height:270px;max-width:540px;margin:0 auto 10px;position:relative;display:grid;place-items:center;isolation:isolate;overflow:hidden}
+.tw-core-grid{position:absolute;inset:0;opacity:.2;background-image:linear-gradient(rgba(122,190,212,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(122,190,212,.14) 1px,transparent 1px);background-size:28px 28px;mask-image:radial-gradient(ellipse at center,#000 20%,transparent 74%)}
+.tw-core-ring{position:absolute;width:220px;height:220px;border:1px solid rgba(125,206,226,.24);border-radius:50%;z-index:-1}
+.tw-ring-one{width:255px;height:255px;border-style:dashed;animation:tw-spin 28s linear infinite}
+.tw-ring-two{width:205px;height:205px;border-color:rgba(209,229,239,.24);border-left-color:transparent;border-right-color:transparent;animation:tw-spin 13s linear infinite reverse}
+.tw-ai-face{width:235px;height:235px;position:relative;filter:drop-shadow(0 0 25px rgba(99,201,230,.16));animation:tw-face-float 5s ease-in-out infinite}
+.tw-ai-face svg{width:100%;height:100%;overflow:visible}
+.tw-face-glint{position:absolute;inset:0;background:linear-gradient(115deg,transparent 34%,rgba(196,244,255,.2) 49%,transparent 57%);transform:translateX(-120%);animation:tw-face-scan 7s ease-in-out infinite;pointer-events:none}
+.tw-core-scan{position:absolute;z-index:2;left:12%;right:12%;height:1px;top:48%;background:linear-gradient(90deg,transparent,rgba(128,231,255,.75),transparent);box-shadow:0 0 14px #83eaff;animation:tw-scan-pass 4.8s ease-in-out infinite;pointer-events:none}
+.tw-core-coordinate{position:absolute;text-align:left;font:8px/1.8 'DM Mono',monospace;letter-spacing:1px;color:#7f9baa}
+.tw-core-coordinate:before{content:"";display:inline-block;width:5px;height:5px;background:#8feaff;border-radius:50%;margin-right:6px;box-shadow:0 0 9px #8feaff}
+.coord-left{left:2%;bottom:37px}.coord-right{right:2%;top:36px;text-align:right}
+.tw-core-status{display:flex;align-items:center;justify-content:center;gap:9px;font:8px 'DM Mono',monospace;letter-spacing:1.4px;color:#a3d3e0;margin:0 auto 13px}
+.tw-core-status-line{width:35px;height:1px;background:linear-gradient(90deg,#83d9ef,transparent)}
+.tw-welcome-core .tw-welcome-kicker{color:#9aaab5}
+.tw-welcome-core h2{font-size:42px;line-height:1.05;letter-spacing:-2.1px;margin:12px 0}
+.tw-welcome-core h2 em{color:#a6e8f5;text-shadow:0 0 25px rgba(113,216,241,.2)}
+.tw-welcome-core>p{max-width:510px;font-size:11px;color:#9aa6b0;margin-bottom:25px}
+.tw-core-prompt-label{font:8px 'DM Mono',monospace;letter-spacing:1.5px;color:#71818d;text-align:left;margin:0 0 10px}
+.tw-welcome-core .tw-starter-grid button{background:linear-gradient(130deg,#131b22,#10151a);border-color:#263743;min-height:58px}
+.tw-welcome-core .tw-starter-grid button:hover{border-color:#7bb9c9;box-shadow:0 0 22px rgba(89,190,218,.08)}
+.tw-welcome-core .tw-starter-grid button span{color:#9be4f4}
+.tw-welcome-core .tw-preview-note{border-color:#2b414c;color:#8da5b1;background:rgba(20,39,48,.35)}
+@keyframes tw-face-float{0%,100%{transform:translateY(0) rotate(-.5deg)}50%{transform:translateY(-7px) rotate(.5deg)}}
+@keyframes tw-face-scan{0%,25%{transform:translateX(-120%)}65%,100%{transform:translateX(120%)}}
+@keyframes tw-scan-pass{0%,12%{top:24%;opacity:0}24%{opacity:.9}70%{top:77%;opacity:.65}85%,100%{top:77%;opacity:0}}
+@media(max-width:520px){.tw-welcome-core{padding:12px 12px 25px}.tw-core-stage{height:230px}.tw-ai-face{width:205px;height:205px}.tw-ring-one{width:225px;height:225px}.tw-ring-two{width:185px;height:185px}.tw-welcome-core h2{font-size:35px}.tw-core-coordinate{font-size:7px}.coord-left{left:0}.coord-right{right:0}}
+@media(prefers-reduced-motion:reduce){.tw-ai-face,.tw-ring-one,.tw-ring-two,.tw-face-glint,.tw-core-scan{animation:none!important}}
