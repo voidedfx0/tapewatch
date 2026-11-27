@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import AuthPanel from "../components/AuthPanel";
 import { supabase } from "../../lib/supabase";
 import "./intelligence.css";
 
@@ -31,6 +32,8 @@ export default function IntelligencePage() {
   const [busy, setBusy] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [connected, setConnected] = useState(false);
+  const [authRequest, setAuthRequest] = useState(0);
+  const handleAccessChange = useCallback((next: "visitor" | "authenticated") => setConnected(next === "authenticated"), []);
   const [error, setError] = useState("");
   const [authEmail, setAuthEmail] = useState("");
   const [activity, setActivity] = useState("Ready for investigation");
@@ -133,6 +136,7 @@ export default function IntelligencePage() {
 
   return (
     <main className="tw-intel-shell">
+      <AuthPanel onAccessChange={handleAccessChange} requestAuth={authRequest} showTrigger={false} />
       <aside className="tw-intel-sidebar">
         <Link className="tw-intel-brand" href="/" aria-label="TapeWatch home"><Mark>◉</Mark><span>Tape<span>Watch</span></span></Link>
         <div className="tw-side-label">WORKSPACE</div>
@@ -162,7 +166,7 @@ export default function IntelligencePage() {
       <section className="tw-intel-main">
         <header className="tw-intel-topbar">
           <div><span className="tw-crumb">TapeWatch</span><span className="tw-crumb-sep">/</span><b>AI Intelligence</b></div>
-          <div className="tw-top-actions"><span className="tw-secure"><span /> PRIVATE WORKSPACE</span><button type="button" onClick={() => { setMessages([]); setError(""); setActivity("Ready for investigation"); }}>＋ New investigation</button></div>
+          <div className="tw-top-actions"><span className="tw-secure"><span /> PRIVATE WORKSPACE</span>{!connected && <button type="button" onClick={() => setAuthRequest((value) => value + 1)}>Sign in</button>}<button type="button" onClick={() => { setMessages([]); setError(""); setActivity("Ready for investigation"); }}>＋ New investigation</button></div>
         </header>
 
         <div className="tw-intel-content">
