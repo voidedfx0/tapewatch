@@ -11,10 +11,12 @@ export default function AuthPanel({
   onAccessChange,
   requestAuth = 0,
   showTrigger = true,
+  openOnVisitor = true,
 }: {
   onAccessChange?: (access: Access) => void;
   requestAuth?: number;
   showTrigger?: boolean;
+  openOnVisitor?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("signin");
@@ -27,8 +29,10 @@ export default function AuthPanel({
   useEffect(() => {
     if (!supabase) {
       onAccessChange?.("visitor");
-      setOpen(true);
-      setMessage("Account sign-in is temporarily unavailable. You can still continue as a visitor.");
+      if (openOnVisitor) {
+        setOpen(true);
+        setMessage("Account sign-in is temporarily unavailable. You can still continue as a visitor.");
+      }
       return;
     }
     const refresh = async () => {
@@ -38,7 +42,7 @@ export default function AuthPanel({
         await supabase.auth.signOut();
         setUserEmail(null);
         onAccessChange?.("visitor");
-        setOpen(true);
+        if (openOnVisitor) setOpen(true);
         return;
       }
       setUserEmail(session?.user.email ?? null);
@@ -46,7 +50,7 @@ export default function AuthPanel({
         onAccessChange?.("authenticated");
       } else {
         onAccessChange?.("visitor");
-        setOpen(true);
+        if (openOnVisitor) setOpen(true);
       }
     };
     void refresh();
@@ -56,7 +60,7 @@ export default function AuthPanel({
       onAccessChange?.(signedIn ? "authenticated" : "visitor");
     });
     return () => listener.subscription.unsubscribe();
-  }, [onAccessChange]);
+  }, [onAccessChange, openOnVisitor]);
 
   useEffect(() => {
     if (requestAuth > 0) {
