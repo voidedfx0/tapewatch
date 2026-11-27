@@ -195,15 +195,47 @@ export default function IntelligencePage() {
               <div className="tw-chat-toolbar"><div><span className="tw-orb">✳</span><span><b>Investigation room</b><small>{selectedSite ? selectedSite.url : "Workspace-wide intelligence"}</small></span></div><div className="tw-chat-toolbar-right"><span className="tw-live-dot" /> READY</div></div>
               <div className="tw-chat-scroll">
                 {messages.length === 0 ? (
-                  <div className="tw-welcome">
-                    <div className="tw-welcome-orbit"><span /><i /><b>✳</b></div>
-                    <div className="tw-welcome-kicker">YOUR WEBSITE INTELLIGENCE ANALYST</div>
-                    <h2>What should we<br /><em>investigate?</em></h2>
-                    <p>Ask a question. I'll start with your TapeWatch evidence, connect the relevant signals, and clearly show where the data ends and uncertainty begins.</p>
+                  <div className="tw-welcome tw-welcome-core">
+                    <div className="tw-core-stage">
+                      <div className="tw-core-grid" />
+                      <div className="tw-core-ring tw-ring-one" /><div className="tw-core-ring tw-ring-two" />
+                      <div className="tw-core-scan" />
+                      <div className="tw-ai-face" role="img" aria-label="TapeWatch AI cybernetic intelligence face">
+                        <svg viewBox="0 0 300 270" aria-hidden="true">
+                          <defs>
+                            <linearGradient id="faceMetal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#f0f4f7"/><stop offset=".38" stopColor="#8996a2"/><stop offset=".72" stopColor="#35414d"/><stop offset="1" stopColor="#c8d0d7"/></linearGradient>
+                            <linearGradient id="faceShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#263440"/><stop offset="1" stopColor="#080d12"/></linearGradient>
+                            <filter id="eyeGlow"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                          </defs>
+                          <path d="M150 18 L221 48 L253 111 L238 205 L191 247 L109 247 L62 205 L47 111 L79 48 Z" fill="#101820" stroke="#667887" strokeWidth="2"/>
+                          <path d="M150 28 L210 54 L237 112 L224 193 L187 231 L113 231 L76 193 L63 112 L90 54 Z" fill="url(#faceMetal)" opacity=".95"/>
+                          <path d="M150 36 L205 60 L224 116 L211 187 L183 216 L117 216 L89 187 L76 116 L95 60 Z" fill="url(#faceShade)"/>
+                          <path d="M75 102 L119 87 L143 105 L133 126 L91 132 Z" fill="#182630" stroke="#91a1ad" strokeWidth="2"/>
+                          <path d="M225 102 L181 87 L157 105 L167 126 L209 132 Z" fill="#182630" stroke="#91a1ad" strokeWidth="2"/>
+                          <path d="M91 111 L127 101 L139 111 L126 119 L96 121 Z" fill="#b9f4ff" filter="url(#eyeGlow)"/>
+                          <path d="M209 111 L173 101 L161 111 L174 119 L204 121 Z" fill="#b9f4ff" filter="url(#eyeGlow)"/>
+                          <path d="M150 83 L137 151 L150 167 L163 151 Z" fill="#657786" stroke="#b3c1cb" strokeWidth="1.5"/>
+                          <path d="M116 177 L150 188 L184 177 L175 205 L150 215 L125 205 Z" fill="#121c25" stroke="#8495a2" strokeWidth="2"/>
+                          <path d="M129 190 L150 195 L171 190" fill="none" stroke="#b9f4ff" strokeWidth="2" opacity=".8"/>
+                          <path d="M61 122 L38 139 L47 176 L73 181 M239 122 L262 139 L253 176 L227 181" fill="none" stroke="#8496a4" strokeWidth="5" strokeLinecap="round"/>
+                          <path d="M102 61 L150 46 L198 61 M105 226 L150 241 L195 226" fill="none" stroke="#c2d0d9" strokeWidth="2" opacity=".55"/>
+                          <path d="M150 15 V3 M42 96 H20 M258 96 H280" stroke="#8feaff" strokeWidth="2" opacity=".8"/>
+                          <circle cx="150" cy="15" r="3" fill="#b9f4ff"/><circle cx="20" cy="96" r="3" fill="#b9f4ff"/><circle cx="280" cy="96" r="3" fill="#b9f4ff"/>
+                        </svg>
+                        <span className="tw-face-glint" />
+                      </div>
+                      <div className="tw-core-coordinate coord-left">NODE / 01<br/>SIGNAL ACTIVE</div>
+                      <div className="tw-core-coordinate coord-right">AI CORE<br/>AWAKE</div>
+                    </div>
+                    <div className="tw-core-status"><span className="tw-pulse" /> INTELLIGENCE CORE INITIALIZED <span className="tw-core-status-line" /></div>
+                    <div className="tw-welcome-kicker">YOUR WEBSITE INTELLIGENCE SYSTEM</div>
+                    <h2>Welcome to<br/><em>TapeWatch AI.</em></h2>
+                    <p>I'm your investigative intelligence. I connect website changes, integrity evidence and ecosystem signals—then help you understand what matters.</p>
+                    <div className="tw-core-prompt-label">CHOOSE YOUR FIRST INVESTIGATION</div>
                     <div className="tw-starter-grid">
                       {starters.map((item) => <button key={item.title} type="button" onClick={() => void submitMessage(undefined, item.prompt)}><span>{item.icon}</span><b>{item.title}</b><i>↗</i></button>)}
                     </div>
-                    {!connected && <div className="tw-preview-note">Connect your TapeWatch workspace to let the assistant analyze saved checks, changes and fingerprints.</div>}
+                    {!connected && <div className="tw-preview-note">Sign in when you're ready to connect your private TapeWatch evidence and begin an investigation.</div>}
                   </div>
                 ) : (
                   <div className="tw-messages">
