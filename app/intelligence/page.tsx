@@ -99,6 +99,22 @@ export default function IntelligencePage() {
     event?.preventDefault();
     const text = (preset ?? draft).trim();
     if (!text || busy) return;
+    if (!supabase) {
+      setAuthRequest((value) => value + 1);
+      return;
+    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || session.user.is_anonymous) {
+        setAuthRequest((value) => value + 1);
+        setError("Sign in to start an investigation with your private TapeWatch evidence.");
+        return;
+      }
+    } catch {
+      setError("Could not verify your TapeWatch session. Please sign in again.");
+      setAuthRequest((value) => value + 1);
+      return;
+    }
     const nextMessages: Message[] = [...messages, { role: "user", content: text }];
     setMessages(nextMessages);
     setDraft("");
@@ -113,9 +129,8 @@ export default function IntelligencePage() {
         changes: scopedChanges,
         xLayer: "TapeWatch has read-only X Layer / TapeOut API routes. No fresh chain data is attached to this request; do not invent current block heights, transactions, or circuit counts.",
       };
-      if (!supabase) throw new Error("Your TapeWatch workspace is not connected.");
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session || session.user.is_anonymous) throw new Error("Sign in to TapeWatch to use private workspace intelligence.");
+      if (!session || session.user.is_anonymous) throw new Error("Your TapeWatch session expired. Please sign in again.");
       const response = await fetch("/api/intelligence/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
@@ -136,7 +151,7 @@ export default function IntelligencePage() {
 
   return (
     <main className="tw-intel-shell">
-      <AuthPanel onAccessChange={handleAccessChange} requestAuth={authRequest} showTrigger={false} />
+      <AuthPanel onAccessChange={handleAccessChange} requestAuth={authRequest} showTrigger={false} openOnVisitor={false} />
       <aside className="tw-intel-sidebar">
         <Link className="tw-intel-brand" href="/" aria-label="TapeWatch home"><Mark>◉</Mark><span>Tape<span>Watch</span></span></Link>
         <div className="tw-side-label">WORKSPACE</div>
