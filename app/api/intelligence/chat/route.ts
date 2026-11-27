@@ -33,6 +33,27 @@ INVESTIGATION METHOD
 The assistant is not a substitute for an actual security audit. Do not present a risk score unless the evidence and a documented scoring method exist.`;
 
 export async function POST(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const authorization = request.headers.get("authorization") || "";
+  const accessToken = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+
+  if (!supabaseUrl || !supabaseAnonKey || !accessToken) {
+    return NextResponse.json({ error: "Sign in to TapeWatch before starting an investigation." }, { status: 401 });
+  }
+
+  try {
+    const authResponse = await fetch(supabaseUrl.replace(/\/$/, "") + "/auth/v1/user", {
+      headers: { apikey: supabaseAnonKey, Authorization: "Bearer " + accessToken },
+      cache: "no-store",
+    });
+    if (!authResponse.ok) {
+      return NextResponse.json({ error: "Your TapeWatch session has expired. Sign in again and retry." }, { status: 401 });
+    }
+  } catch {
+    return NextResponse.json({ error: "Could not verify your TapeWatch session." }, { status: 503 });
+  }
+
   const apiKey = process.env.AI_GATEWAY_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
