@@ -768,6 +768,10 @@ export default function Home() {
                 <a className={`nav-item ${activeSection === "circuits" ? "active" : ""}`} href="#circuits" onClick={() => { openSection("circuits"); setMenuOpen(false); }}><Icon name="layers"/> Circuits</a>
                 <a className={`nav-item ${activeSection === "networks" ? "active" : ""}`} href="#networks" onClick={() => { openSection("networks"); setMenuOpen(false); }}><Icon name="globe"/> Networks</a>
               </nav>
+              <div className="nav-popover-divider"/><div className="nav-popover-label">INTELLIGENCE</div>
+              <nav className="nav-list" aria-label="Intelligence navigation">
+                <a className="nav-item" href="/intelligence" onClick={() => setMenuOpen(false)}><Icon name="activity"/> AI Intelligence <span className="nav-count">NEW</span></a>
+              </nav>
               <div className="nav-popover-divider"/><div className="nav-popover-label">MANAGEMENT</div>
               <nav className="nav-list" aria-label="Management navigation">
                 <a className={`nav-item ${activeSection === "alerts" ? "active" : ""}`} href="#alerts" onClick={() => { openSection("alerts"); setMenuOpen(false); }}><Icon name="activity"/> Alerts</a>
