@@ -110,9 +110,12 @@ export default function IntelligencePage() {
         changes: scopedChanges,
         xLayer: "TapeWatch has read-only X Layer / TapeOut API routes. No fresh chain data is attached to this request; do not invent current block heights, transactions, or circuit counts.",
       };
+      if (!supabase) throw new Error("Your TapeWatch workspace is not connected.");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || session.user.is_anonymous) throw new Error("Sign in to TapeWatch to use private workspace intelligence.");
       const response = await fetch("/api/intelligence/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
         body: JSON.stringify({ messages: nextMessages.slice(-12), context }),
       });
       const payload = await response.json().catch(() => ({}));
